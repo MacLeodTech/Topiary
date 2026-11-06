@@ -193,8 +193,10 @@ step_nA10() {
   narrate "as the admin: one vault per team, a generated vault password in each, and a policy to read just that"
   for t in fw sw; do
     run_cmd "bao namespace create -namespace=$ns $t >/dev/null 2>&1 || true; bao secrets enable -namespace=$ns/$t -path=secret kv-v2 >/dev/null 2>&1 || true" || return 1
-    # the first write to a new KV v2 engine can fail for a moment
-    run_cmd "for try in 1 2 3 4 5 6 7 8; do bao kv put -namespace=$ns/$t secret/ansible password=\"\$(openssl rand -base64 18)\" >/dev/null 2>&1 && break; sleep 3; done; bao kv metadata get -namespace=$ns/$t secret/ansible >/dev/null && echo stored" || return 1
+    # A new KV v2 engine answers 400 "Upgrading from non-versioned to versioned data" for a moment (1-2 s alone, longer
+    # when a whole class enables theirs at once; a 15-pod run lost testuser12's A10 to a 24 s budget). Retry the write
+    # and the read-back together for up to 2 minutes.
+    run_cmd "for try in \$(seq 40); do bao kv put -namespace=$ns/$t secret/ansible password=\"\$(openssl rand -base64 18)\" >/dev/null 2>&1 && bao kv metadata get -namespace=$ns/$t secret/ansible >/dev/null 2>&1 && echo stored && break; sleep 3; done | grep -q stored" || return 1
     run_cmd "printf 'path \"secret/data/ansible\" { capabilities = [\"read\"] }\n' | bao policy write -namespace=$ns/$t $t-team -" || return 1
   done
   apply_solution A10 || return 1
@@ -208,7 +210,7 @@ step_nA10() {
     run_cmd "ansible-playbook site.yml --vault-password-file ./vault-pass.sh 2>&1 | tail -n 4"
   done
   narrate "the twist: the firewall team's token is refused by the switch vault"
-  run_cmd "tok=\$(bao token create -namespace=$ns/fw -policy=fw-team -ttl=10m -field=token); cd $NL/labs/5-vault/sw-repo; BAO_TOKEN=\$tok ./vault-pass.sh; echo exit=\$?"
+  run_cmd "tok=\$(bao token create -orphan -namespace=$ns/fw -policy=fw-team -ttl=10m -field=token); cd $NL/labs/5-vault/sw-repo; BAO_TOKEN=\$tok ./vault-pass.sh; echo exit=\$?"
   # branch m: the same secrets, put on the manual nodes (the playbooks aimed at the manual group)
   narrate "branch m: the same repos, aimed at the manual branch"
   for t in fw sw; do

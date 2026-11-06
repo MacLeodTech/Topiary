@@ -77,7 +77,7 @@ What the loop does, for each team `t`:
 | `bao kv put ... password="$(openssl rand -base64 18)"` | store a randomly generated password (nobody, including you, chose it) |
 | `bao policy write ... $t-team -` | a **policy**: this team may only `read` `secret/data/ansible` |
 
-(The first `kv put` on a new engine can fail for a moment: wait a few seconds and run it again.)
+(A new engine is busy for a moment. If `kv put` says `Upgrading from non-versioned to versioned data`, nothing was stored: wait a few seconds and run that line again. It can take up to a minute when the whole class does this at once.)
 
 Now hand out one token per team, as an admin would to a team member:
 
