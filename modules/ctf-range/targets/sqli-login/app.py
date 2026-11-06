@@ -1,4 +1,4 @@
-"""sqli-login — CTF target 0 (plan docs/CTF-WORKSHOP-PLAN.md §7.3, CTF-1
+"""sqli-login — CTF target 0 (plan docs/plans/CTF-WORKSHOP-PLAN.md §7.3, CTF-1
 "Access and identity"). The warm-up: a login form whose query is built by
 plain string formatting, so the classic auth-bypass payload
 (`' OR '1'='1' -- `) logs in as `admin` without knowing the password.

@@ -1,4 +1,4 @@
-"""leaky-config — CTF target 5 (plan docs/CTF-WORKSHOP-PLAN.md §7.3, CTF-3
+"""leaky-config — CTF target 5 (plan docs/plans/CTF-WORKSHOP-PLAN.md §7.3, CTF-3
 "Secrets and misconfiguration", OWASP A05 Security Misconfiguration). An
 "ops dashboard" whose static-file route was wired to serve a whole
 directory, including files nobody meant to publish: a verbose debug log and

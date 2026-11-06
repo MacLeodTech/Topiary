@@ -10,7 +10,7 @@
 # proves the mechanism live: `defend-pr.yml` (target 14, CTF-5) runs on
 # `pull_request` with `secrets.CTF_FLAG` injected and is live-verified
 # end-to-end (CTF-WORKSHOP-PLAN.md's checkpoint, S6) -- that settles the
-# open spike here too (docs/CTF-SPIKES.md's runner-escape bullet): this
+# open spike here too (docs/plans/CTF-SPIKES.md's runner-escape bullet): this
 # target never needs `pull_request_target` (whose reliability T0.3 left
 # inconclusive, docs/archive/REMEDIATION-PLAN.md), only plain `pull_request`,
 # already proven.

@@ -1,4 +1,4 @@
-"""api-bfla — CTF target 13 (plan docs/CTF-WORKSHOP-PLAN.md §7.3, CTF-2
+"""api-bfla — CTF target 13 (plan docs/plans/CTF-WORKSHOP-PLAN.md §7.3, CTF-2
 "Server-side trust and APIs", API-only — OWASP API Security Top 10
 API5:2023 Broken Function Level Authorization). A valid, ordinary
 student-scoped token can call `POST /admin/reset-all` because the route

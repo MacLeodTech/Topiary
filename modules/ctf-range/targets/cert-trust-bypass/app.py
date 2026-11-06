@@ -1,4 +1,4 @@
-"""cert-trust-bypass — CTF target 3 (plan docs/CTF-WORKSHOP-PLAN.md §7.3,
+"""cert-trust-bypass — CTF target 3 (plan docs/plans/CTF-WORKSHOP-PLAN.md §7.3,
 CTF-1 "Access and identity", ties `cert-autorenewal`). An internal API that's
 *meant* to require a trusted client certificate but only checks that the
 presented PEM parses as a well-formed X.509 certificate and reads its

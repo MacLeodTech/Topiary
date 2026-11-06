@@ -4,7 +4,7 @@
  * see ctf-host/Dockerfile's `dns-resolver-cve-agent-build` stage), so this
  * really is the libc whose stub resolver carries CVE-2022-30295 (predictable
  * monotonically-increasing DNS transaction IDs). Empirically confirmed on
- * 2026-10-06 (docs/CTF-SPIKES.md "Target 6" addendum): 20 consecutive
+ * 2026-10-06 (docs/plans/CTF-SPIKES.md "Target 6" addendum): 20 consecutive
  * getaddrinfo() calls emitted TXIDs 2, 3, 4, ..., 21 — strictly +1 each query.
  *
  * The agent is a long-running checker: every CHECKIN_SECONDS it resolves

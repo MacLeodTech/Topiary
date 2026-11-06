@@ -1,6 +1,6 @@
 # CTF-2: Server-side Trust and APIs
 
-The second session in the CTF series (`docs/CTF-WORKSHOP-PLAN.md`): four medium/hard-tier, self-contained
+The second session in the CTF series (`docs/plans/CTF-WORKSHOP-PLAN.md`): four medium/hard-tier, self-contained
 attack targets from the `ctf-range` module's ladder, grouped by how the exploit works: the server
 trusting input or the caller a little too much. See the plan's section 8 for how this session fits with
 CTF-1 and CTF-3 through CTF-5.

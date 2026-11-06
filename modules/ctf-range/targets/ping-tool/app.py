@@ -1,4 +1,4 @@
-"""ping-tool — CTF target 4 (plan docs/CTF-WORKSHOP-PLAN.md §7.3, CTF-2
+"""ping-tool — CTF target 4 (plan docs/plans/CTF-WORKSHOP-PLAN.md §7.3, CTF-2
 "Server-side trust and APIs"). A "network diagnostics" page that shells out
 with the submitted host pasted straight into the command line — classic OS
 command injection, foothold = arbitrary code execution as the app's own

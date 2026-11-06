@@ -44,7 +44,7 @@ This target deliberately never uses `pull_request_target` — T0.3 left its
 reliability on this pinned Forgejo version inconclusive and it was never
 resettled; `pull_request` alone is sufficient for this foothold and is
 already proven (both here and by `defend-pr.yml`), so `runner-escape`
-doesn't carry that open risk (`docs/CTF-SPIKES.md`).
+doesn't carry that open risk (`docs/plans/CTF-SPIKES.md`).
 
 ## Escalation (expected to fail — that's the lesson)
 

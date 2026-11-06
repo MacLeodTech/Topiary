@@ -81,7 +81,7 @@ services:
   # registry: the in-lab image registry a redeploy pulls from and ctf-builder
   # pushes to (spike S6). internal-only, on ctf_ops ONLY — not ctf_net, not
   # workshop_lab, no published port, so it is unreachable from students or the
-  # internet (confirmed live; see docs/CTF-SPIKES.md S6). No auth: the only
+  # internet (confirmed live; see docs/plans/CTF-SPIKES.md S6). No auth: the only
   # two things that can ever reach it are ctf-host's dockerd (the pull side,
   # for a redeploy) and ctf-builder (the push side), both on ctf_ops, and
   # neither is student-reachable.

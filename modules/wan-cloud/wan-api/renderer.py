@@ -2,7 +2,7 @@
 
     render(store, device_id) -> str
 
-`store` is the per-org JSON store (docs/SRX-MIST-PLAN.md 10.5). Nothing here is a real
+`store` is the per-org JSON store (docs/plans/SRX-MIST-PLAN.md 10.5). Nothing here is a real
 Junos commit: it is a readable, deterministic approximation so students can see what
 their Terraform produces. It never raises; odd input becomes a `# skipped: ...` line.
 

@@ -209,7 +209,7 @@ import_target() {
 import_target
 
 # Import the vendored-Flask base for ctf-builder's offline rebuild (offline).
-# See ctf-host/Dockerfile's portal-deps stage and docs/CTF-SPIKES.md S6
+# See ctf-host/Dockerfile's portal-deps stage and docs/plans/CTF-SPIKES.md S6
 # "Scoped" (2026-10-05): targets/customer-portal/Dockerfile now FROMs this tag
 # instead of installing Flask itself, so it has to already be in the inner
 # dockerd's image store before ctf-builder's rebuild runs.

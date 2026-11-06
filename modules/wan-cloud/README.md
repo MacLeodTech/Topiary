@@ -5,7 +5,7 @@ Simulated Juniper Mist API ("Dojo WAN") plus Terraform and the Juniper/mist prov
 **Dojo WAN**: a simulated Mist cloud for gateway (SRX) labs. `wan-api` answers as `api.mist.com` on the lab
 network, so students write the real `host = "api.mist.com"` and use HashiCorp Terraform with the `juniper/mist`
 provider. Each student has one org. Nothing real is touched. Add it with `MODULES="wan-cloud"` in a
-`workshop.env`. The design is in `docs/SRX-MIST-PLAN.md`.
+`workshop.env`. The design is in `docs/plans/SRX-MIST-PLAN.md`.
 
 | Part | What it does |
 |---|---|

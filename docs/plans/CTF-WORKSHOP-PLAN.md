@@ -5,7 +5,7 @@ attack-ladder targets, all five session packs, the CTF-5 defend tooling, the thr
 of shame, scoring, the one-page SOC, the student SIEM view and all four attack packs' demo bots are in `main`; the
 bonus second flaw was dropped by the redesign, not shipped. The only CTF work not in `main` is the branch below.
 
-**What is actually left** (the short list; [`ROADMAP.md`](../ROADMAP.md) is authoritative, and "Open, in order"
+**What is actually left** (the short list; [`ROADMAP.md`](../../ROADMAP.md) is authoritative, and "Open, in order"
 below has the detail):
 
 | Open | Who can do it |
@@ -14,7 +14,7 @@ below has the detail):
 | The Target Viewer card as a student, in a browser | A browser pass |
 | `git-secrets` as a fourth defend target | Only if a rotation mechanism proves out (stretch) |
 
-What was built and how it was verified is in [`RELEASES.md`](../RELEASES.md) ("CTF range build log", "CTF wrapup",
+What was built and how it was verified is in [`RELEASES.md`](../../RELEASES.md) ("CTF range build log", "CTF wrapup",
 "Live checks"). The spike answers and the decisions log (CTF-S1..S17, CTF-D1..D27) are in
 [`CTF-SPIKES.md`](CTF-SPIKES.md), a companion file to this one.
 Sections 1-13 below are the design; where the build deviated from them, the section carries a note.
@@ -405,7 +405,7 @@ Everything below shipped. At the time of writing, `git status` on `feat/ctf-wrap
   freshly-seeded (fixed) repo -- 10 steps, no network call, `Successfully built`/`Successfully tagged`, then the
   same build+push through `ctf-builder`'s own HTTP listener succeeded end to end
   (`registry:5000/ctf-customer-portal:student01-customer-portal`), zero errors logged. `ctf-builder`'s 30 unit
-  tests still pass. `docs/CTF-SPIKES.md` has a correction note under the original (now-wrong) Run D entry.
+  tests still pass. `docs/plans/CTF-SPIKES.md` has a correction note under the original (now-wrong) Run D entry.
 - **`ctf-secrets-config`'s `openbao-server` audit race, closed, with an honest caveat (2026-10-15):** root cause
   confirmed: `config.hcl` declares the file audit device statically, so OpenBao enables it at boot, before this
   single-node raft cluster finishes electing itself leader (storage is read-only until then); any request landing

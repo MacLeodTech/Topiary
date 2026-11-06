@@ -1,4 +1,4 @@
-"""policy-bypass — CTF target 9 (plan docs/CTF-WORKSHOP-PLAN.md §7.3, CTF-4
+"""policy-bypass — CTF target 9 (plan docs/plans/CTF-WORKSHOP-PLAN.md §7.3, CTF-4
 "Trusting the wrong thing", ties `cloud-policy-as-code`). A12/A04-style
 "insecure design": there is no bug to find in how the rule is evaluated —
 `policy_engine.py` (vendored verbatim from `modules/dojo-cloud/cloud-api/`,

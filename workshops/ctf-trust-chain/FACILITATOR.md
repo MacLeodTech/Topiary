@@ -6,7 +6,7 @@ what to do when something breaks.
 
 **Honest status:** both targets (`dns-resolver-cve`, `policy-bypass`) were already built and
 live-verified against the real gateway/firewall/`ctf-controller` path on the range's shared full-catalog
-test harness (`docs/CTF-WORKSHOP-PLAN.md`'s checkpoint) and `ctf-host`'s `ctf-host-ctf4` stage already
+test harness (`docs/plans/CTF-WORKSHOP-PLAN.md`'s checkpoint) and `ctf-host`'s `ctf-host-ctf4` stage already
 exists. What's new and unproven here is this pack's own content and `CTF_HOST_BUILD_TARGET=ctf-host-ctf4`
 scoping as a standalone pack. Do the rehearsal below before a room.
 

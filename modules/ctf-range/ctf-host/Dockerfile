@@ -45,7 +45,7 @@ RUN chmod +x /app/entrypoint.sh \
 # that gets imported into the inner daemon at start as
 # topiary/ctf-customer-portal-base:pinned, which
 # targets/customer-portal/Dockerfile now FROMs instead of installing Flask
-# itself — see docs/CTF-SPIKES.md S6 "Scoped" (2026-10-05).
+# itself — see docs/plans/CTF-SPIKES.md S6 "Scoped" (2026-10-05).
 FROM docker.io/library/python:3.14-slim@sha256:a2b82f3c48559aa0a8446d9af49826b6e2b2016f4cd2afabfe6013ec53729170 AS portal-deps
 COPY targets/customer-portal/requirements.txt /app/requirements.txt
 RUN pip install --no-cache-dir -r /app/requirements.txt
@@ -146,7 +146,7 @@ RUN useradd --uid 10025 --no-create-home --home-dir /app --shell /usr/sbin/nolog
 # components", ties dns-as-code; plan §7.3 row 6). CVE-2022-30295: uClibc /
 # uClibc-ng ≤ 1.0.40's stub resolver assigns monotonically-increasing DNS
 # transaction IDs — settled empirically on 2026-10-06 against the pinned
-# toolchain below (docs/CTF-SPIKES.md "Target 6" addendum; TXIDs ran
+# toolchain below (docs/plans/CTF-SPIKES.md "Target 6" addendum; TXIDs ran
 # 2,3,4,...,21 strictly +1 across 20 getaddrinfo calls; source ports were
 # kernel-ephemeral, not static as earlier writeups claimed).
 #

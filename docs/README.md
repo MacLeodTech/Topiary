@@ -52,7 +52,7 @@ stay as the detailed references; these pages organise the whole picture and link
 | `workshops/<name>/README.md`, `FACILITATOR.md` | Per-workshop technical reference and run-of-show |
 | [`ROADMAP.md`](../ROADMAP.md), [`RELEASES.md`](../RELEASES.md) | Open work, and what shipped |
 | [`archive/`](archive/) | Frozen design plans and decision logs (modules, tofu-basics, vault, remediation, student reset). Read for the reasoning, never update |
-| [`CTF-WORKSHOP-PLAN.md`](CTF-WORKSHOP-PLAN.md), [`CTF-SPIKES.md`](CTF-SPIKES.md), [`CLOUD-POLICY-AS-CODE-PLAN.md`](CLOUD-POLICY-AS-CODE-PLAN.md) | Live design plans for the CTF series and the policy workshop |
+| [`plans/CTF-WORKSHOP-PLAN.md`](plans/CTF-WORKSHOP-PLAN.md), [`plans/CTF-SPIKES.md`](plans/CTF-SPIKES.md), [`plans/CLOUD-POLICY-AS-CODE-PLAN.md`](plans/CLOUD-POLICY-AS-CODE-PLAN.md) | Live design plans for the CTF series and the policy workshop |
 
 ## Conventions used in these pages
 

@@ -124,7 +124,7 @@ All three run on `workshop_lab` services the terminal can already reach; none be
   `CTF_FLAG` with its own challenge tag — every other target ignores it, only `git-secrets` reads it, and the
   provisioning hook recomputes the identical value independently (same two-copies idiom as every flag render in
   this range), so the target container still never holds `STUDENT_PASSWORD_SEED`. Live-verified end to end
-  (`docs/CTF-WORKSHOP-PLAN.md`'s checkpoint has the detail).
+  (`docs/plans/CTF-WORKSHOP-PLAN.md`'s checkpoint has the detail).
 - `runner-escape` (built 2026-10-06): `runner-pool` already gives single-use runners with a per-job user and PID
   namespace, and "expected to fail" needs no new image, only a seed repo and workflow. Built exactly that way:
   `workshops/ctf-defend-test/compose/terminal/start.d/96-runner-escape.sh` seeds each student a `<user>/ci-pipeline`
@@ -143,7 +143,7 @@ All three run on `workshop_lab` services the terminal can already reach; none be
   `drwx------`/unreadable, and only its own process tree under `ps aux`. Zero controller/ctf-flags/engine code;
   new files are the hook, the target `README.md` + `exploit/solve.py`, plus one line in the pack terminal
   Dockerfile. Live-verified end to end, both students, distinct flags, `dojo-flag submit` accept + cross-student
-  reject — `docs/CTF-WORKSHOP-PLAN.md`'s checkpoint has the full detail. Concurrency is still capped (`RUNNER_MAX`,
+  reject — `docs/plans/CTF-WORKSHOP-PLAN.md`'s checkpoint has the full detail. Concurrency is still capped (`RUNNER_MAX`,
   default `ceil(STUDENT_COUNT/3)`), so 40 students share about 14 runners; that class-size risk belongs in CTF-P4.
 - `tfstate-treasure` (built 2026-10-06): the sketch above (a credential under the student's own `students/<user>`
   namespace) wasn't what got built, once it was clear the student already has `sudo` there by `vault-fundamentals`'

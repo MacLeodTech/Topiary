@@ -2,7 +2,7 @@
 
 Starts wan-api on high ports with a temp CA and data dir, puts a tiny CONNECT proxy in front (the provider only
 accepts the real Mist hostnames, so MIST_PROXY sends `api.mist.com:443` to the test server) and runs the real
-`terraform` over a config that covers every resource of docs/SRX-MIST-PLAN.md section 4, with updates, an empty
+`terraform` over a config that covers every resource of docs/plans/SRX-MIST-PLAN.md section 4, with updates, an empty
 second plan, drift, import and destroy, then the `http` state backend with locking.
 
 Needs a terraform binary and a plugin dir holding juniper/mist 0.11.0 (a filesystem mirror layout); skips without them.

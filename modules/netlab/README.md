@@ -4,7 +4,7 @@ Per-student practice networks for learning Ansible: a pc, a VLAN switch, a Linux
 twice (one branch configured by hand, one by playbooks), all on internal-only networks.
 
 Add it with `MODULES="netlab"` in a `workshop.env`, and keep `STUDENT_COUNT` at or below `NETLAB_MAX_STUDENTS` (15).
-The design, spike results and the lab path are in `NETLAB-PLAN.md` at the repo root.
+The design, spike results and the lab path are in `docs/plans/NETLAB-PLAN.md` at the repo root.
 
 | Part | What it does |
 |---|---|

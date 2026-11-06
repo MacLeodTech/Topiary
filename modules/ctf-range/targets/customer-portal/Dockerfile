@@ -8,7 +8,7 @@
 # Dockerfile inside ctf-host's inner, air-gapped dockerd (CTF-D24, no PyPI
 # route at lab runtime). What has to stay in sync with this file's
 # requirements.txt is NOT a digest here but ctf-host/Dockerfile's
-# `portal-deps` stage — bump both together. See docs/CTF-SPIKES.md S6
+# `portal-deps` stage — bump both together. See docs/plans/CTF-SPIKES.md S6
 # "Scoped" (2026-10-05).
 #
 # ONE stage only, deliberately (found live 2026-10-15, CTF-D27): ctf-host's

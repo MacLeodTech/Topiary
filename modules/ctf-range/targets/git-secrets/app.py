@@ -1,4 +1,4 @@
-"""git-secrets — CTF target 8 (plan docs/CTF-WORKSHOP-PLAN.md §7.3, CTF-3
+"""git-secrets — CTF target 8 (plan docs/plans/CTF-WORKSHOP-PLAN.md §7.3, CTF-3
 "Secrets and misconfiguration", ties `git-fundamentals`). Unlike every other
 attack-ladder target, there is NO bug in this app at all -- the token check
 below is correct. The whole foothold lives outside `ctf_net` entirely, in a

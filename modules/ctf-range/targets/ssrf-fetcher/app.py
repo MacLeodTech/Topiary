@@ -1,4 +1,4 @@
-"""ssrf-fetcher — CTF target 7 (plan docs/CTF-WORKSHOP-PLAN.md §7.3, CTF-2
+"""ssrf-fetcher — CTF target 7 (plan docs/plans/CTF-WORKSHOP-PLAN.md §7.3, CTF-2
 "Server-side trust and APIs"). A "preview this URL" feature fetches
 server-side with no allow-list at all, so it can be pointed at an
 internal-only admin endpoint instead of the public internet — classic SSRF.

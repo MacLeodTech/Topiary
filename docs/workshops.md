@@ -220,7 +220,7 @@ How it behaves:
   and `ctf-controller` redeploys the slot in place. A SOC feed and a "wall of shame" show the room's state.
   `ctf-defend` is the only pack that exercises this loop (target 14 is defend-only).
 - **Status**: the CTF series is newer than the main path; check each pack's `FACILITATOR.md` "Honest status" and
-  [`CTF-WORKSHOP-PLAN.md`](CTF-WORKSHOP-PLAN.md) before a live room.
+  [`plans/CTF-WORKSHOP-PLAN.md`](plans/CTF-WORKSHOP-PLAN.md) before a live room.
 
 ## Common to all packs
 

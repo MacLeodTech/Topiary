@@ -12,7 +12,7 @@
 #
 # wan-api answers as api.mist.com (a network alias) because the Mist provider only
 # accepts the real Mist hostnames. Nothing here has internet, so the name can only
-# ever reach this service. See docs/SRX-MIST-PLAN.md.
+# ever reach this service. See docs/plans/SRX-MIST-PLAN.md.
 #
 # Start-up is not chained on health: the terminals come up even if wan-api is slow
 # or broken; wan-api answers /readyz and the facilitator's status strip shows it.

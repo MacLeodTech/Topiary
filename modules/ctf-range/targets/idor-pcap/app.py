@@ -1,4 +1,4 @@
-"""idor-pcap — CTF target 1 (plan docs/CTF-WORKSHOP-PLAN.md §7.3, CTF-1
+"""idor-pcap — CTF target 1 (plan docs/plans/CTF-WORKSHOP-PLAN.md §7.3, CTF-1
 "Access and identity"). A "support ticket archive" that serves numbered
 packet captures with NO ownership check — any signed-in-feeling visitor can
 download any `/data/<n>` regardless of whose ticket it is (classic IDOR,

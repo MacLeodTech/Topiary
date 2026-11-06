@@ -18,7 +18,7 @@ one lookup knows the next TXID will be the previous one + 1 and can land a
 single spoofed reply that redirects the lookup — the classic "the resolver
 itself is an attack surface" lesson.
 
-**Settled empirically on 2026-10-06** (see `docs/CTF-SPIKES.md`'s "Target 6"
+**Settled empirically on 2026-10-06** (see `docs/plans/CTF-SPIKES.md`'s "Target 6"
 addendum). A tiny static agent cross-compiled with the pinned Bootlin
 `x86-64--uclibc--stable-2021.11-5` toolchain (uClibc-ng 1.0.39, confirmed
 from `summary.csv`) ran against a logging UDP :53 answerer inside a rootless

@@ -1,6 +1,6 @@
 # srx-terraform: SRX with Terraform and Mist
 
-A ~2¾ hour technology-track session: build a greenfield Juniper SRX estate managed from Mist, with HashiCorp Terraform and the real `Juniper/mist` provider (0.11.0). Students work against **Dojo WAN**, a simulator that answers as `api.mist.com`. Design and decisions: [`docs/SRX-MIST-PLAN.md`](../../docs/SRX-MIST-PLAN.md).
+A ~2¾ hour technology-track session: build a greenfield Juniper SRX estate managed from Mist, with HashiCorp Terraform and the real `Juniper/mist` provider (0.11.0). Students work against **Dojo WAN**, a simulator that answers as `api.mist.com`. Design and decisions: [`docs/plans/SRX-MIST-PLAN.md`](../../docs/plans/SRX-MIST-PLAN.md).
 
 ```sh
 ./dojo srx-terraform

@@ -1,11 +1,11 @@
-"""dns-resolver-cve — CTF target 6 (plan docs/CTF-WORKSHOP-PLAN.md §7.3,
+"""dns-resolver-cve — CTF target 6 (plan docs/plans/CTF-WORKSHOP-PLAN.md §7.3,
 CTF-3 "Vulnerable and outdated components", ties `dns-as-code`). The real
 flaw is CVE-2022-30295 in uClibc / uClibc-ng ≤ 1.0.40: the stub resolver
 assigns monotonically increasing DNS transaction IDs, so an attacker who
 observes one lookup can predict the next and land a single spoofed reply
 that steers the agent to an address of their choosing. Confirmed empirically
 on 2026-10-06 against the pinned Bootlin x86-64--uclibc--stable-2021.11-5
-toolchain's uClibc-ng 1.0.39 (docs/CTF-SPIKES.md "Target 6" addendum): 20
+toolchain's uClibc-ng 1.0.39 (docs/plans/CTF-SPIKES.md "Target 6" addendum): 20
 getaddrinfo calls emitted TXIDs 2,3,4,...,21 — strictly +1 each query.
 Source ports are kernel-ephemeral, not static as some writeups and the
 earlier plan draft claimed — the lab exposes this honestly in /observations.

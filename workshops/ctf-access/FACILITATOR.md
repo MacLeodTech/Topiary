@@ -7,7 +7,7 @@ what to do when something breaks.
 **Honest status:** built on `feat/zellij-terminal`, not yet live-verified as its own pack. The four
 targets themselves (`sqli-login`, `weak-auth-portal`, `idor-pcap`, `cert-trust-bypass`) were already
 built and live-verified against the real gateway/firewall/`ctf-controller` path on the shared
-range's shared full-catalog image (`docs/CTF-WORKSHOP-PLAN.md`'s checkpoint). What's new and unproven here
+range's shared full-catalog image (`docs/plans/CTF-WORKSHOP-PLAN.md`'s checkpoint). What's new and unproven here
 is this pack's own `CTF_HOST_BUILD_TARGET=ctf-host-ctf1` scoping and its content. Do the rehearsal below
 before a room.
 

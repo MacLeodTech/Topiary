@@ -25,7 +25,7 @@ one workshop can use live in [`../modules/`](../modules/).
 | 104 | [`ctf-defend/`](ctf-defend/)                     | CTF-5: the one session where students patch instead of attack -- find a live SQL-injection incident in your own app, fix it, ship it through a PR a CI gate re-tests, watch the redeploy                                                                                                                                           | `ctf-range`, `runner-pool`                                  | `./dojo ctf-defend`           |
 
 The CTF series (100-104) is a separate five-session track, not part of the numbered 0-6 learning path below
--- see `docs/CTF-WORKSHOP-PLAN.md` for how the five sessions relate to each other and to the numbered
+-- see `docs/plans/CTF-WORKSHOP-PLAN.md` for how the five sessions relate to each other and to the numbered
 workshops (`ctf-secrets-config`'s `tfstate-treasure` target ties `tofu-basics` + `vault-fundamentals`;
 `ctf-secrets-config`'s `git-secrets` target ties `git-fundamentals`).
 

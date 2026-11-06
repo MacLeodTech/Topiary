@@ -1,6 +1,6 @@
 # CTF-5: Defend
 
-The fifth and final session in the CTF series (`docs/CTF-WORKSHOP-PLAN.md`): a live incident on the
+The fifth and final session in the CTF series (`docs/plans/CTF-WORKSHOP-PLAN.md`): a live incident on the
 student's own app, defended with a PR, a CI gate and a redeploy. It is the only session where students patch
 instead of attack. See the plan's section 8 for how this session fits with CTF-1 through CTF-4.
 
@@ -78,7 +78,7 @@ the controller's `GET /schedule`.
 ## Status
 
 The range, target 14, its SAST stage, the defend pipeline and the attacker-bot swarm/SOC feed are built
-and documented in `docs/CTF-WORKSHOP-PLAN.md`/`RELEASES.md`. This pack's own content (this file,
+and documented in `docs/plans/CTF-WORKSHOP-PLAN.md`/`RELEASES.md`. This pack's own content (this file,
 `FACILITATOR.md`, the deck, the cheat sheet) was written during a content audit of the whole CTF series
 and has not yet had its own live rehearsal in a room. `./dojo ctf-defend --dry-run` has been run, but no
 live stack start. Rehearse before a class (see `FACILITATOR.md`).

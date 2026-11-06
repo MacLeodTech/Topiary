@@ -1,7 +1,7 @@
 # ctf-defend pilot checklist (2-3 people)
 
 One-page runbook for tuning the three-target defend lab before a class. Settings are in
-`workshops/ctf-defend/workshop.env`; the design is in `docs/CTF-WORKSHOP-PLAN.md` (8.13).
+`workshops/ctf-defend/workshop.env`; the design is in `docs/plans/CTF-WORKSHOP-PLAN.md` (8.13).
 
 ## Set up
 

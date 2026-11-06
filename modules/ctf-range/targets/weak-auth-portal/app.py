@@ -1,4 +1,4 @@
-"""weak-auth-portal — CTF target 2 (plan docs/CTF-WORKSHOP-PLAN.md §7.3,
+"""weak-auth-portal — CTF target 2 (plan docs/plans/CTF-WORKSHOP-PLAN.md §7.3,
 CTF-1 "Access and identity"). A login portal with no attempt limiting
 (flavor-only; nothing here brute-forces a password) and a password-reset
 token that is deterministically derivable from PUBLIC information — the

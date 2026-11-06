@@ -1,4 +1,4 @@
-"""Three-target mode for attacker-bot (ctf-defend redesign; docs/CTF-WORKSHOP-PLAN.md 8.13).
+"""Three-target mode for attacker-bot (ctf-defend redesign; docs/plans/CTF-WORKSHOP-PLAN.md 8.13).
 
 Active only when CTF_DEFEND_TARGETS lists several targets. After the facilitator's Start each student
 thread fetches its own schedule row from ctf-controller (`GET /schedule?user=`, Bearer

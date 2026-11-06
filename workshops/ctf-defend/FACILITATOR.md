@@ -5,7 +5,7 @@ speaker notes carry the talking points. This guide is the practical part: before
 what to do when something breaks.
 
 **Honest status:** the range, the three defend targets, the checker and the defend pipeline, the
-attacker-bot swarm and SOC feed are built (the three-target conversion has not had a live class run yet) (see `docs/CTF-WORKSHOP-PLAN.md`, `RELEASES.md`). This
+attacker-bot swarm and SOC feed are built (the three-target conversion has not had a live class run yet) (see `docs/plans/CTF-WORKSHOP-PLAN.md`, `RELEASES.md`). This
 pack's own content (this guide, the deck, the cheat sheet) was finished alongside a content audit of
 the whole CTF series and has not yet had its own live rehearsal in a room. Do the rehearsal below before
 a class.

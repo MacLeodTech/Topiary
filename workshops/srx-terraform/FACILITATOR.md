@@ -57,7 +57,7 @@ Keep the order. Nobody destroys anything: every lab builds on the last.
 - The **Junos config is a preview**, not a real commit, and the role model follows Mist's documentation as the simulator reads it. Say so in the room.
 - `dojo check` is provided by this pack (`compose/terminal/srx-check`). If the achievements module is added later, its `check` link and this one collide: fold these checks into the achievements catalog instead.
 - The token is never moved to a secrets manager in this version (Lab 7 explains it; it does not do it). The plan's `openbao` step and the runner-pool `plan on pull request` are future work.
-- The state name `srx-estate` and the checks' wording follow the simulator contract (`docs/SRX-MIST-PLAN.md` section 10). Changing the state path means editing Lab 7, `srx-check` and `stages/lab7`.
+- The state name `srx-estate` and the checks' wording follow the simulator contract (`docs/plans/SRX-MIST-PLAN.md` section 10). Changing the state path means editing Lab 7, `srx-check` and `stages/lab7`.
 - If you change a lab's HCL, the end-of-lab files in `content/stages/` must change with it (they are what `dojo prep` and the bots use). They were cut from the lab pages.
 
 ## After the session

@@ -117,8 +117,8 @@ bots uses `--test [N] --fast` and waits on the `~/.dojo-bot-done` markers. When 
   roadmap and add a release line.
 - Frozen plans in `docs/archive/` (modules M1-M11, tofu-basics S1-S39, vault D1-D18, remediation R1-R10, student reset)
   are for reading the decisions; never update them. New tasks go in the roadmap.
-- Live plans: `CTF-WORKSHOP-PLAN.md` and `CTF-SPIKES.md` (decisions CTF-D1..D26, spikes CTF-S1..S17) and
-  `CLOUD-POLICY-AS-CODE-PLAN.md`.
+- Live plans: `plans/CTF-WORKSHOP-PLAN.md` and `plans/CTF-SPIKES.md` (decisions CTF-D1..D26, spikes CTF-S1..S17) and
+  `plans/CLOUD-POLICY-AS-CODE-PLAN.md`.
 
 ## 7. Keeping the docs current
 

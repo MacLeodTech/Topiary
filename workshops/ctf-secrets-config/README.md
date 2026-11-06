@@ -1,6 +1,6 @@
 # CTF-3: Secrets and Misconfiguration
 
-The third session in the CTF series (`docs/CTF-WORKSHOP-PLAN.md`): two medium/hard, self-contained attack
+The third session in the CTF series (`docs/plans/CTF-WORKSHOP-PLAN.md`): two medium/hard, self-contained attack
 targets from the `ctf-range` module's ladder, grouped by how the exploit works: leaked credentials and
 how far they reach. See the plan's section 8 for how this session fits with CTF-1, CTF-2, CTF-4 and CTF-5.
 
@@ -80,7 +80,7 @@ is no attacker-bot swarm or SOC feed in CTF-1/CTF-2/CTF-3. That\'s CTF-5 only.
 Built from `workshops/ctf-access`'s structure on `feat/ctf-refinement`, content and manifest only --
 **not yet live-verified as its own pack**. `leaky-config` and `git-secrets` were already proven against the
 real gateway/firewall/`ctf-controller` path on the range's shared full-catalog image
-(`docs/CTF-WORKSHOP-PLAN.md`'s checkpoint, `CTF-SPIKES.md` S8); `tfstate-treasure`'s hook pair (moved here
+(`docs/plans/CTF-WORKSHOP-PLAN.md`'s checkpoint, `CTF-SPIKES.md` S8); `tfstate-treasure`'s hook pair (moved here
 from the now-deleted `ctf-defend-test` harness) was proven there too, but not yet in this pack. What's new
 and unproven here is this pack's own `CTF_HOST_BUILD_TARGET=ctf-host-ctf3` scoping and its content;
 `./dojo ctf-secrets-config --dry-run` has been run, but no live stack start. Rehearse before a room

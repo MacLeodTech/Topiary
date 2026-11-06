@@ -478,7 +478,7 @@ Python has `tomllib`).
 What the `ctf-range` build delivered, condensed from the plan's old checkpoint and the ROADMAP's closed rows. All of it
 merged to `main` in PR #17 or is on the branches above; "locally" means a cold `./dojo` start on the WSL2 desktop, driven
 through the real gateway, with `exploit/solve.py` run from inside each student's own terminal. Design and decisions:
-[`docs/CTF-WORKSHOP-PLAN.md`](docs/CTF-WORKSHOP-PLAN.md), [`docs/CTF-SPIKES.md`](docs/CTF-SPIKES.md).
+[`docs/plans/CTF-WORKSHOP-PLAN.md`](docs/plans/CTF-WORKSHOP-PLAN.md), [`docs/plans/CTF-SPIKES.md`](docs/plans/CTF-SPIKES.md).
 
 **Control plane and defend loop.** `ctf-host` (privileged DinD, boxed) plus `ctf-controller` (the only client of its
 socket), `ctf-builder` and an in-lab `registry:2`. A real merge rebuilds and redeploys a student's `customer-portal` in

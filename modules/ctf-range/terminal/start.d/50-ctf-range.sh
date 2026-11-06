@@ -15,7 +15,7 @@
 # before CTF-D21): CTF-D21 replaced "one container per target on a shared
 # ctf_net" with the boxed ctf-host dind - targets live INSIDE it, each
 # reachable from outside only via its one published port on ctf-host's own
-# address (docs/CTF-SPIKES.md S14). A student can never address another
+# address (docs/plans/CTF-SPIKES.md S14). A student can never address another
 # target directly (there is nothing to SNAT around; --icc=false in
 # ctf-host/entrypoint.sh blocks slot-to-slot, and slots can make no NEW
 # outbound connection at all), so per-uid isolation here only has to gate

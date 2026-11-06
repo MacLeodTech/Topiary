@@ -1,7 +1,7 @@
 """The simulated Mist REST API (/api/v1/...) that the real `Juniper/mist` Terraform provider talks to.
 
 Generic, spec-shaped and forgiving: each org collection is a dict of JSON objects in the org store. What the provider
-needs from a server (docs/SRX-MIST-PLAN.md 9.1) is implemented here, each rule marked R1..R7:
+needs from a server (docs/plans/SRX-MIST-PLAN.md 9.1) is implemented here, each rule marked R1..R7:
   R1 chunked request bodies (server.py)      R5 echo what was sent, in the same shape
   R2 scope ids on every answer               R6 inventory claim/assign/unassign/delete and profile assign
   R3 paging headers on every list            R7 an empty collection is [], a missing object is 404

@@ -8,7 +8,7 @@ what to do when something breaks.
 `feat/ctf-refinement`, **not yet live-verified as its own pack**. The two targets themselves
 (`leaky-config`, `git-secrets`) were already built and live-verified against the real
 gateway/firewall/`ctf-controller` path on the range's shared full-catalog image
-(`docs/CTF-WORKSHOP-PLAN.md`'s checkpoint, `CTF-SPIKES.md` S8). What's new and unproven here is this
+(`docs/plans/CTF-WORKSHOP-PLAN.md`'s checkpoint, `CTF-SPIKES.md` S8). What's new and unproven here is this
 pack's own `CTF_HOST_BUILD_TARGET=ctf-host-ctf3` scoping and its content. Only `--dry-run` has been run
 against this pack so far. Do a full rehearsal below before a room.
 

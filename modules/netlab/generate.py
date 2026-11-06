@@ -31,7 +31,7 @@ ROLE_SLOT = {"pc": 0, "sw": 1, "fw": 2, "web": 3}
 BRANCH_SLOT = {"m": 0, "a": 4}
 LAB = {"pc": "10.10.10.10/24", "web": "10.10.20.10/24", "fw10": "10.10.10.1/24", "fw20": "10.10.20.1/24"}
 # ping_group_range is "0 0": nodes run ping as root, and a rootless user namespace rejects gids it does not map.
-# What sshd, nginx and the interface set-up need, measured in NETLAB-PLAN.md 9.1.
+# What sshd, nginx and the interface set-up need, measured in docs/plans/NETLAB-PLAN.md 9.1.
 CAPS = ["NET_ADMIN", "SETUID", "SETGID", "SYS_CHROOT", "CHOWN", "DAC_OVERRIDE", "NET_BIND_SERVICE"]
 
 

@@ -696,7 +696,7 @@ facilitator's watch tile runs `zellij watch main` (Zellij's read-only client), a
 tab, landing card and `/ide` route; the service name, the control port and the
 port ranges are unchanged, so the diagrams above still hold. Demo bots run in a
 Zellij background session (`bot-supervisor.sh`, `layouts/bot.kdl`). Zellij costs
-more than tmux per student (about 50 MB measured, docs/CTF-WORKSHOP-PLAN.md S16),
+more than tmux per student (about 50 MB measured, docs/plans/CTF-WORKSHOP-PLAN.md S16),
 far less than code-server's ~260 MB.
 
 **Capacity**: code-server instances run meaningfully heavier than a bare

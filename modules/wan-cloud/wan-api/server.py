@@ -6,7 +6,7 @@ Two listeners:
                                 /dojo-state/...  Terraform http state backend (Basic auth: user + token)
   8080 (plain, behind Caddy)    /wan/ portal, /wan/api/... JSON (X-Gateway-Token), /readyz, /_dojo/reset/<user>
 
-Stdlib only, one file per concern, like modules/dojo-cloud/cloud-api. Contract: docs/SRX-MIST-PLAN.md section 10.
+Stdlib only, one file per concern, like modules/dojo-cloud/cloud-api. Contract: docs/plans/SRX-MIST-PLAN.md section 10.
 """
 import hmac
 import json

@@ -1,6 +1,6 @@
 # ctf-defend pilot: tuning the stagger and dwell
 
-The three-target defend lab ([`CTF-WORKSHOP-PLAN.md`](CTF-WORKSHOP-PLAN.md) 8.13) ships with a stagger of 0.5 x dwell
+The three-target defend lab ([`plans/CTF-WORKSHOP-PLAN.md`](plans/CTF-WORKSHOP-PLAN.md) 8.13) ships with a stagger of 0.5 x dwell
 and a dwell of 480 s. Those are guesses. This pilot, with 2-3 real people, replaces them with numbers. Bots cannot do
 it: they do not open fix PRs, so only people give a real time to fix.
 

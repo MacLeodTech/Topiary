@@ -1,4 +1,4 @@
-"""api-mass-assignment — CTF target 12 (plan docs/CTF-WORKSHOP-PLAN.md
+"""api-mass-assignment — CTF target 12 (plan docs/plans/CTF-WORKSHOP-PLAN.md
 §7.3, CTF-2 "Server-side trust and APIs", API-only — OWASP API Security
 Top 10 API3:2023 Broken Object Property Level Authorization). A JSON
 `PATCH /users/me` binds the WHOLE request body onto the user object, so a

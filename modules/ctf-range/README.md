@@ -1,7 +1,7 @@
 # ctf-range module
 
 The reusable runtime for the CTF workshop series (see
-`docs/CTF-WORKSHOP-PLAN.md`). The range holds the vulnerable **targets**, the
+`docs/plans/CTF-WORKSHOP-PLAN.md`). The range holds the vulnerable **targets**, the
 `ctf_net` network they live on, the `ctf-flags` submission service, the extra
 terminal tools, and — for CTF-5 — the attacker swarm, SOC feed and wall of
 shame (all built; not yet live-verified on a running stack — see "Wall of

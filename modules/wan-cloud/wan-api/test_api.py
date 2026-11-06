@@ -56,7 +56,7 @@ class Auth(LabCase):
 
 
 class Rules(LabCase):
-    """docs/SRX-MIST-PLAN.md 9.1, one test per rule."""
+    """docs/plans/SRX-MIST-PLAN.md 9.1, one test per rule."""
 
     def test_r1_chunked_body(self):
         status, data, _ = self.lab.call(STUDENT, "POST", f"{self.base}/networks",

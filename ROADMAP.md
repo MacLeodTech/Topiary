@@ -105,7 +105,7 @@ idempotent, a bot restarts from round 1, the optional score clear clears only th
 
 ### Technology track: SRX with Terraform and Mist (`srx-terraform`)
 
-Plan and spike results: [`docs/SRX-MIST-PLAN.md`](docs/SRX-MIST-PLAN.md). Workshop buckets (`WORKSHOP_TRACK`) are on
+Plan and spike results: [`docs/plans/SRX-MIST-PLAN.md`](docs/plans/SRX-MIST-PLAN.md). Workshop buckets (`WORKSHOP_TRACK`) are on
 `feat/workshop-tracks` (2026-11-04). The spike showed the real `Juniper/mist` provider 0.11.0 running a full SRX build
 (apply, empty re-plan, drift, import, destroy) against a fake API answering as `api.mist.com`, offline.
 
@@ -129,7 +129,7 @@ The whole-repo review lives in [`docs/reviews/2026-10-18.md`](docs/reviews/2026-
 
 A five-session capture-the-flag series (CTF-1 to CTF-5, packs `ctf-access`, `ctf-server-trust`, `ctf-secrets-config`,
 `ctf-trust-chain`, `ctf-defend`). The range, all 14 targets and the CTF-5 defend tooling are built (see RELEASES, "CTF range
-build log"). The plan, with its checkpoint, is [`docs/CTF-WORKSHOP-PLAN.md`](docs/CTF-WORKSHOP-PLAN.md); it carries the detail.
+build log"). The plan, with its checkpoint, is [`docs/plans/CTF-WORKSHOP-PLAN.md`](docs/plans/CTF-WORKSHOP-PLAN.md); it carries the detail.
 
 `workshops/ctf-defend-test` (the old shared facilitator harness) is deleted; `ctf-secrets-config` and `ctf-trust-chain`
 now ship all 3 of their targets each (see RELEASES, "`ctf-secrets-config`/`ctf-trust-chain` complete their ladders").
@@ -287,7 +287,7 @@ in [Manual checks](#manual-checks) above), **dojo-introduction** and **cloud-pol
 
 ## Later
 
-- **netlab: remaining work** (module merged; see `NETLAB-PLAN.md`). **S** Run the `netlab-ansible` pack with a room (demo bots, the capstone and the per-uid firewall are done and tested locally, 2026-10-28; a live slide overflow check and a full-size class start are not). **S** The probe agent (the checker and `netlab-view` use SSH for now). **S** Measure start time and idle memory of the 15-student class. **S** The checker's rate limit (6 per minute) is tight for testing. **M** A management network per pod, so a student with root on their own nodes cannot reach other pods' SSH (the per-uid firewall only covers the terminal). **S** Stopping a 138-container stack takes about 7 minutes: a rootless `podman rm` costs about 3 s per container here, not helped by `-t 0`, parallel removal, cgroupfs or no network (measured 2026-10-28); cause not found (storage or conmon?), so try `podman system` options or fewer containers per pod. **S** The netlab capstone verifies from the checker's in-memory record, so a checker restart means students re-run their checks.
+- **netlab: remaining work** (module merged; see `docs/plans/NETLAB-PLAN.md`). **S** Run the `netlab-ansible` pack with a room (demo bots, the capstone and the per-uid firewall are done and tested locally, 2026-10-28; a live slide overflow check and a full-size class start are not). **S** The probe agent (the checker and `netlab-view` use SSH for now). **S** Measure start time and idle memory of the 15-student class. **S** The checker's rate limit (6 per minute) is tight for testing. **M** A management network per pod, so a student with root on their own nodes cannot reach other pods' SSH (the per-uid firewall only covers the terminal). **S** Stopping a 138-container stack takes about 7 minutes: a rootless `podman rm` costs about 3 s per container here, not helped by `-t 0`, parallel removal, cgroupfs or no network (measured 2026-10-28); cause not found (storage or conmon?), so try `podman system` options or fewer containers per pod. **S** The netlab capstone verifies from the checker's in-memory record, so a checker restart means students re-run their checks.
 
 ### Smoke run
 

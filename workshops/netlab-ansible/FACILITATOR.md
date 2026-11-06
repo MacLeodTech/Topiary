@@ -1,7 +1,7 @@
 # netlab-ansible: facilitator guide
 
 For the person running the session. The module reference is [`modules/netlab/README.md`](../../modules/netlab/README.md)
-and the design is `NETLAB-PLAN.md`; the deck's speaker notes carry the talking points.
+and the design is `docs/plans/NETLAB-PLAN.md`; the deck's speaker notes carry the talking points.
 
 **Honest status:** the module and every lab were run on the stack with the pod checker, but this pack has not yet been
 run with a room, and the 15-student class has not been started at full size. The times below are estimates. Rehearse.

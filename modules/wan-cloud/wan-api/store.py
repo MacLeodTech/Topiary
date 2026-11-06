@@ -1,7 +1,7 @@
 """Per-org JSON store: one file per org in <data>/orgs/<org_id>.json, written atomically.
 
 Each org has its own lock. A handler takes the org's lock, reads or changes `data`, calls save() and lets go; nothing
-slow (network, subprocess, rendering) happens while it is held. Layout of `data`: docs/SRX-MIST-PLAN.md 10.5, plus
+slow (network, subprocess, rendering) happens while it is held. Layout of `data`: docs/plans/SRX-MIST-PLAN.md 10.5, plus
 `idpprofiles`, `avprofiles` (same shape as the other collections) and `clusters` (HA pairs).
 """
 import copy

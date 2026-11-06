@@ -20,7 +20,7 @@
 # the HMAC-SHA256 flags.render() needs is done by hand below with sha256sum,
 # checked against RFC 4231's test vector and against flags.py's own output
 # for a real seed before being trusted for a real flag (see
-# docs/CTF-WORKSHOP-PLAN.md's checkpoint).
+# docs/plans/CTF-WORKSHOP-PLAN.md's checkpoint).
 
 here=/etc/openbao-setup.d
 

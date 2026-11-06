@@ -1,6 +1,6 @@
 # CTF-1: Access and Identity
 
-The first session in the CTF series (`docs/CTF-WORKSHOP-PLAN.md`): four low-tier, self-contained attack
+The first session in the CTF series (`docs/plans/CTF-WORKSHOP-PLAN.md`): four low-tier, self-contained attack
 targets from the `ctf-range` module's ladder, grouped by how the exploit works: getting in when auth or
 access checks are weak. See the plan's section 8 for how this session fits with CTF-2 through CTF-5.
 
@@ -84,7 +84,7 @@ student slot through the real `/assign` flow, started `sqli-login` through the r
 gateway route, solved it from inside the student's own terminal account (not a standalone `podman run`),
 and submitted the flag through `dojo flag`. The other three targets were already proven against
 the same gateway/firewall/`ctf-controller` path on the range's shared full-catalog image
-(`docs/CTF-WORKSHOP-PLAN.md`'s checkpoint); only this pack's own scoping and content were new here.
+(`docs/plans/CTF-WORKSHOP-PLAN.md`'s checkpoint); only this pack's own scoping and content were new here.
 
 Found and fixed in that pass: `CTF_HOST_EXPECTED_IMAGES` needs to be a quoted value in any `workshop.env`
 that overrides it (an unquoted multi-word shell assignment silently never persists). Both this pack's

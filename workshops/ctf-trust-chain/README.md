@@ -1,6 +1,6 @@
 # CTF-4: Trusting the Wrong Thing
 
-The fourth session in the CTF series (`docs/CTF-WORKSHOP-PLAN.md`): two Medium/Hard, self-contained
+The fourth session in the CTF series (`docs/plans/CTF-WORKSHOP-PLAN.md`): two Medium/Hard, self-contained
 attack targets from the `ctf-range` module's ladder, grouped by what gets trusted that shouldn't be --
 a component, and a rule. See the plan's section 8 for how this session fits with CTF-1 through CTF-5.
 
@@ -79,7 +79,7 @@ attacker-bot swarm or SOC feed in CTF-1/CTF-4. That\'s CTF-5 only.
 ## Status
 
 Built by porting the `ctf-access` (CTF-1) pack's structure to targets 6 and 9, then adding `runner-escape`
-(10) as its own hook once `runner-pool` joined `MODULES`, following `docs/CTF-WORKSHOP-PLAN.md` section 8.
+(10) as its own hook once `runner-pool` joined `MODULES`, following `docs/plans/CTF-WORKSHOP-PLAN.md` section 8.
 `dns-resolver-cve`, `policy-bypass` and `ctf-host`'s `ctf-host-ctf4` stage already existed; this pack's own
 scoping, `runner-escape`'s hook, and all three labs' content are new here. Not yet live-verified as its own
 pack, so rehearse before a room (see `FACILITATOR.md`).
