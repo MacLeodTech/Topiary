@@ -16,7 +16,7 @@ import sys
 import urllib.error
 import urllib.request
 
-ADDR = os.environ.get("CTF_CHECKER_ADDR", "http://ctf-checker:9200")
+ADDR = os.environ.get("CTF_CHECKER_ADDR", "http://ctf-checker-lab:9200")
 
 
 def own_key():

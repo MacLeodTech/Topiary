@@ -36,7 +36,7 @@ RUN mkdir -p /usr/local/share/dojo/cmd.d \
 # dojo-flag talks to ctf-flags directly on workshop_lab, not through the
 # gateway (same shape as openbao's BAO_ADDR - see modules/openbao/terminal).
 ENV CTF_FLAGS_ADDR=http://ctf-flags:8080 \
-    CTF_CHECKER_ADDR=http://ctf-checker:9200
+    CTF_CHECKER_ADDR=http://ctf-checker-lab:9200
 
 # Debian-packaged tools (plan §9): apt itself verifies these against
 # Debian's signed repo metadata, the same trust basis every other apt

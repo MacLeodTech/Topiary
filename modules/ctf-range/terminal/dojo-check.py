@@ -14,7 +14,7 @@ import sys
 import urllib.error
 import urllib.request
 
-ADDR = os.environ.get("CTF_CHECKER_ADDR", "http://ctf-checker:9200")
+ADDR = os.environ.get("CTF_CHECKER_ADDR", "http://ctf-checker-lab:9200")
 SEVERITY = {"customer-portal": "HIGH", "policy-bypass": "MEDIUM", "leaky-config": "LOW"}
 WORDS = {"exploitable": "still exploitable", "contained": "contained",
          "broke-normal-use": "broke normal use", "unreachable": "unreachable"}

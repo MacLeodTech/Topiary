@@ -508,10 +508,16 @@ services:
       # POST /reset forwards to the controller's /redeploy (base image); the terminal never holds this.
       - CTF_CONTROL_TOKEN=${CTF_CONTROL_TOKEN:-}
       - CTF_CONTROLLER_URL=${CTF_CONTROLLER_URL:-http://ctf-controller:9000}
+    # Map form so one alias can sit on workshop_lab only. A student terminal reaches the checker there; `ctf-checker`
+    # also answers with the ctf_net and runner_net addresses, which a student cannot connect to (CTF_ISOLATION drops
+    # ctf_net, runner_net is a separate bridge), and the client waited out a ~100 s connect timeout on each. Students
+    # use `ctf-checker-lab` (CTF_CHECKER_ADDR in the terminal image); the runner and controller keep `ctf-checker`.
     networks:
-      - workshop_lab
-      - ctf_net
-      - runner_net
+      workshop_lab:
+        aliases:
+          - ctf-checker-lab
+      ctf_net: {}
+      runner_net: {}
     read_only: true
     tmpfs:
       - /tmp:rw,nosuid,nodev,size=64m
