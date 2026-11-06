@@ -4,7 +4,7 @@ The single list of open work. Finished work moves to [`RELEASES.md`](RELEASES.md
 (design, decisions, task logs) are frozen in [`docs/archive/`](docs/archive/); read them for the why, but don't
 update them. When you finish an item: delete it here and add a line to RELEASES.md.
 
-Last updated: 2026-10-17 (dependency-pin and seed-repo-sync checks added and CI re-enabled; CTF plan status refreshed to match `main`; wall-of-shame toggle now gated in achievements; C6 added. Before that 2026-10-16: student `dojo` command built, git-fundamentals live check in progress; before that 2026-10-15, PR #34: vault reset twice plus lab 11/12 passed locally, ctf-defend fix-then-age-off run
+Last updated: 2026-11-06 (open items from docs/plans/ merged in; before that 2026-10-17: dependency-pin and seed-repo-sync checks added and CI re-enabled; CTF plan status refreshed to match `main`; wall-of-shame toggle now gated in achievements; C6 added. Before that 2026-10-16: student `dojo` command built, git-fundamentals live check in progress; before that 2026-10-15, PR #34: vault reset twice plus lab 11/12 passed locally, ctf-defend fix-then-age-off run
 done locally, 7 overflowing slides trimmed; stale branch notes removed). Before that: 2026-10-09 (content-depth audit
 of all 5 CTF packs) and 2026-10-07 (ctf-range Target Viewer and the `ctf-access` pack, PR #17). ·
 Working branch: `main`; cut a feature branch for each new batch of work.
@@ -112,6 +112,29 @@ Plan and spike results: [`docs/plans/SRX-MIST-PLAN.md`](docs/plans/SRX-MIST-PLAN
 | # | Work | Effort |
 |---|---|---|
 | T4 | An SRX engineer answers [`SRX-REVIEW.md`](workshops/srx-terraform/SRX-REVIEW.md) (best: `config_cmd` for one hub and one spoke in a real org), then the renderer follows; confirm on a real org the `dns_override`/`ntp_override` flags and device `vars` over site vars | M |
+
+### Open items pulled from `docs/plans/` (2026-11-06)
+
+Merged in from the plan documents. Items marked *check* may already be closed in a later plan entry; confirm before
+starting. The plans keep the detail.
+
+| Plan | Work | Effort |
+|---|---|---|
+| CTF-WORKSHOP-PLAN | Lab Info primers: read each by hand for leaked payloads against every `solve.py` (CTF-P2b, open question 3) | S |
+| CTF-SPIKES S13 | Ramp curve shape, attention split across up to 4 targets, top-10 formula (design choices) | M |
+| CTF-SPIKES S13 | Facilitator-to-bot inject and hint-probe channel (plan 8.5), not built | M |
+| CTF-SPIKES S17 | Scanners for targets 8-11 (Semgrep, grype, pip-audit, offline), where findings render, and the stage in runner-pool's job | M |
+| CTF-SPIKES | Full defend loop against a real git-server clone and the real runner-pool, plus a warm-registry number for the real app image | M |
+| CTF-SPIKES S8 | End-to-end TXID check and internal-agent flag wiring (CTF-P5) | S |
+| CTF-SPIKES S9/S14 | Persona-swarm tuning, cold start at 40 students, queue concurrency, idle timeout: class-only numbers, fold into [N3 9.4](#n3-94-class-sized-run) | M |
+| CTF-SPIKES S16 | Zellij flavor: reconnect with the tile open, hours of runtime, browser keys | S |
+| CTF-SPIKES S15 | Can a pack hide the VS Code tab, and does anything else start code-server eagerly (*check*) | S |
+| CTF-SPIKES S6 | Multi-arch skopeo archive (~370 MB, `image load` ~3 min per start): trim to index plus amd64 (*check*); wire `check-tool-pins.sh` in (*check*, may be done: CI runs it) | S |
+| CLOUD-POLICY-AS-CODE-PLAN | PC-S4: confirm live that cloud-api on `runner_net` with the Dojo Cloud CA works for CI jobs; refresh the plan's stale status line ("not yet live") | S |
+| SRX-MIST-PLAN | Optional netfilter-backed gateways for traffic tests | L |
+| NETLAB-PLAN s9 | Host iptables/nft rule count with the class running; nginx and sshd under load | S |
+| NETLAB-PLAN s9 | Rootless podman cannot hold a 240-container class (`kernel.keys.maxkeys` 200 per uid; stopped at 196): document the ceiling and size classes to it | M |
+| NETLAB-PLAN s9 | Re-run capability, sysctl and no-new-privileges results under rootless podman (*check*) | S |
 
 ### Review 2026-10-18 follow-ups
 
