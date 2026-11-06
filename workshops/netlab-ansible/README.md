@@ -32,4 +32,4 @@ with a failed check before every fix, `testuser3` (novice) A1-A5 with wrong-dire
 The bots copy the reference solution over the lab and run it; branch m, which a student builds by hand, gets the same
 playbooks pointed at the `manual` group, so the checker's comparison of the two branches still holds. Not covered:
 typing the hand-built commands over SSH, the interactive-zsh shell hook (bots use the engine's `bot.d` hook instead),
-and anything in lab A11 beyond a role run (its check only looks for `roles/`). The bots do only the Part 2 (A) labs.
+and how lab A11's roles are laid out (its check confirms the end state on both branches, not the structure). The bots do only the Part 2 (A) labs.

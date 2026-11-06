@@ -169,9 +169,17 @@ class Labs(unittest.TestCase):
         self.assertEqual(len(self.failed(bad)), 4)  # 8080 open, ping works, and the attacker view
 
     def test_lab7(self):
-        r = self.run_lab("A11", {})
-        self.assertTrue(r["ok"])
-        self.assertEqual(r["assertions"][0]["detail"], "check by running compare.yml")
+        # A11 (roles) asserts the capstone's end state on both branches, then that they match
+        table = {("pc", "for p in"): (0, "open 80\nopen 443\n"), ("pc", "curl"): (0, "200"),
+                 ("pc", "ping"): (1, ""), ("fw", "iptables -S"): (0, "--dport 443"),
+                 ("fw", "iptables-save"): (0, "x"), ("web", "sshd -T"): (0, "maxauthtries 3\nlogingracetime 20\nx11forwarding no"),
+                 ("web", "test -f"): (0, ""), ("web", "cat /etc"): (0, "server {}")}
+        r = self.run_lab("A11", table)
+        self.assertTrue(r["ok"], self.failed(r))
+        self.assertTrue(any(a["name"].startswith("[M]") for a in r["assertions"]))
+        self.assertTrue(any(a["name"].startswith("branches match") for a in r["assertions"]))
+        bad = {**table, ("web", "sshd -T"): (0, "maxauthtries 6\nlogingracetime 20\nx11forwarding no")}
+        self.assertFalse(self.run_lab("A11", bad)["ok"])  # a role run that left sshd unhardened fails
 
     def test_lab8(self):
         table = {("pc", "for p in"): (0, "open 80\nopen 443\n"), ("pc", "curl"): (0, "200"),

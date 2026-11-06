@@ -299,10 +299,6 @@ def match_assertions():
                                                    ("a", "web", "cat /etc/nginx/http.d/*.conf")], cmp("web"))]
 
 
-def info_only(text):
-    return lambda b, cfg: [A(text, [], lambda rs: (True, "check by running compare.yml"))]
-
-
 # lab -> (builder(branch, cfg) -> [A], needs_switch, compare branches). Add a lab by adding a line.
 # Part 1 finishes all of branch m before Part 2 starts, so m only matches a at the end: only A9 compares them.
 # The A labs are the playbook labs; the M labs they repeat by hand have no check of their own (probe.yml shows them).
@@ -316,7 +312,9 @@ LABS = {
     "A7": (lambda b, c: lab4(b), False, False),
     "A8": (lambda b, c: lab6(b) + [attacker_view(b)], False, False),
     "A10": (lab5, False, False),
-    "A11": (info_only("roles/ directory exists in ~/netlab"), False, False),
+    # Roles are a refactor: the nodes must end in the capstone's state, on both branches and equal to each other. The
+    # checker reaches nodes only, so it cannot tell roles from playbooks; compare.yml and ansible-lint cover structure.
+    "A11": (lambda b, c: [a for f in LAB8 for a in f(b)], False, True),
 }
 CAPSTONE = "A9"
 LAB8 = (lab2, lab3, lab4, lab6)
@@ -336,8 +334,6 @@ def build(lab, cfg):
     builder, needs_switch, compare = LABS[lab]
     if needs_switch and not cfg.switch:
         return None
-    if lab == "A11":
-        return [(None, a) for a in builder("a", cfg)]
     for b in cfg.branches():
         out += [(b.upper(), a) for a in builder(b, cfg)]
     if compare and cfg.manual and not needs_switch:
