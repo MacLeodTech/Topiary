@@ -58,9 +58,9 @@ park "$len"
 as_user "$bot" 'rm -f ~/.dojo-bot-done'
 start="$(as_user "$bot" 'wc -c < ~/.dojo-bot.log 2>/dev/null || echo 0' | tr -dc 0-9)"
 
-if as_user "$bot" 'command -v lab-prep' >/dev/null 2>&1; then
+if as_user "$bot" 'test -x /usr/local/share/dojo/cmd.d/prep' >/dev/null 2>&1; then
   echo "  lab-prep $lab (a slow pack's lab-prep applies policy: minutes)"
-  out="$(as_user "$bot" "lab-prep $lab" 2>&1)" || { printf '%s\n' "$out" | tail -15; echo "FAIL: lab-prep $lab"; exit 1; }
+  out="$(as_user "$bot" "dojo prep $lab" 2>&1)" || { printf '%s\n' "$out" | tail -15; echo "FAIL: lab-prep $lab"; exit 1; }
   printf '%s\n' "$out" | tail -3 | sed 's/^/    /'
 fi
 # The supervisor restarted it parked at the end, which wrote the done marker: clear it, point at the lab, restart.
