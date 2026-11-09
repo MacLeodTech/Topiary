@@ -152,6 +152,9 @@ EOF
 
   chown -R "$username:$username" "/home/$username"
   chmod 700 "/home/$username"
+  # Bots get their own socket directory too (see the end of this file).
+  install -d -m 0711 /run/dojo
+  install -d -m 0700 -o "$username" -g "$(id -gn "$username")" "/run/dojo/$(id -u "$username")"
   exit 0
 fi
 
