@@ -25,6 +25,15 @@ class Roster(unittest.TestCase):
         self.assertEqual(len(fw.roster({})), 30)
 
 
+class InputRules(unittest.TestCase):
+    def test_accept_replies_then_drop_new_inbound_on_the_mgmt_interface_only(self):
+        lines = fw.build_input_rules("eth1").splitlines()
+        self.assertEqual(lines[0:2], ["*filter", ":NETLAB_INPUT - [0:0]"])
+        self.assertEqual(lines[2], "-A NETLAB_INPUT -i eth1 -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT")
+        self.assertEqual(lines[3], "-A NETLAB_INPUT -i eth1 -j DROP")
+        self.assertEqual(lines[-1], "COMMIT")
+
+
 class Rules(unittest.TestCase):
     def rules(self, mapping):
         return fw.build_rules(mapping).splitlines()

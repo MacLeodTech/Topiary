@@ -8,6 +8,10 @@ student N's shell could open TCP to pod M's nodes. The rules go on the OUTPUT ch
   uid of pod N's account     -> RETURN for pod N's management block only
   anyone else, to netlab_mgmt -> DROP (the connection never opens; the sender sees a timeout)
 
+The INPUT side (NETLAB_INPUT): a student is root on their own nodes, and web-terminal sits on netlab_mgmt too, so
+without it a node could open web-terminal's control port (7682) and the rest. On the netlab_mgmt interface it
+accepts only replies to what this container opened (established/related) and drops new inbound connections.
+
 Traffic to anywhere else (the gateway, DNS, Forgejo, the checker on workshop_lab) never matches `-d MGMT_CIDR`.
 build_rules() is pure (tests: modules/netlab/test_fw.py); main() resolves uids and loads the result with
 iptables-restore --noflush, which replaces the chain in one step (no open window on a re-run).
@@ -54,6 +58,54 @@ def build_rules(uid_pods, mgmt=MGMT_CIDR, chain=CHAIN):
     return "\n".join(lines)
 
 
+IN_CHAIN = "NETLAB_INPUT"
+
+
+def build_input_rules(iface, chain=IN_CHAIN):
+    """iptables-restore text: on IFACE (the netlab_mgmt interface) accept replies, drop everything new."""
+    return "\n".join(["*filter", f":{chain} - [0:0]",
+                      f"-A {chain} -i {iface} -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT",
+                      f"-A {chain} -i {iface} -j DROP", "COMMIT", ""])
+
+
+def mgmt_iface(mgmt=MGMT_CIDR):
+    """Name of this container's interface whose IPv4 address lies in MGMT, or None."""
+    import ipaddress
+    import json
+    r = run(["ip", "-j", "-4", "addr", "show"])
+    if r.returncode != 0:
+        return None
+    net = ipaddress.ip_network(mgmt)
+    for link in json.loads(r.stdout or "[]"):
+        for a in link.get("addr_info", []):
+            if ipaddress.ip_address(a["local"]) in net:
+                return link["ifname"]
+    return None
+
+
+def apply_input():
+    """Load NETLAB_INPUT, jump to it first in INPUT, read it back. 0 on success."""
+    iface = mgmt_iface()
+    if not iface:
+        print("netlab firewall: no interface on netlab_mgmt; cannot protect web-terminal's own ports", file=sys.stderr)
+        return 1
+    r = run(["iptables-restore", "--noflush"], input=build_input_rules(iface))
+    if r.returncode != 0:
+        print(f"netlab firewall: iptables-restore (input) failed: {r.stderr.strip()}", file=sys.stderr)
+        return 1
+    if run(["iptables", "-C", "INPUT", "-j", IN_CHAIN]).returncode != 0:
+        r = run(["iptables", "-I", "INPUT", "1", "-j", IN_CHAIN])
+        if r.returncode != 0:
+            print(f"netlab firewall: cannot jump to {IN_CHAIN}: {r.stderr.strip()}", file=sys.stderr)
+            return 1
+    shown = run(["iptables", "-S", IN_CHAIN]).stdout
+    if shown.count("-j ACCEPT") != 1 or shown.count("-j DROP") != 1 or f"-i {iface}" not in shown:
+        print(f"netlab firewall: {IN_CHAIN} does not hold the rules just written:\n{shown}", file=sys.stderr)
+        return 1
+    print(f"netlab firewall: new inbound connections on {iface} (netlab_mgmt) dropped", file=sys.stderr)
+    return 0
+
+
 def run(cmd, **kw):
     try:
         return subprocess.run(cmd, capture_output=True, text=True, **kw)
@@ -87,7 +139,7 @@ def main(env=os.environ):
         print(f"netlab firewall: {CHAIN} does not hold the rules just written:\n{shown}", file=sys.stderr)
         return 1
     print(f"netlab firewall: {len(uid_pods)} account(s) limited to their own pod on netlab_mgmt", file=sys.stderr)
-    return 0
+    return apply_input()
 
 
 if __name__ == "__main__":

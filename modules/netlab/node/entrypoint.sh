@@ -3,6 +3,7 @@
 #   NODE_ROLE       pc | sw | fw | web
 #   NODE_NAME       the container's name, shown in the web page
 #   ROOT_PASSWORD   the pod's derived root password (SSH only)
+#   HOST_KEY_B64    base64 of the node's OpenSSH ed25519 host key (hostkeys.py); clients pin it in known_hosts
 #   MGMT_CIDR       the management network; its interface is left alone and is the only place SSH is allowed
 #   NODE_PORTS      space-separated "<docker /29>|<mode>|<vlans>|<lab address>[|<gateway>[|<port name>]]" entries, one per data
 #                   interface. mode: plain (address on the interface), access, trunk (sw ports), tagged (fw
@@ -10,7 +11,7 @@
 # Interface names differ between runtimes (podman ignores interface_name), so each one is found by its address.
 set -eu
 
-: "${NODE_ROLE:?}" "${ROOT_PASSWORD:?}" "${MGMT_CIDR:?}"
+: "${NODE_ROLE:?}" "${ROOT_PASSWORD:?}" "${HOST_KEY_B64:?}" "${MGMT_CIDR:?}"
 NODE_NAME="${NODE_NAME:-$(hostname)}"
 NODE_PORTS="${NODE_PORTS:-}"
 
@@ -115,10 +116,16 @@ fi
 # --- ssh ---------------------------------------------------------------------------------------------------
 echo "root:$ROOT_PASSWORD" | chpasswd -c sha512 2>/dev/null || echo "root:$ROOT_PASSWORD" | chpasswd
 unset ROOT_PASSWORD
-ssh-keygen -A >/dev/null
+# The host key is derived, not generated: the checker and the terminals pin it (StrictHostKeyChecking=yes), so a
+# classmate who takes over this node's address cannot answer as it.
+mkdir -p /etc/ssh
+(umask 077 && echo "$HOST_KEY_B64" | base64 -d > /etc/ssh/ssh_host_ed25519_key)
+unset HOST_KEY_B64
+ssh-keygen -y -f /etc/ssh/ssh_host_ed25519_key > /etc/ssh/ssh_host_ed25519_key.pub
 mkdir -p /run/sshd
 cat > /etc/ssh/sshd_config <<SSHD
 Port 22
+HostKey /etc/ssh/ssh_host_ed25519_key
 PermitRootLogin yes
 PasswordAuthentication yes
 PrintMotd no

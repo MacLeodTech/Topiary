@@ -28,8 +28,9 @@ def read(name):
         return ""
 
 
-def clean(text):
-    return "".join(c if " " <= c <= "~" else "?" for c in str(text))
+def clean(text, limit=None):
+    out = "".join(c if " " <= c <= "~" else "?" for c in str(text))
+    return out if limit is None or len(out) <= limit else out[:limit - 3] + "..."
 
 
 def local_lab5():

@@ -232,6 +232,11 @@ class Labs(unittest.TestCase):
         self.assertEqual(seen["env"]["SSHPASS"], checker.pod_password(SEED, 3))
         self.assertIn("root@pc-a-03", seen["argv"])
         self.assertIn("ConnectTimeout=5", seen["argv"])
+        self.assertIn("StrictHostKeyChecking=yes", seen["argv"])
+        kh = [a for a in seen["argv"] if a.startswith("UserKnownHostsFile=")][0].split("=", 1)[1]
+        self.assertNotEqual(kh, "/dev/null")
+        with open(kh) as f:
+            self.assertIn("pc-a-03,10.80.1.28 ssh-ed25519 ", f.read())
 
     def test_remember_keeps_latest_verdict_per_pod_and_lab(self):
         store = {}

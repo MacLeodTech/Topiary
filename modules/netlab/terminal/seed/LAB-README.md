@@ -14,6 +14,7 @@ pc (VLAN 10) -- sw -- web (VLAN 20)          the switch's trunk goes to fw, the 
 Part 1 (labs M1 to M9): do each job **by hand on m**. Part 2 (labs A1 to A11): write the **playbook for a**, check it with `dojo netlab check A<n>`, and prove both branches match in the capstone (`probe.yml`, `compare.yml`).
 
 - Log in to a node by hand: `ssh root@fw-m-@POD@`. The password is in `~/.config/dojo/netlab-password`.
+  Each node's SSH host key is pinned in `/etc/ssh/ssh_known_hosts`, so there is no "authenticity" prompt; if ssh ever says the host key changed, something else answers on that address, so tell the facilitator.
 - Ansible already knows the login (`group_vars/all.yml`), so playbooks need no password.
 - Is everything up? `ansible-playbook verify_topology.yml`
 - Stuck, or locked yourself out of the data plane? `ansible-playbook reset_fw.yml -e branch=a`

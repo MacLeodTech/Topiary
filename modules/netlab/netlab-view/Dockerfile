@@ -4,6 +4,7 @@ FROM docker.io/library/python:3.14-alpine@sha256:f6a589d43c42b9e7f7dc67a12d37132
 RUN apk add --no-cache openssh-client sshpass
 WORKDIR /app
 COPY netlab-checker/checker.py /app/
+COPY hostkeys.py /app/
 COPY netlab-view/server.py /app/
 COPY netlab-view/_shared/ /app/_shared/
 COPY netlab-view/static/ /app/static/

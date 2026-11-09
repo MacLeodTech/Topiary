@@ -1,4 +1,4 @@
-# netlab-view builds with this folder as its context (it reuses netlab-checker/checker.py); keep the rest out.
+# netlab-view and netlab-checker build (hostkeys.py, checker.py) with this folder as its context (it reuses netlab-checker/checker.py); keep the rest out.
 node
 solutions
 terminal

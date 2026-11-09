@@ -5,6 +5,7 @@ RUN apk add --no-cache openssh python3 iptables iproute2 nginx curl openssl busy
     && rm -f /etc/nginx/http.d/default.conf
 COPY entrypoint.sh /usr/local/bin/netlab-entrypoint
 RUN chmod 0755 /usr/local/bin/netlab-entrypoint
-HEALTHCHECK --interval=10s --timeout=3s --start-period=10s --retries=3 \
+# 30 s, not 10: a 15-pod class has 120 nodes, and each check is a podman exec (about 12 a second at 10 s).
+HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
     CMD nc -z 127.0.0.1 22 || exit 1
 ENTRYPOINT ["/usr/local/bin/netlab-entrypoint"]

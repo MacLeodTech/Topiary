@@ -10,12 +10,21 @@
 #    derived root password would then be left in the way. A class that does not start is noticed at once.
 #    Needs NET_ADMIN on web-terminal, which the engine already grants for DOJO_ISOLATION; there is nothing for the
 #    module to add. The rules are lost with the container's network namespace and rebuilt by this hook at every start.
-# 2. The facilitator, who is root in the terminal, gets pod 00 (students are seeded by account.d/57-netlab.sh).
+# 2. /etc/ssh/ssh_known_hosts: every node's derived ed25519 host key (hostkeys.py), names and management addresses, so
+#    ssh and Ansible run with StrictHostKeyChecking=yes and a classmate who takes over a node's address cannot answer as
+#    it. Written by root, so no student can edit it. Also fail-closed: without it every ssh to a node would refuse anyway.
+# 3. The facilitator, who is root in the terminal, gets pod 00 (students are seeded by account.d/57-netlab.sh).
 set -u
 if ! python3 -B /usr/local/lib/netlab/fw.py; then
   echo "netlab: per-pod firewall NOT applied; refusing to start the terminal with every pod open to every student." >&2
   echo "netlab: it needs NET_ADMIN on web-terminal and iptables with the owner match." >&2
   exit 1
 fi
+if ! python3 -B /usr/local/lib/netlab/hostkeys.py > /etc/ssh/ssh_known_hosts.tmp \
+   || ! mv /etc/ssh/ssh_known_hosts.tmp /etc/ssh/ssh_known_hosts; then
+  echo "netlab: could not write /etc/ssh/ssh_known_hosts (is STUDENT_PASSWORD_SEED set?); ssh to the nodes would not verify." >&2
+  exit 1
+fi
+chmod 0644 /etc/ssh/ssh_known_hosts
 /usr/local/lib/netlab/seed.sh root 0 || true
 exit 0

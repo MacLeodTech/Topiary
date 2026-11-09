@@ -44,7 +44,8 @@ services:
   # `:-` not `:?`: ./dojo stop reads this file with the operator files only.
   netlab-checker:
     build:
-      context: ../modules/netlab/netlab-checker
+      context: ../modules/netlab
+      dockerfile: netlab-checker/Dockerfile
     image: topiary/netlab-checker:${WORKSHOP_SLUG:-local}
     container_name: workshop_netlab_checker
     init: true
@@ -68,6 +69,9 @@ services:
     security_opt:
       - no-new-privileges:true
     read_only: true
+    # known_hosts for the nodes' derived host keys (checker.py known_hosts_file)
+    tmpfs:
+      - /tmp
     pids_limit: 64
     mem_limit: 64m
     restart: unless-stopped
@@ -104,6 +108,8 @@ services:
     security_opt:
       - no-new-privileges:true
     read_only: true
+    tmpfs:
+      - /tmp
     pids_limit: 128
     mem_limit: 96m
     restart: unless-stopped

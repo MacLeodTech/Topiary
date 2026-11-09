@@ -15,9 +15,14 @@ import os
 import re
 import subprocess
 import sys
+import tempfile
 import threading
 import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+
+# hostkeys.py: ../hostkeys.py in the source tree, next to this file in the image.
+sys.path[:0] = [os.path.dirname(os.path.abspath(__file__)), os.path.join(os.path.dirname(os.path.abspath(__file__)), "..")]
+import hostkeys  # noqa: E402
 
 PC_TO_WEB = "10.10.20.10"
 SCAN_PORTS = (22, 23, 25, 80, 443, 8080, 8443)
@@ -343,11 +348,26 @@ def build(lab, cfg):
 
 # --- running ------------------------------------------------------------------------------------------------
 
+_KNOWN = {}
+
+
+def known_hosts_file(cfg):
+    """Path of the known_hosts that pins every node's derived host key (hostkeys.py), written once per process."""
+    path = _KNOWN.get(cfg.seed)
+    if path is None:
+        text = hostkeys.known_hosts(cfg.seed, 1 + cfg.students + cfg.bots)
+        path = os.path.join(tempfile.gettempdir(), f"netlab-known-hosts-{os.getpid()}")
+        with open(path, "w") as f:
+            f.write(text)
+        _KNOWN[cfg.seed] = path
+    return path
+
+
 def ssh(cfg, pod, branch, role, cmd):
     """(rc, output) of CMD on root@<role>-<branch>-<NN>. rc 255 = could not connect."""
     host = f"{role}-{branch}-{pod:02d}"
     env = {"SSHPASS": pod_password(cfg.seed, pod), "PATH": os.environ.get("PATH", "/usr/bin:/bin")}
-    argv = ["sshpass", "-e", "ssh", "-o", "StrictHostKeyChecking=no", "-o", "UserKnownHostsFile=/dev/null",
+    argv = ["sshpass", "-e", "ssh", "-o", "StrictHostKeyChecking=yes", "-o", f"UserKnownHostsFile={known_hosts_file(cfg)}",
             "-o", "LogLevel=ERROR", "-o", "ConnectTimeout=5", "-o", "PreferredAuthentications=password",
             "-o", "PubkeyAuthentication=no", f"root@{host}", cmd]
     try:
