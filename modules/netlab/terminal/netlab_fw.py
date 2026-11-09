@@ -70,16 +70,20 @@ def build_input_rules(iface, chain=IN_CHAIN):
 
 def mgmt_iface(mgmt=MGMT_CIDR):
     """Name of this container's interface whose IPv4 address lies in MGMT, or None."""
+    import fcntl
     import ipaddress
-    import json
-    r = run(["ip", "-j", "-4", "addr", "show"])
-    if r.returncode != 0:
-        return None
+    import socket
+    import struct
     net = ipaddress.ip_network(mgmt)
-    for link in json.loads(r.stdout or "[]"):
-        for a in link.get("addr_info", []):
-            if ipaddress.ip_address(a["local"]) in net:
-                return link["ifname"]
+    # The terminal image has no `ip`; ask the kernel (SIOCGIFADDR) for each interface's IPv4 address.
+    with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
+        for ifname in sorted(os.listdir("/sys/class/net")):
+            try:
+                packed = fcntl.ioctl(s.fileno(), 0x8915, struct.pack("256s", ifname.encode()[:15]))
+            except OSError:
+                continue
+            if ipaddress.ip_address(socket.inet_ntoa(packed[20:24])) in net:
+                return ifname
     return None
 
 
