@@ -419,6 +419,23 @@ class TestHTTP(unittest.TestCase):
         self.assertEqual(self._req("GET", "/slots", token=mine)[0], 403)
         self.assertEqual(self._req("POST", "/reconcile", token=mine, body={"user": "student01"})[0], 403)
 
+    def test_a_students_token_cannot_redeploy_another_students_image(self):
+        mine = c.user_token(TOKEN, "student01")
+        other = "registry.ctf.internal/ctf-customer-portal:student05"
+        for img in (other, "registry.ctf.internal/ctf-customer-portal:student011",
+                    "registry.ctf.internal/ctf-customer-portal:student01-evil"):
+            status, doc = self._req("POST", "/redeploy", token=mine, body={"user": "student01", "image": img})
+            self.assertEqual(status, 403, img)
+            self.assertIn("error", doc)
+        # the class token keeps today's behaviour
+        self.assertEqual(self._req("POST", "/redeploy", token=TOKEN,
+                                   body={"user": "student01", "image": other})[0], 200)
+
+    def test_a_students_token_may_redeploy_base(self):
+        mine = c.user_token(TOKEN, "student01")
+        self.assertEqual(self._req("POST", "/redeploy", token=mine,
+                                   body={"user": "student01", "image": "ctf-customer-portal:base"})[0], 200)
+
     def test_redeploy_via_http(self):
         tag = "registry.ctf.internal/ctf-customer-portal:student01"
         status, doc = self._req("POST", "/redeploy", token=TOKEN,

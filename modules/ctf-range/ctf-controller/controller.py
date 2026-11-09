@@ -809,6 +809,13 @@ def make_handler(ctl, atk):
             mine = user_token(want, user) if isinstance(user, str) else ""
             return bool(mine) and hmac.compare_digest(given.encode(), mine.encode())
 
+        def _is_class_token(self):
+            want = ctl.cfg.control_token
+            given = self.headers.get("Authorization", "")
+            if given.startswith("Bearer "):
+                given = given[len("Bearer "):]
+            return bool(want) and hmac.compare_digest(given.encode(), want.encode())
+
         def _path(self):
             return self.path.split("?", 1)[0] or "/"
 
@@ -962,6 +969,10 @@ def make_handler(ctl, atk):
                 if target is not None and not isinstance(target, str):
                     self._json(400, {"error": "bad target"})
                     return
+                if image and not self._is_class_token() and not own_image(ctl.cfg, user, image):
+                    self._json(403, {"error": "a student token may only redeploy the base image or "
+                                              "an image tagged for that student"})
+                    return
                 ok, msg = ctl.redeploy(user, image, target or None)
                 self._audit(f"redeploy {user} {target or '-'} {image or '(base)'}", "ok" if ok else msg)
                 self._json(200 if ok else 409, {"ok": ok, "message": msg})
@@ -973,6 +984,17 @@ def make_handler(ctl, atk):
             self._json(404, {"error": "not found"})
 
     return Handler
+
+
+def own_image(cfg, user, image):
+    """For a per-user token: the base image, or a registry tag ctf-builder made
+    for THIS user (docker_build.tag_name_for: "<user>" or "<user>-<target>")."""
+    if image in cfg.base_images():
+        return True
+    name, sep, tag = image.rpartition(":")
+    if not sep or "/" in tag:
+        return False
+    return tag == user or any(tag == f"{user}-{t}" for t in cfg.targets)
 
 
 # The attack-range card's page shell (static/, allow-listed by name — fixed
