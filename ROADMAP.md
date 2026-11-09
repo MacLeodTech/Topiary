@@ -59,7 +59,13 @@ A read-only review of `304ead5..9108cac` (security, scale, gaps). Batch 1-3 fixe
 
 | # | Work | Effort | Description |
 |---|---|---|---|
-| 1 | Live check + commit the batch | S | `git-fundamentals --test 3 --fast`: bots finish; `PRAGMA journal_mode` is wal; tmux sockets sit in the per-user dir; `mkdir /tmp/tmux-<uid>` no longer blocks a terminal; parallel stop works (check the `com.docker.compose.project` label podman-compose sets). `netlab-ansible --test 2 --fast`: nodes start with the derived keys; Lab 5 ansible and the checker pass with host-key checking; `ssh` raises no prompt; a node can't open web-terminal:7682 (conntrack `-i` rule under rootless iptables-nft); time the stop. Then commit in topic commits and `./dojo stop` |
+| 1 | Finish the live check | S | Run 2026-11-09, locally on port 8081 (VS Code on Windows held 8080 under mirrored WSL networking).
+**git-fundamentals `--test 3 --fast`: all passed.** Bots done; Forgejo WAL on; sockets in `/run/dojo/<uid>` (0700); a planted `/tmp/tmux-<uid>` no longer blocks a terminal; the roster shows terminal state; stop took 30 s with nothing left behind.
+**netlab-ansible `--test 2 --fast`:**
+- Passed: derived host keys match `known_hosts`; ssh shows no prompt; the checker passed A1-A11 for testuser1; a node can't reach `web-terminal:7682`; stop took 2m25s.
+- Fixed during the run: `netlab_fw.mgmt_iface` used `ip`, which isn't in the terminal image, so the terminal crash-looped. Bots also got no `/run/dojo/<uid>`, because `provision-account.sh` exits early for bots. Neither fix has been rerun live.
+- **Open:** testuser2 never finished within 25 min (cause not looked at); testuser1's log had 3 FAIL lines that weren't looked at; Lab 5 wasn't confirmed.
+**Next:** rerun `netlab-ansible --test 2 --fast` and read testuser2's bot log; time a 15-pod stop. Not checked: the watch tile and `pbcopy` in a real browser; zellij. Remove the temporary `[network]` 8081 section from `dojo.local.toml` once 8080 is free |
 | 2 | Per-pod netlab management network | M | S1's full fix: a pod with root and NET_ADMIN can still ARP-spoof on the flat `netlab_mgmt` network (host keys now stop the impersonation, not the reach) |
 | 3 | Netlab start and size | M/L | Create and start the pods in parallel batches (compose up took 8m42s for 142 containers); longer term, pc/sw/fw in one container per branch via netns (about halves start, stop and memory) |
 | 4 | Still open from 2026-10-18 | S each | The whole content dir (cloud-policy solutions, srx stages) is mounted in the terminal (`engine/docker-compose.yml:243`); the `--pass` gate token is unsalted sha256 (`start.py:341`); the CTF `view.py` CSP still allows `'unsafe-inline'`; achievements `CLIENT_HASH` hashes a file students can read; the terminal pids limit is one fixed total |
