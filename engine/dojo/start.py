@@ -389,6 +389,9 @@ def _plan(o: StartOptions, rt: Runtime) -> Plan:
     if flavor not in TERMINAL_FLAVORS:
         raise StartError(f"TERMINAL_FLAVOR must be one of {', '.join(TERMINAL_FLAVORS)}, got {flavor!r}.")
     env["TERMINAL_FLAVOR"] = flavor
+    memwarn = sizing.mem_warning(env, int(env.get("BOT_COUNT") or 0))
+    if memwarn:
+        console.print(f"[yellow]WARNING: {memwarn}[/]")
     flavor_leaf = (ZELLIJ_BASE_IMAGE, "./zellij-terminal") if flavor == "zellij" \
         else (VSCODE_BASE_IMAGE, "./web-terminal-vscode")
     links = [flavor_leaf]

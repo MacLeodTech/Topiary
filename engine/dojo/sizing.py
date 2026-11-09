@@ -59,3 +59,20 @@ def fit_pids(env: Dict[str, str], bots: int = 0) -> str:
         return ""
     env["WEB_TERMINAL_PIDS_LIMIT"] = str(need)
     return f"Terminal pids cap raised from {have or 'unset'} to {need} ({how})."
+
+
+MEM_PER_STUDENT_MB = {"web": 316, "zellij": 100}   # measured steady state per student (code-server ~316 MB; zellij is a shell)
+MEM_DEFAULT = "4g"                                  # docker-compose.yml's default for WEB_TERMINAL_MEM_LIMIT
+
+
+def mem_warning(env: Dict[str, str], bots: int = 0) -> str:
+    """A warning when the class's expected terminal memory exceeds WEB_TERMINAL_MEM_LIMIT, else ""."""
+    flavor = (env.get("TERMINAL_FLAVOR") or "web").strip().lower()
+    per = MEM_PER_STUDENT_MB.get(flavor, MEM_PER_STUDENT_MB["web"])
+    accounts = _int(env, "STUDENT_COUNT", STUDENT_COUNT_DEFAULT) + bots + 1
+    limit = mem_mb(env.get("WEB_TERMINAL_MEM_LIMIT") or MEM_DEFAULT)
+    if limit is None or accounts * per <= limit:
+        return ""
+    return (f"{accounts} accounts x ~{per} MB = ~{accounts * per} MB exceeds the terminal's memory limit of {limit} MB "
+            f"(WEB_TERMINAL_MEM_LIMIT; [terminal] mem_limit in dojo.toml). Raise it, or students will be OOM-killed. "
+            f"`./dojo capacity` recommends a value.")

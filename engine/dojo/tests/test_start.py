@@ -394,3 +394,31 @@ class Mountpoints(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class ParallelRemove(unittest.TestCase):
+    def test_removes_every_container_and_survives_failures(self):
+        from dojo.stop import remove_containers
+        calls = []
+
+        class Fake:
+            def out(self, *a, **k):
+                return "a b c d\n"
+
+            def run(self, *a, **k):
+                calls.append(a)
+                bad = a[-1] == "c"
+                return subprocess.CompletedProcess(a, 1 if bad else 0, "", "boom" if bad else "")
+
+        self.assertEqual(remove_containers(Fake(), "p"), 3)
+        self.assertEqual(sorted(c[-1] for c in calls), ["a", "b", "c", "d"])
+        self.assertTrue(all(c[:3] == ("rm", "-f", "-t") for c in calls))
+
+
+class MemWarning(unittest.TestCase):
+    def test_warns_when_class_exceeds_limit(self):
+        from dojo import sizing
+        w = sizing.mem_warning({"STUDENT_COUNT": "30"})
+        self.assertIn("WEB_TERMINAL_MEM_LIMIT", w)
+        self.assertEqual(sizing.mem_warning({"STUDENT_COUNT": "30", "WEB_TERMINAL_MEM_LIMIT": "16g"}), "")
+        self.assertEqual(sizing.mem_warning({"STUDENT_COUNT": "30", "TERMINAL_FLAVOR": "zellij"}), "")

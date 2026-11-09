@@ -72,7 +72,9 @@
 	transport http {
 		dial_timeout 3s
 		response_header_timeout 10s
-		keepalive 2s
+		# Idle upstream connections kept 60 s, not 2: every student polls the portal
+		# every ~3 s, so with 2 s nearly every poll opened a new connection and thread.
+		keepalive 60s
 	}
 }
 
