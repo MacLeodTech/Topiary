@@ -65,6 +65,8 @@ is part of the lesson and never an incident.
 | 4 | [**OpenTofu Basics**](workshops/tofu-basics/) | The Terraform workflow (`init`, `plan`, `apply`, `destroy`) and how an IaC repo is laid out. Track A is an offline sandbox. Track B deploys real containers through the real `azurerm` provider into **Dojo Cloud**, an Azure-inspired practice cloud with a portal, policies, quotas and drift. `terraform` runs OpenTofu. | 11 | ~2¼ h |
 | 5 | [**Vault Fundamentals**](workshops/vault-fundamentals/) | Using a vault well, on a real OpenBao: get secrets out of code, git, pipelines and servers, and swap long-lived secrets for identity and short-lived credentials. Labs cover leaking and scanning, `sops` and `pass`, per-student namespaces and policies, an app and OpenBao Agent, CI that logs in with its Forgejo identity on single-use runners, deployments with a delivered secret ID or workload identity, dynamic Postgres logins and an incident drill. | 14 | ~4½ h |
 | 6 | [**Cloud-Policy-as-Code**](workshops/cloud-policy-as-code/) | Writing the rules that keep a cloud safe as code: Dojo Cloud Policy definitions, assignments, sets, modify and remediation, exemptions, Rego and conftest checks, a CI pipeline and drift. | 13 + capstone | ~5½ h |
+| 7 | [**Ansible on a Small Network**](workshops/netlab-ansible/) | Learn Ansible by building a small network twice: a firewall, a VLAN switch and a web server, by hand and then by playbook. | 20 (M1-M9, A1-A11) | ~4½ h |
+| T1 | [**SRX with Terraform and Mist**](workshops/srx-terraform/) | Build a greenfield Juniper SRX estate in Mist with HashiCorp Terraform and the real Juniper/mist provider, against a simulator. | 10 (0-9) | ~2¾ h |
 
 The numbers are a learning path: teach them in order. `0` showcases the platform and is not a course; `1` to `6`
 build on each other (DNS as Code reuses the git flow, Certificate Autorenewal's capstone drives the DNS API from
@@ -109,7 +111,7 @@ patch instead of attack.
   **DNS Admin** (dns-as-code, cert-autorenewal, dojo-introduction); **Vault**,
   **Audit** and **Apps** (vault-fundamentals); **Site Inspector**
   (cert-autorenewal); **Workshop Library** (dojo-introduction); **Sensei**
-  (every pack); and **Achievements** when `ACHIEVEMENTS_ENABLED` is on.
+  (every pack); **Netlab Pods** (netlab-ansible); **Dojo WAN** (srx-terraform); **Feedback** (most packs); and **Achievements** when `ACHIEVEMENTS_ENABLED` is on.
 - **Isolated labs.** Student terminals have no internet and no Docker socket.
   Every tool is baked into the workshop's image, pinned to a version and checked
   against a sha256. Extra services sit on internal-only networks, and anything a
@@ -200,9 +202,13 @@ Rather than repeat it here, the two files that track it are kept current:
 │   ├── dns-gate/             # dns-api: PowerDNS API gate, per-account keys, CI by ID token
 │   ├── dns-ui/               # DNS Zones page and the facilitator's DNS Admin
 │   ├── dojo-cloud/           # Dojo Cloud: cloud-api, cloud-host, /cloud route, terminal broker
+│   ├── feedback/             # End-of-class survey: a Feedback card and the facilitator's Feedback tab
+│   ├── lab-prep/             # Shared skeleton behind each workshop's lab-prep script (no services)
+│   ├── netlab/               # Per-student Ansible practice pods (pc, switch, firewall, web); Netlab Pods tab
 │   ├── openbao/              # OpenBao server, setup, SSO through Forgejo, terminal identity broker
 │   ├── runner-pool/          # Single-use Actions runners, autoscaled, Runners panel in /admin
-│   └── sensei/               # Reviews and merges the roster pull request; `dojo sensei ask|why` in the terminal
+│   ├── sensei/               # Reviews and merges the roster pull request; `dojo sensei ask|why` in the terminal
+│   └── wan-cloud/            # Dojo WAN: simulated Mist API, Terraform and the juniper/mist provider, at /wan
 ├── workshops/
 │   ├── README.md             # How workshops are selected and how to add one
 │   ├── assets/               # Shared slide theme and the in-browser lab reader
@@ -212,7 +218,9 @@ Rather than repeat it here, the two files that track it are kept current:
 │   ├── dojo-introduction/    # Showcase: Forgejo + CI, DNS and Dojo Cloud at once
 │   ├── tofu-basics/          # + tofu toolchain; uses the dojo-cloud module; FACILITATOR.md, tests/
 │   ├── cloud-policy-as-code/ # dojo-cloud, runner-pool, sensei modules; Policy labs 0-12 + capstone
-│   └── vault-fundamentals/   # openbao + runner-pool modules, app-host and app-db; labs 0-13, tests/
+│   ├── vault-fundamentals/   # openbao + runner-pool modules, app-host and app-db; labs 0-13, tests/
+│   ├── netlab-ansible/       # netlab and openbao modules; hand and playbook labs M1-M9 and A1-A11
+│   └── srx-terraform/        # wan-cloud, lab-prep, sensei and feedback modules; labs 0-9
 ├── ROADMAP.md                # All open work: the single list of tasks
 ├── RELEASES.md               # What shipped, newest first
 ├── docs/archive/             # Frozen design plans and decision logs (modules, tofu-basics, vault, remediation, reset)
@@ -358,6 +366,8 @@ update. `FORGEJO_ORG`/`FORGEJO_REPO` come from the workshop's
 | `tofu-basics` | `dojo-cloud` | `cloud-api`, `cloud-host` (module) | `cloud_net` (module) | `tofu` (also `terraform`), offline provider mirror; credential broker (module) | `cloud-api` (Track B) |
 | `vault-fundamentals` | `openbao`, `runner-pool` | `openbao`, `openbao-setup`, `openbao-sso-shim`, `openbao-audit`; `runner-pool`, `runner-pool-shim`, `runner-controller` (modules); `app-host`, `app-db` | `runner_net` (module; `openbao` and `app-host` join it) | `bao`, `bao-audit`, identity broker (module); `sops`, `gitleaks`, `pass`, `hvac`, `pg8000`, `psql`, `jq` | OpenBao, Forgejo, My App |
 | `dojo-introduction` | `runner-pool`, `dojo-cloud`, `dns-ui`, `dns-gate`, `sensei` | The modules' services, plus PowerDNS as dns-as-code runs it | `runner_net`, `cloud_net` (modules) | One image with `dnscontrol`, `dig`, `tofu` | CI, DNS and Dojo Cloud; nothing to complete |
+| `netlab-ansible` | `netlab`, `openbao` | `netlab-checker`, `netlab-view`, per-student pods (`pc`, `sw`, `fw`, `web`; `netlab`); `openbao-setup` (workshop overlay) | `netlab_mgmt` (module, internal) | Ansible in a pinned venv (`ansible`, `ansible-playbook`, `ansible-lint`), `sshpass`, `openssh-client` | netlab pods over SSH; `openbao` (lab A10) |
+| `srx-terraform` | `wan-cloud` | `wan-api` (Dojo WAN, `/wan`) | none of its own (`wan-api` is on `workshop_lab` as `api.mist.com`) | Terraform, the offline `juniper/mist` provider mirror, `dojo wan`, `dojo prep`, `dojo check` | `wan-api` |
 | `cloud-policy-as-code` | `dojo-cloud`, `runner-pool`, `sensei` | `cloud-api`, `cloud-host`, `runner-pool`, `runner-pool-shim`, `runner-controller` (modules); `tofu-mirror-init` (one-shot) | `cloud_net`, `runner_net` (modules; `cloud-api` also answers the Dojo Cloud names there, so CI jobs reach it) | `tofu` (also `terraform`), `opa`, `conftest`, the offline provider mirror; credential broker (module) | `cloud-api`, Forgejo |
 
 Everything below is layered on the shared engine above — any service or

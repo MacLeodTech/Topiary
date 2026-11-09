@@ -40,6 +40,37 @@ fit in around these; tofu-basics T9.4/T9.9 are the oldest.
 
 ## Up next
 
+### Review of 2026-11-08: resume here
+
+A read-only review of `304ead5..9108cac` (security, scale, gaps). Batch 1-3 fixes are on branch
+`fix/review-2026-11-08`, **uncommitted**, unit-tested, not yet run on a stack:
+- netlab `clean()` crash fixed;
+- node healthcheck 10 s → 30 s;
+- S1: per-node host keys from the seed, plus `known_hosts`, with host-key checking on in the checker, view, terminal and the five `ansible.cfg` files;
+- S4: `NETLAB_INPUT` drops new inbound connections on netlab_mgmt;
+- S2: a CTF student token can redeploy only the base image or its own tags;
+- Forgejo WAL, repo indexer off, log level Warn;
+- gateway keepalive 2 s → 60 s;
+- `./dojo stop` removes containers 8 at a time;
+- a terminal memory-cap warning at start;
+- docs pack lists;
+- S3: tmux/zellij sockets in `/run/dojo/<uid>` (0700), via `ensure_runtime_dir()`, a new `/etc/zsh/zshenv` and `provision-account.sh`;
+- S5: the watch client attaches with `TERM=screen-256color`, so OSC 52 doesn't reach the facilitator (tested on local tmux 3.6). Live-check: the roster terminal dot, the watch tile, `pbcopy` in the student's own browser, zellij, and that the zellij image's own zshenv still has its lines.
+
+| # | Work | Effort | Description |
+|---|---|---|---|
+| 1 | Live check + commit the batch | S | `git-fundamentals --test 3 --fast`: bots finish; `PRAGMA journal_mode` is wal; tmux sockets sit in the per-user dir; `mkdir /tmp/tmux-<uid>` no longer blocks a terminal; parallel stop works (check the `com.docker.compose.project` label podman-compose sets). `netlab-ansible --test 2 --fast`: nodes start with the derived keys; Lab 5 ansible and the checker pass with host-key checking; `ssh` raises no prompt; a node can't open web-terminal:7682 (conntrack `-i` rule under rootless iptables-nft); time the stop. Then commit in topic commits and `./dojo stop` |
+| 2 | Per-pod netlab management network | M | S1's full fix: a pod with root and NET_ADMIN can still ARP-spoof on the flat `netlab_mgmt` network (host keys now stop the impersonation, not the reach) |
+| 3 | Netlab start and size | M/L | Create and start the pods in parallel batches (compose up took 8m42s for 142 containers); longer term, pc/sw/fw in one container per branch via netns (about halves start, stop and memory) |
+| 4 | Still open from 2026-10-18 | S each | The whole content dir (cloud-policy solutions, srx stages) is mounted in the terminal (`engine/docker-compose.yml:243`); the `--pass` gate token is unsalted sha256 (`start.py:341`); the CTF `view.py` CSP still allows `'unsafe-inline'`; achievements `CLIENT_HASH` hashes a file students can read; the terminal pids limit is one fixed total |
+| 5 | Small scale wins | S | Forgejo and dojo-cloud healthchecks at 5 s, the ctf-range and runner-pool ones at 10 s → 15-30 s; `Cache-Control: max-age` on secret-free static assets in the Caddyfile (now `no-store`); prune about 2.5 GB of dangling images (hook `maintain.py`'s removal into stop or a `./dojo prune`); code-server idle timeout 900 s → 300-600 s?; measure zellij's per-student memory (the new warning guesses 100 MB) |
+| 6 | Tests and healthchecks | S | Unit tests for the `netlab` and `wan` cmd.d plug-ins and the inline `dojo-check` wrapper in `workshops/ctf-defend/compose/terminal/Dockerfile:15-25`; check for an image HEALTHCHECK on dns-api, zone-viewer, dns-admin, cloud-api, wan-api, openbao (none in compose) |
+| 7 | Save before stop | S | `./dojo export` (or a section in `docs/operations.md`): the roster, scores and repos, before `./dojo stop` wipes the volumes **[engine]** |
+| 8 | Docs | S | The README's gateway/network matrix and CTF rows for the new packs; rewrite the stale "Up next" text below (dated 2026-10-15, before netlab); local CLAUDE.md pack list |
+
+### Earlier (2026-10-15)
+
+
 Resume here (updated 2026-10-15). The vault reset fix merged to `main` in PR #12: `lab_11.sh` and `lab_12.sh` pass after
 a reset, and passed again locally 2026-10-15 (reset twice). Branches are tidy: everything is merged to `main` (PRs #17,
 #33, #34); only the Dependabot Flask bump (PR #32) is open.
@@ -129,7 +160,7 @@ starting. The plans keep the detail.
 | CTF-SPIKES S9/S14 | Persona-swarm tuning, cold start at 40 students, queue concurrency, idle timeout: class-only numbers, fold into [N3 9.4](#n3-94-class-sized-run) | M |
 | CTF-SPIKES S16 | Zellij flavor: reconnect with the tile open, hours of runtime, browser keys | S |
 | CTF-SPIKES S15 | Can a pack hide the VS Code tab, and does anything else start code-server eagerly (*check*) | S |
-| CTF-SPIKES S6 | Multi-arch skopeo archive (~370 MB, `image load` ~3 min per start): trim to index plus amd64 (*check*); wire `check-tool-pins.sh` in (*check*, may be done: CI runs it) | S |
+| CTF-SPIKES S6 | Multi-arch skopeo archive (~370 MB, `image load` ~3 min per start): trim to index plus amd64 (*check*) | S |
 | CLOUD-POLICY-AS-CODE-PLAN | PC-S4: confirm live that cloud-api on `runner_net` with the Dojo Cloud CA works for CI jobs; refresh the plan's stale status line ("not yet live") | S |
 | SRX-MIST-PLAN | Optional netfilter-backed gateways for traffic tests | L |
 | NETLAB-PLAN s9 | Host iptables/nft rule count with the class running; nginx and sshd under load | S |

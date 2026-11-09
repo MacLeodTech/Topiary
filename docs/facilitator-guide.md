@@ -77,6 +77,9 @@ Hover for the reason. Students never see service health.
 | **Workshop Library** | dojo-introduction | Every workshop's slides and labs |
 | **Achievements** | achievements | The class's scores and unlocks, and the log of challenge checks |
 | **Attack Range** | ctf-range | Per-student target state; in CTF-5 the room-wide SOC feed and its green/yellow/red countdown |
+| **Netlab Pods** | netlab | Each student's pod (pc, switch, firewall, web): node state, VLANs, firewall rules and the latest `dojo netlab check` verdicts, read-only |
+| **Dojo WAN** | wan-cloud | The Dojo WAN simulator (`/wan`) for the class |
+| **Feedback** | feedback | The end-of-class survey: means, counts per rating, comments, and a CSV/JSON export |
 
 ### Helping people
 

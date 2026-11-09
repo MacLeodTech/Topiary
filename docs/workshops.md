@@ -1,19 +1,21 @@
 # Workshop catalog
 
 `./dojo list` prints this order from each pack's `workshop.env`. Numbers 1-7 are a **learning path** (teach them in
-order; a later workshop assumes the earlier ones' *ideas*, not their files). 0 is a showcase; 99-103 are the CTF
-series and a test harness.
+order; a later workshop assumes the earlier ones' *ideas*, not their files). 0 is a showcase; 100-103 are the CTF
+series.
 
 | # | Pack | Title | Length | Labs | Modules |
 |---|---|---|---|---|---|
-| 0 | `dojo-introduction` | Dojo Introduction | ~35 min | none (tour) | runner-pool, dojo-cloud, dns-ui, dns-gate, sensei |
-| 1 | `git-fundamentals` | Git Training Lab | ~100 min | 5 | sensei |
-| 2 | `dns-as-code` | DNS as Code Lab | ~2 h | 6 | runner-pool, dns-ui, dns-gate, sensei |
-| 3 | `cert-autorenewal` | Certificate Autorenewal Lab | ~1¾ h | 5 | dns-ui, dns-gate, sensei |
-| 4 | `tofu-basics` | OpenTofu Basics Lab | ~2¼ h | 11 (0-10) | dojo-cloud, sensei |
-| 5 | `vault-fundamentals` | Vault Fundamentals Lab | ~4½ h | 14 (0-13) | openbao, runner-pool, sensei |
-| 6 | `cloud-policy-as-code` | Cloud-Policy-as-Code | ~5½ h | 13 (0-12) + capstone | dojo-cloud, runner-pool, sensei |
+| 0 | `dojo-introduction` | Dojo Introduction | ~35 min | none (tour) | runner-pool, dojo-cloud, dns-ui, dns-gate, sensei, feedback |
+| 1 | `git-fundamentals` | Git Training Lab | ~100 min | 5 | lab-prep, sensei, feedback |
+| 2 | `dns-as-code` | DNS as Code Lab | ~2 h | 6 | lab-prep, runner-pool, dns-ui, dns-gate, sensei, feedback |
+| 3 | `cert-autorenewal` | Certificate Autorenewal Lab | ~1¾ h | 5 | lab-prep, dns-ui, dns-gate, sensei, feedback |
+| 4 | `tofu-basics` | OpenTofu Basics Lab | ~2¼ h | 11 (0-10) | lab-prep, dojo-cloud, sensei, feedback |
+| 5 | `vault-fundamentals` | Vault Fundamentals Lab | ~4½ h | 14 (0-13) | openbao, runner-pool, sensei, feedback |
+| 6 | `cloud-policy-as-code` | Cloud-Policy-as-Code | ~5½ h | 13 (0-12) + capstone | lab-prep, dojo-cloud, runner-pool, sensei, feedback |
 | 7 | `ctf-defend` | CTF-5: Defend | ~2 h | 1 | ctf-range, runner-pool |
+| 7 | `netlab-ansible` | Ansible on a Small Network | ~4½ h | 20 (M1-M9, A1-A11) | netlab, openbao |
+| T1 | `srx-terraform` | SRX with Terraform and Mist | ~2¾ h | 10 (0-9) | lab-prep, wan-cloud, sensei, feedback |
 | 100 | `ctf-access` | CTF-1: Access and Identity | ~150 min | 4 | ctf-range |
 | 101 | `ctf-server-trust` | CTF-2: Server-side Trust and APIs | ~150 min | 4 | ctf-range |
 | 102 | `ctf-secrets-config` | CTF-3: Secrets and Misconfiguration | ~115 min | 2 | ctf-range |
