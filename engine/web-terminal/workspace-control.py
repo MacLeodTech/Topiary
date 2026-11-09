@@ -338,18 +338,45 @@ def _socket_listening(path):
         s.close()
 
 
-TMUX_SOCKET = "/tmp/tmux-{uid}/default"
-ZELLIJ_SOCKET_DIRS = ("/tmp/zellij-{uid}", "/run/user/{uid}/zellij")
+# Per-account runtime directory for the terminal server's socket. /tmp is one
+# tmpfs shared by every student, so a socket directory there could be
+# pre-created by another student (`mkdir /tmp/tmux-<victim uid>`) to deny the
+# victim a terminal or plant a socket that fools has_terminal_session. Under
+# /run/dojo (0711, root-owned, so no student can create entries) each account
+# gets a 0700 directory of its own, handed out by root before any session
+# starts. /etc/zsh/zshenv (the zshenv file beside this script) exports
+# TMUX_TMPDIR / ZELLIJ_SOCKET_DIR pointing at it for every shell the account runs.
+RUNTIME_ROOT = "/run/dojo"
+TMUX_SOCKET = RUNTIME_ROOT + "/{uid}/tmux-{uid}/default"
+ZELLIJ_SOCKET_DIRS = (RUNTIME_ROOT + "/{uid}/zellij",)
+
+
+def ensure_runtime_dir(username):
+    """Create (or repair) the account's 0700 runtime directory; returns its
+    path or None for an unknown account. Idempotent; root only."""
+    try:
+        uid = pwd.getpwnam(username).pw_uid
+    except KeyError:
+        return None
+    os.makedirs(RUNTIME_ROOT, mode=0o711, exist_ok=True)
+    os.chmod(RUNTIME_ROOT, 0o711)
+    path = f"{RUNTIME_ROOT}/{uid}"
+    if os.path.islink(path) or (os.path.exists(path) and not os.path.isdir(path)):
+        os.unlink(path)
+    os.makedirs(path, mode=0o700, exist_ok=True)
+    os.chown(path, uid, -1)
+    os.chmod(path, 0o700)
+    return path
 
 
 def has_terminal_session(username):
     """Cheap stand-in for `most_active_session(username) is not None`, for
     the roster poll: no `su` fork, just the account's terminal server
-    socket. tmux keeps one server per uid at /tmp/tmux-<uid>/default (the
-    PID namespace doesn't change the uid or /tmp), and that server exits
+    socket. tmux keeps one server per uid at <runtime dir>/tmux-<uid>/default
+    (the PID namespace doesn't change the uid), and that server exits
     with its last session, so a live socket means at least one session.
     Zellij has one socket per running session under
-    /tmp/zellij-<uid>/<contract-version>/."""
+    <runtime dir>/zellij/<contract-version>/."""
     try:
         uid = pwd.getpwnam(username).pw_uid
     except KeyError:
@@ -600,6 +627,7 @@ def start_workspace(tool, username):
 
         port = port_for(tool, username)
         home = f"/home/{username}"
+        ensure_runtime_dir(username)
         ns = ns_prefix(username)
         if tool == "ide":
             cmd = [
@@ -656,6 +684,7 @@ def list_sessions(username):
 
     The Zellij flavor has the one `main` session per student and Zellij
     reports no activity time, so each live session counts as active now."""
+    ensure_runtime_dir(username)
     if ZELLIJ:
         result = subprocess.run(
             ["su", "-", username, "-c", "zellij list-sessions --short"],
@@ -727,7 +756,13 @@ def start_watch(username):
         port = watch_port(username)
         # `zellij watch` is Zellij's own read-only client, the equivalent of
         # `tmux attach -r`; ttyd still has no -W.
-        watch_cmd = f"zellij watch {session}" if ZELLIJ else f"tmux attach -t {session} -r"
+        # The tmux watch client gets TERM=screen-256color: set-clipboard (on, for
+        # the student's own browser) only forwards a pane's OSC 52 to clients whose
+        # terminal has the clipboard feature, which tmux gives xterm* terminals by
+        # default and screen* ones not. So a student's OSC 52 escape never reaches
+        # the facilitator's clipboard through the tile.
+        watch_cmd = f"zellij watch {session}" if ZELLIJ else f"env TERM=screen-256color tmux attach -t {session} -r"
+        ensure_runtime_dir(username)
         su_cmd = ["su", "--pty"] if ZELLIJ else ["su"]  # --pty relays tile resizes to zellij watch
         cmd = ["ttyd", "-p", str(port), *(ZELLIJ_TTYD_LOOK if ZELLIJ else []), *su_cmd, "-", username, "-c", watch_cmd]
         running[key] = subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)

@@ -123,6 +123,9 @@ RUN chmod 755 /opt/dojo-shell/bot-runner.sh /opt/dojo-shell/bot-supervisor.sh /o
 # tmux server on this container, not just root's.
 COPY tmux.conf /etc/tmux.conf
 RUN chmod 644 /etc/tmux.conf
+# Every zsh points tmux/zellij at its own /run/dojo/<uid> (see the file). Modules and
+# workshops append to it later in the image chain, so this COPY must come first.
+COPY zshenv /etc/zsh/zshenv
 
 # No USER here, deliberately: entrypoint.sh runs `useradd`/`chpasswd` for a
 # variable set of student + facilitator accounts every time the container

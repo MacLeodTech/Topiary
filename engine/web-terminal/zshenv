@@ -1,0 +1,8 @@
+# /etc/zsh/zshenv: read by every zsh, interactive or not (su -c, ttyd, bots).
+# Point tmux and zellij at the account's own 0700 runtime directory that root
+# made under /run/dojo (workspace-control.py ensure_runtime_dir), not the
+# class-shared /tmp where another student could pre-create the socket dir.
+if [ -d "/run/dojo/$UID" ]; then
+  export TMUX_TMPDIR="/run/dojo/$UID"
+  export ZELLIJ_SOCKET_DIR="/run/dojo/$UID/zellij"
+fi

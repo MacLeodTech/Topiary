@@ -262,3 +262,8 @@ chmod 700 "/home/$username"
 if [ "${DOJO_DEFER_TOKEN:-0}" != 1 ]; then
   python3 /usr/local/lib/dojo/forgejo-token.py --wait 60 "$username"
 fi
+
+# The account's own 0700 socket directory for tmux/zellij, not the shared /tmp
+# (see workspace-control.py ensure_runtime_dir; /etc/zsh/zshenv points at it).
+install -d -m 0711 /run/dojo
+install -d -m 0700 -o "$username" -g "$(id -gn "$username")" "/run/dojo/$(id -u "$username")"
