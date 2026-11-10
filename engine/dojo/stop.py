@@ -13,7 +13,6 @@ import os
 import subprocess
 import tempfile
 import threading
-from concurrent.futures import ThreadPoolExecutor
 import time
 from pathlib import Path
 from typing import List
@@ -42,28 +41,6 @@ def _volumes_in_config(text: str) -> List[str]:
         if inside and line.startswith("  ") and not line.startswith("   ") and ":" in line:
             out.append(line.strip().split(":", 1)[0])  # "name:" or "name: {}"
     return out
-
-
-def remove_containers(rt: Runtime, project: str, workers: int = 8) -> int:
-    """`rm -f -t 0` every container of the project in parallel. Rootless podman removes
-    them ~3 s each, serially, inside `down`; this leaves `down` only networks and volumes.
-    Failures are printed, never fatal. Returns how many were removed."""
-    ids = rt.out("ps", "-a", "--filter", f"label=com.docker.compose.project={project}", "-q").split()
-    if not ids:
-        return 0
-
-    def rm(cid: str) -> bool:
-        try:
-            res = rt.run("rm", "-f", "-t", "0", cid, timeout=120)
-        except Exception as exc:  # a hung or missing engine must not stop `down` from trying
-            console.print(f"[yellow]Could not remove container {cid[:12]} ({exc}).[/]")
-            return False
-        if res.returncode != 0:
-            console.print(f"[yellow]Could not remove container {cid[:12]}: {(res.stderr or '').strip()}[/]")
-        return res.returncode == 0
-
-    with ThreadPoolExecutor(max_workers=workers) as pool:
-        return sum(pool.map(rm, ids))
 
 
 def run_stop(dry_run: bool, archive: bool = True) -> int:
@@ -111,13 +88,13 @@ def run_stop(dry_run: bool, archive: bool = True) -> int:
         _archive(rt)
 
     console.print("Tearing down the workshop stack and all volumes (student homes, Forgejo data)...")
-    if len(containers) > 1:
-        remove_containers(rt, project)
+    t_down = time.time()
     if console.is_terminal:
         rc = _down_live(rt, project, containers, len(vols), lambda out: run("down", "--volumes", "--remove-orphans",
                                                                              stdout=out, stderr=subprocess.STDOUT).returncode)
     else:
         rc = run("down", "--volumes", "--remove-orphans").returncode
+    console.print(f"compose down took {time.time() - t_down:.0f}s.")
     state.record("stop", cur.workshop if cur else "", [], time.time() - t0, "ok" if rc == 0 else f"exit {rc}")
     if rc != 0:
         bad(f"compose down failed (exit {rc}); the run stays recorded. Re-run `{paths.PROG} stop` to finish.")
