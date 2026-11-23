@@ -1,14 +1,15 @@
 #!/usr/bin/env python3
 """Class-scale load test (ROADMAP 2.1, P9): N signed-in demo-bot students hit the gateway the way a class does.
 
-Needs a running stack started with `--test N` (the bots exist as testuser1..N and share one password):
+Needs a running stack with at least N student slots (`./dojo students 30`, then start; put dojo.toml back after):
 
-    ./dojo git-fundamentals --test 30 --fast [--terminal zellij]
+    ./dojo git-fundamentals --terminal zellij
     python3 -B tools/loadtest.py --base http://localhost:8081 --bots 30 --tool term --seconds 60
     ./dojo stop
 
-What it does, per bot, over real HTTP through the gateway (so Caddy, the allocator and web-terminal all see it):
-  1. signs in at /login (the bot password; read it from the allocator container unless --password is given);
+What it does, per simulated student, over real HTTP through the gateway (so Caddy, the allocator and web-terminal all see it):
+  1. signs in with the class login at /login and claims a slot with POST /assign (the class password is read from
+     the allocator container unless --password is given);
   2. burst: every bot opens /<tool>/ at the same moment (the "everyone opens VS Code" moment), then waits until its
      workspace answers 200 (not the 202 starting page);
   3. steady: every bot, every 3 s, polls the portal (GET /) and opens one page of the tool (GET /<tool>/),
@@ -27,6 +28,7 @@ import urllib.parse
 import urllib.request
 from collections import Counter, defaultdict
 
+assigned = [0]                    # simulated students signed in and holding a slot
 results = defaultdict(list)       # kind -> [(seconds, status)]
 lock = threading.Lock()
 
@@ -60,14 +62,22 @@ def login(base, user, password):
     jar = http.cookiejar.CookieJar()
     opener = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(jar), NoRedirect)
     data = urllib.parse.urlencode({"username": user, "password": password, "next": "/"}).encode()
-    status = fetch(opener, "login", base + "/login", data)
-    return opener if status == 303 else None
+    if fetch(opener, "login", base + "/login", data) != 303:
+        return None
+    name = urllib.parse.urlencode({"name": "load " + str(id(jar) % 10000)}).encode()
+    for _ in range(40):  # a new slot is rate-limited (10 at once, then 20 a minute), as for a class arriving together
+        if fetch(opener, "assign", base + "/assign", name) in (200, 303):
+            return opener
+        time.sleep(5)
+    return None
 
 
 def bot(base, user, password, tool, seconds, go, ready_after):
     opener = login(base, user, password)
     if opener is None:
         return
+    with lock:
+        assigned[0] += 1
     go.wait()
     t0 = time.monotonic()
     while time.monotonic() < t0 + ready_after:           # burst: open the tool until the workspace answers
@@ -121,24 +131,27 @@ def main():
     ap.add_argument("--tool", choices=("ide", "term"), default="term")
     ap.add_argument("--seconds", type=int, default=60, help="steady-polling time after the burst")
     ap.add_argument("--burst-wait", type=int, default=120, help="longest wait for every workspace to answer 200")
-    ap.add_argument("--password", help="the bot password (default: read from the allocator container)")
-    ap.add_argument("--prefix", default="testuser")
+    ap.add_argument("--password", help="the class password (default: read from the allocator container)")
+    ap.add_argument("--user", default="student", help="the class username")
     a = ap.parse_args()
     password = a.password
     if not password:
         try:
-            env = subprocess.run(["podman", "exec", "workshop_allocator", "printenv", "BOT_PASSWORD"],
+            env = subprocess.run(["podman", "exec", "workshop_allocator", "printenv", "TTYD_PASSWORD"],
                                  capture_output=True, text=True, timeout=30).stdout.strip()
         except (OSError, subprocess.SubprocessError):
             env = ""
-        password = env or "testuser123"
+        password = env or "student"
     go = threading.Event()
     threads = [threading.Thread(target=bot, daemon=True,
-                                args=(a.base.rstrip("/"), f"{a.prefix}{i}", password, a.tool, a.seconds, go, a.burst_wait))
+                                args=(a.base.rstrip("/"), a.user, password, a.tool, a.seconds, go, a.burst_wait))
                for i in range(1, a.bots + 1)]
     for t in threads:
         t.start()
-    time.sleep(min(20, 0.5 * a.bots))      # logins first, then everyone opens the tool at once
+    for _ in range(300):                   # sign in and claim slots first, then everyone opens the tool at once
+        if assigned[0] >= a.bots:
+            break
+        time.sleep(1)
     go.set()
     since = time.strftime("%Y-%m-%dT%H:%M:%S", time.gmtime())
     t0 = time.monotonic()
