@@ -86,9 +86,7 @@ Measure first (2.1), fix (2.2-2.5), then prove it at class size (2.6).
 
 | # | Work | Effort | Description |
 |---|---|---|---|
-| 2.1 | P9 load test: baseline **[stack]** (script `tools/loadtest.py` built; first run 2026-11-23, see RELEASES; still to do: a `/ide` run with about 10 code-server students, and a count of allocator calls) | M | 30-60 simulated students polling, plus a burst of first VS Code opens (brief in [`docs/reviews/2026-10-18.md`](docs/reviews/2026-10-18.md)). Record allocator calls per second, p95 latency and 502s, so 2.2 and 2.3 have a before and after |
-| 2.2 | **E5** One allocator call per `/ide` and `/term` request, not two **[engine]** | S-M | [Brief](#e5-one-allocator-call-per-ide-and-term-request-22). Every `/ide`/`/term` request, assets included, goes through `session_gate` (`/session-check`) and then the `/auth-check` proxy (`engine/allocator/api.py:25`); a first code-server load is hundreds of requests per student. Have `/auth-check` check the `dojo_login` cookie itself and skip `session_gate` on the `@ide`/`@term` blocks. Keep the 303-to-`/login` behaviour for a page load without a login |
-| 2.3 | **E6** Longer ready cache, cheaper readiness check **[engine]** | S | [Brief](#e6-longer-ready-cache-cheaper-readiness-check-23). `READY_CACHE` keeps "ready" for 2 s (`engine/allocator/allocation.py:293`), so an active student causes a `/start` call every 2 s per tool, and each one parses all of `/proc/net/tcp` (`port_open`, `engine/web-terminal/workspace-control.py:597`); with 30 code-servers that file holds thousands of lines. Keep "ready" for 15-30 s (release and reset already call `forget_user`), and check the one port with a `connect()` instead of a full scan. Trade-off to test: a code-server that dies inside the window gives a 502 until the entry expires |
+| 2.1 | P9 load test (script `tools/loadtest.py`, `/admin/api/stats` counts allocator requests) **[stack]** | S left | Done for `/term` on Zellij with 30 students, before and after E5/E6 (RELEASES). Left: record the `/ide` numbers with about 10 code-server students, and rerun at class size in 2.6 (30-60 students, a real ttyd/code-server page's assets). Run it with `./dojo students N` first and `git checkout dojo.toml` after |
 | 2.4 | Netlab start and size (2026-11-08 item 3) | M/L | Create and start the pods in parallel batches (compose up took 8m42s for 142 containers); longer term, pc/sw/fw in one container per branch via netns (about halves start, stop and memory) |
 | 2.5 | Netlab stop time | S | Stopping a 138-container stack takes about 7 minutes: a rootless `podman rm` costs about 3 s per container here, not helped by `-t 0`, parallel removal, cgroupfs or no network (measured 2026-10-28; the parallel pre-pass was reverted 2026-11-09, 0ef506d). Cause not found (storage or conmon?): try `podman system` options or fewer containers per pod |
 | 2.6 | N3 9.4: class-sized run **[stack]** (ask before starting; skipped by the user 2026-10-02) | M | On dns-as-code or git-fundamentals with ~20 bots: shell hook latency, state sweep budget (`gap=20`, `budget=40`), no dropped events, `/admin` leaderboard and toasts still responsive. Also recheck the **facilitator VS Code tab "unknown error"** (seen once under load, a retry fixed it, not reproduced at 10 bots) with the `/auth-check` logging from remediation T1.4; sizing for 20-35 students is extrapolated from 10 bots until this run. Rerun 2.1 here for the after numbers. Also closes achievements Phase 9 |
@@ -130,31 +128,6 @@ need **[engine]** approval first. Shared rules: work on a feature branch; run bo
 `cd engine/allocator && python3 -B -m unittest discover -s tests`); a live check uses `--test N --fast`, waits on
 `~/.dojo-bot-done` and ends with `./dojo stop`; when it's done, delete the row and the brief here and add a line to RELEASES.
 
-
-#### E5: one allocator call per `/ide` and `/term` request (2.2)
-
-- **Where:** the `@ide`/`@term` blocks in `engine/gateway/Caddyfile` (lines 291 and 320, under `import session_gate any` at line 250); `engine/allocator/api.py` `handle_auth_check`; `engine/allocator/handler.py` `resolve_identity`.
-- **Security pitfall (must hold):** today the facilitator's identity reaches `/auth-check` as `X-Auth-User`, copied from `X-Session-User`, which the session gate sets. Without the gate, that header comes from the client, and anyone could claim to be the facilitator. So:
-  1. In `@ide`/`@term`, strip it first: `request_header -X-Session-User`, inside a `route` so the order holds.
-  2. Make `handle_auth_check` take the account from the `dojo_login` cookie itself (`self.session_account()`), not from `X-Auth-User`. With no valid login, a page load gets the `/login?next=` redirect (same logic as `handle_session_check`) and anything else gets 401.
-  3. Students are still identified by the slot cookie (`dojo_session`), as now.
-- **Structure:** move `/ide` and `/term` out of the `session_gate any` `route` into their own `handle` blocks ahead of it, or keep them inside and match them out of the gate.
-- **Test:**
-  - Unit tests for `handle_auth_check`: no cookie gets 303 or 401; the class login without a slot gets 303 to `/`; a forged `X-Auth-User`/`X-Session-User: facilitator` without the facilitator's cookie is refused; the facilitator's cookie gets 200.
-  - `caddy-lint.py` still passes.
-  - Live **[stack]**: VS Code and Terminal open for a student and from `/admin`; a forged header is refused with `curl -H 'X-Session-User: facilitator'`; rerun 2.1 and compare allocator calls per first VS Code load (expect about half).
-- **Done when:** all of that passes and 2.1's numbers show the drop.
-
-#### E6: longer ready cache, cheaper readiness check (2.3)
-
-- **Where:** `engine/allocator/allocation.py:293` (`READY_CACHE = TTLCache(2.0)`); `engine/web-terminal/workspace-control.py` `port_open` (line 597) and the `/start` handler in `do_POST`.
-- **Change:**
-  1. Raise the TTL to `READY_TTL_S` (env, default 20).
-  2. Check that `forget_user` is called on every path that stops a workspace: release, reset, release-unused, idle timeout. Today it's called when `control_request` sees a `/stop` (`allocation.py:305-310`). An idle-timeout stop inside web-terminal is not seen by the allocator, so a stale entry is possible.
-  3. In `port_open`, try a `socket.create_connection(("127.0.0.1", port), timeout=0.2)` instead of `_listeners()`; keep `_listeners()` for the squat sweep.
-- **Trade-off:** if code-server dies inside the TTL, Caddy proxies to a closed port and the student gets a 502 until the entry expires. Either clear the entry when Caddy reports an error (the allocator can't see that), or keep the TTL short enough (about 10-20 s) for the starting page to take over after one reload.
-- **Test:** unit tests for the TTL and `forget_user`; a test of `port_open` against a listening and a closed port. Live: idle out one student's code-server (set `CODE_SERVER_IDLE_TIMEOUT_SECONDS=60` for the run) and reopen it: the starting page, then the IDE, with no lasting 502. Rerun 2.1.
-- **Done when:** the tests pass, the idle-reopen check passes, and 2.1 shows fewer `/start` calls.
 
 #### E7: facilitator on its own origin (3.1)
 
