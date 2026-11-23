@@ -108,20 +108,42 @@ def report():
     print(f"\nrequests: {sum(len(r) for r in results.values())}   5xx or failed: {bad}")
 
 
-def allocator_events(since):
+def container_env(name):
     try:
-        out = subprocess.run(["podman", "logs", "--since", since, "workshop_allocator"], capture_output=True,
-                             text=True, timeout=60)
+        return subprocess.run(["podman", "exec", "workshop_allocator", "printenv", name], capture_output=True,
+                              text=True, timeout=30).stdout.strip()
     except (OSError, subprocess.SubprocessError):
-        return
+        return ""
+
+
+def allocator_counts(base):
+    """The allocator's own per-route request counts (facilitator-only /admin/api/stats), or None."""
     import json
-    counts = Counter()
-    for line in (out.stdout + out.stderr).splitlines():
-        try:
-            counts[json.loads(line).get("event", "?")] += 1
-        except ValueError:
-            pass
-    print("allocator events during the run:", dict(counts.most_common()) or "(none read)")
+    user, pw = container_env("FACILITATOR_USERNAME"), container_env("FACILITATOR_PASSWORD")
+    if not (user and pw):
+        return None
+    jar = http.cookiejar.CookieJar()
+    opener = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(jar), NoRedirect)
+    data = urllib.parse.urlencode({"username": user, "password": pw, "next": "/"}).encode()
+    try:
+        opener.open(urllib.request.Request(base + "/login", data=data), timeout=10)
+    except urllib.error.HTTPError:
+        pass  # the 303 after sign-in
+    try:
+        with opener.open(base + "/admin/api/stats", timeout=10) as r:
+            return json.load(r)["counts"]
+    except (urllib.error.URLError, ValueError, KeyError):
+        return None
+
+
+def print_allocator_delta(before, after, requests):
+    if before is None or after is None:
+        print("allocator counts: unavailable (needs podman and the /admin/api/stats route)")
+        return
+    delta = {k: after.get(k, 0) - before.get(k, 0) for k in after if after.get(k, 0) != before.get(k, 0)}
+    print("allocator requests during the run:", dict(sorted(delta.items(), key=lambda kv: -kv[1])))
+    calls = delta.get("GET /session-check", 0) + delta.get("GET /auth-check", 0)
+    print(f"  session-check + auth-check = {calls} for {requests} gateway requests")
 
 
 def main():
@@ -136,13 +158,10 @@ def main():
     a = ap.parse_args()
     password = a.password
     if not password:
-        try:
-            env = subprocess.run(["podman", "exec", "workshop_allocator", "printenv", "TTYD_PASSWORD"],
-                                 capture_output=True, text=True, timeout=30).stdout.strip()
-        except (OSError, subprocess.SubprocessError):
-            env = ""
-        password = env or "student"
+        password = container_env("TTYD_PASSWORD") or "student"
     go = threading.Event()
+    base = a.base.rstrip("/")
+    before = allocator_counts(base)
     threads = [threading.Thread(target=bot, daemon=True,
                                 args=(a.base.rstrip("/"), a.user, password, a.tool, a.seconds, go, a.burst_wait))
                for i in range(1, a.bots + 1)]
@@ -153,13 +172,13 @@ def main():
             break
         time.sleep(1)
     go.set()
-    since = time.strftime("%Y-%m-%dT%H:%M:%S", time.gmtime())
     t0 = time.monotonic()
     for t in threads:
         t.join()
     print(f"{a.bots} bots, /{a.tool}/, {time.monotonic() - t0:.0f} s after the burst began")
     report()
-    allocator_events(since)
+    gateway_requests = sum(len(r) for k, r in results.items() if k.startswith(("burst", "steady", "portal")))
+    print_allocator_delta(before, allocator_counts(base), gateway_requests)
     return 0
 
 

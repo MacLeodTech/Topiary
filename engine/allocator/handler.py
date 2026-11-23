@@ -4,6 +4,8 @@ import hmac
 import http.server
 import json
 import socket
+import threading
+import time
 import urllib.parse
 
 from accounts import LOGIN_ASSETS, read_session, SESSION_COOKIE
@@ -18,6 +20,26 @@ import config
 from dojo_secret import forgejo_password
 from pages import ADMIN_ASSETS, CSP, NO_STORE_HEADERS, page, WORKSPACE_ASSETS
 from views import ViewsMixin
+
+
+# How many requests each route has served since start, for the facilitator's
+# /admin/api/stats (the load test, ROADMAP 2.1, counts allocator calls with it).
+# Keyed "METHOD /first/two" so the table stays small whatever clients ask for.
+_REQUEST_COUNTS = {}
+_REQUEST_COUNTS_LOCK = threading.Lock()
+_STARTED = time.time()
+
+
+def count_request(method, path):
+    key = f"{method} /" + "/".join(path.split("/")[1:3])
+    with _REQUEST_COUNTS_LOCK:
+        if key in _REQUEST_COUNTS or len(_REQUEST_COUNTS) < 100:
+            _REQUEST_COUNTS[key] = _REQUEST_COUNTS.get(key, 0) + 1
+
+
+def request_counts():
+    with _REQUEST_COUNTS_LOCK:
+        return {"since": _STARTED, "counts": dict(_REQUEST_COUNTS)}
 
 
 class Handler(ViewsMixin, ApiMixin, http.server.BaseHTTPRequestHandler):
@@ -233,7 +255,12 @@ class Handler(ViewsMixin, ApiMixin, http.server.BaseHTTPRequestHandler):
             return
         parsed = urllib.parse.urlsplit(self.path)
         path = parsed.path
+        count_request("GET", path)
         if self.refuse_non_facilitator(path):
+            return
+
+        if path == "/admin/api/stats":
+            self.send_json(request_counts(), headers=NO_STORE_HEADERS)
             return
 
         if path == "/session-check":
@@ -385,6 +412,7 @@ class Handler(ViewsMixin, ApiMixin, http.server.BaseHTTPRequestHandler):
             return
         parsed = urllib.parse.urlsplit(self.path)
         path = parsed.path
+        count_request("POST", path)
         if self.refuse_non_facilitator(path):
             return
 

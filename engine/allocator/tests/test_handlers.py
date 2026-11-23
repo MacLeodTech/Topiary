@@ -123,6 +123,16 @@ class KeepAliveIdle(HandlerTest):
             conn.close()
 
 
+class RequestStats(HandlerTest):
+    def test_stats_count_routes_for_the_facilitator_only(self):
+        self.request("GET", "/session-check")
+        self.request("GET", "/session-check")
+        self.assertEqual(self.request("GET", "/admin/api/stats", headers={"X-Auth-User": "student"})[0], 403)
+        status, _, body = self.request("GET", "/admin/api/stats", headers={"X-Auth-User": FAC})
+        self.assertEqual(status, 200)
+        self.assertGreaterEqual(json.loads(body)["counts"]["GET /session-check"], 2)
+
+
 class GatewayToken(HandlerTest):
     def test_every_route_needs_the_gateway_token(self):
         for method, path in (("GET", "/auth-check?tool=ide"), ("GET", "/session-check"),
