@@ -79,8 +79,10 @@ def check_login(username, password):
 def login_guard_key(username):
     """The account name LOGIN_USER_GUARD counts failures under, or None for a
     name no password opens (it can never succeed, and counting every random
-    name would only grow the table)."""
-    if username in (TTYD_USERNAME, FACILITATOR_USERNAME) or is_bot_id(username):
+    name would only grow the table) and for the shared class account: every
+    student uses it, so two addresses failing (a phone and a laptop) would lock
+    the whole class out of signing in. Its per-address limit still applies."""
+    if username in (FACILITATOR_USERNAME,) or is_bot_id(username):
         return username
     return None
 
@@ -124,7 +126,8 @@ LOGIN_GUARD = LoginGuard(limit=60)
 # Per account name, across every address: someone rotating addresses (or
 # behind a shared proxy) can't keep guessing one account. Above the
 # per-address limit, so one address alone can never lock an account out for
-# everyone; only real account names count (login_guard_key).
+# everyone; only the facilitator and bot accounts count (login_guard_key), not
+# the shared class account.
 LOGIN_USER_GUARD = LoginGuard(limit=100)
 # Wrong access-code cookies seen by the gateway (--pass): 10 a minute per address.
 GATE_GUARD = LoginGuard(limit=10)

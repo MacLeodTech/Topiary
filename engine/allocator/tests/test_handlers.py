@@ -105,6 +105,24 @@ class HandlerTest(unittest.TestCase):
         return allocation.slot_snapshot(sid)["name"] is not None
 
 
+class KeepAliveIdle(HandlerTest):
+    def test_idle_connection_outlives_the_request_timeout(self):
+        """E1: Caddy keeps idle connections 60 s, so one idle longer than the 3 s
+        request timeout must still serve the next request (a closed one would
+        make a POST fail with 502)."""
+        self.assertGreater(handler.Handler.IDLE_TIMEOUT, 60)
+        with mock.patch.object(handler.Handler, "timeout", 0.3), \
+                mock.patch.object(handler.Handler, "IDLE_TIMEOUT", 5):
+            conn = http.client.HTTPConnection("127.0.0.1", self.port, timeout=5)
+            hdr = {"X-Gateway-Token": config.GATEWAY_TOKEN}
+            conn.request("GET", "/login", headers=hdr)
+            conn.getresponse().read()
+            time.sleep(1.0)  # longer than `timeout`, shorter than IDLE_TIMEOUT
+            conn.request("GET", "/login", headers=hdr)
+            self.assertEqual(conn.getresponse().status, 200)
+            conn.close()
+
+
 class GatewayToken(HandlerTest):
     def test_every_route_needs_the_gateway_token(self):
         for method, path in (("GET", "/auth-check?tool=ide"), ("GET", "/session-check"),

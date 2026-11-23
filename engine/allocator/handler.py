@@ -33,11 +33,14 @@ class Handler(ViewsMixin, ApiMixin, http.server.BaseHTTPRequestHandler):
     # not at all only holds its own thread, for at most this long per read,
     # and never delays anyone else. 3 s is plenty for any legitimate request
     # (all local; control_request/forgejo_login_request have their own
-    # CONTROL_TIMEOUT). It is also how long an idle kept-alive connection
-    # lasts; gateway/Caddyfile's allocator_timeouts drops its own idle
-    # connections sooner (keepalive 2s), so Caddy never reuses one this
-    # side has just closed.
+    # CONTROL_TIMEOUT). It covers the request line, headers and body.
     timeout = 3
+    # How long an idle kept-alive connection waits for its next request.
+    # Rule: gateway/Caddyfile's allocator_timeouts `keepalive` must stay
+    # under this, so Caddy drops an idle connection before this side does
+    # and never sends a request down one that is closing (a POST on such a
+    # connection would get a 502; Go retries only idempotent requests).
+    IDLE_TIMEOUT = 65
 
     def send_response(self, code, message=None):
         self._sent_length = False
@@ -72,9 +75,18 @@ class Handler(ViewsMixin, ApiMixin, http.server.BaseHTTPRequestHandler):
         pass  # keep container logs quiet; nothing sensitive is worth logging by default
 
     def handle_one_request(self):
-        """An audit line for any handler that crashes (the traceback still
-        goes to stderr), so a broken page shows up in the JSON log."""
+        """Wait up to IDLE_TIMEOUT for the next request to start, then give it
+        the short `timeout`. An audit line for any handler that crashes (the
+        traceback still goes to stderr), so a broken page shows up in the
+        JSON log."""
         try:
+            self.connection.settimeout(self.IDLE_TIMEOUT)
+            try:
+                if not self.rfile.peek(1):
+                    self.close_connection = True
+                    return
+            finally:
+                self.connection.settimeout(self.timeout)
             super().handle_one_request()
         except (ConnectionError, socket.timeout):
             raise

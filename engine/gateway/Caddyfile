@@ -57,9 +57,9 @@
 # Every call to the allocator (remediation T3.4, FIND-07). A stuck call must
 # fail fast instead of queueing the class behind it: a dial that takes over
 # 3 s or a reply that hasn't started within 10 s is a 502. The allocator keeps
-# connections alive (HTTP/1.1) and closes one after 3 s idle (Handler.timeout),
-# so Caddy drops its idle ones at 2 s and never sends a request down a
-# connection the allocator is closing. Imported into each allocator block
+# connections alive (HTTP/1.1) and closes an idle one after 65 s
+# (Handler.IDLE_TIMEOUT), so Caddy drops its idle ones at 60 s and never sends
+# a request down a connection the allocator is closing. Keep keepalive below it. Imported into each allocator block
 # below and into the rendered extension gates (allocator/render_extensions.py).
 #
 # X-Forwarded-For is replaced with {client_ip}, the one address the login and
@@ -72,7 +72,7 @@
 	transport http {
 		dial_timeout 3s
 		response_header_timeout 10s
-		# Idle upstream connections kept 60 s, not 2: every student polls the portal
+		# Idle upstream connections kept 60 s (under the allocator's 65 s): every student polls the portal
 		# every ~3 s, so with 2 s nearly every poll opened a new connection and thread.
 		keepalive 60s
 	}

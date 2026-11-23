@@ -162,6 +162,13 @@ class HandleLoginLimitTest(unittest.TestCase):
         self.attempt("10.0.2.1", "nobody", "x")
         self.assertNotIn("nobody", self.api.LOGIN_USER_GUARD.fails)
 
+    def test_class_account_not_locked_by_many_addresses(self):
+        """Two addresses failing must not lock the shared class account (E2)."""
+        for i in range(10):
+            self.assertEqual(self.attempt(f"10.1.0.{i}", "student", "wrong"), 401)
+        self.assertNotIn("student", self.api.LOGIN_USER_GUARD.fails)
+        self.assertEqual(self.attempt("10.1.1.1", "student", "class-pw"), 303)
+
     def test_production_limits_fit_a_class_behind_one_nat(self):
         self.assertGreaterEqual(accounts.LOGIN_GUARD.limit, 60)
         self.assertGreater(accounts.LOGIN_USER_GUARD.limit, accounts.LOGIN_GUARD.limit)
