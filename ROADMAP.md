@@ -1,53 +1,52 @@
 # Roadmap
 
-The single list of open work. Finished work moves to [`RELEASES.md`](RELEASES.md). The old per-feature plans
-(design, decisions, task logs) are frozen in [`docs/archive/`](docs/archive/); read them for the why, but don't
-update them. When you finish an item: delete it here and add a line to RELEASES.md.
+The single list of open work, **in the order to do it**. Finished work moves to [`RELEASES.md`](RELEASES.md). The old
+per-feature plans (design, decisions, task logs) are frozen in [`docs/archive/`](docs/archive/); read them for the
+why, but don't update them. When you finish an item: delete it here and add a line to RELEASES.md.
 
-Last updated: 2026-11-06 (netlab 15-pod run logged; open items from docs/plans/ merged in; before that 2026-10-17: dependency-pin and seed-repo-sync checks added and CI re-enabled; CTF plan status refreshed to match `main`; wall-of-shame toggle now gated in achievements; C6 added. Before that 2026-10-16: student `dojo` command built, git-fundamentals live check in progress; before that 2026-10-15, PR #34: vault reset twice plus lab 11/12 passed locally, ctf-defend fix-then-age-off run
-done locally, 7 overflowing slides trimmed; stale branch notes removed). Before that: 2026-10-09 (content-depth audit
-of all 5 CTF packs) and 2026-10-07 (ctf-range Target Viewer and the `ctf-access` pack, PR #17). ·
-Working branch: `main`; cut a feature branch for each new batch of work.
+Last updated: 2026-11-23. The file is now one prioritized flow (phases 0-6), and the 2026-11-23 engine review's
+findings (**E1-E12**) are folded in. Earlier versions are in git history (before this change: `d2a37fb`). ·
+Working branch: `fix/review-2026-11-08` (not pushed); cut a feature branch for each new batch of work.
 
 **Effort:** **S** one sitting (an hour or two) · **M** a day or so · **L** several days · **—** no work planned.
-RV efforts come from the platform review; the rest are estimates. Where something is already built, the effort is
-what is left (usually the live check).
+**Tags:** **[engine]** edits `engine/`, so ask first (CLAUDE.md) · **[you]** only the user can do it (a browser, another
+machine, a decision) · **[stack]** needs a live run (`./dojo <workshop> --test N --fast`, then `./dojo stop`).
 
-| Section | What it holds |
-|---|---|
-| [Priorities](#priorities) | The order of work, decided at the 2026-10-01 review |
-| [Up next](#up-next) | Where to resume; decisions of 2026-10-02 and 2026-10-03 |
-| [Now](#now) | Student reset and Phase 10 live checks (the split smoke run is parked in [Later](#later)) |
-| [Next](#next) | CTF workshop series; N3 9.4 class-sized run; platform review (RV36, RV38 on hold); student reset; achievements leftovers; `dojo` CLI; remediation leftovers |
-| [Manual checks](#manual-checks) | Browser passes only the user can do |
-| [Later](#later) | Follow-ups and known limits |
-| [Housekeeping](#housekeeping) | Repo hygiene |
-| [Reference](#reference) | Settled decisions and design notes for student reset and achievements |
+**IDs:** each item keeps its old ID (RV, R, D, C, T, P, S, CTF-…), so commits and the review docs still match. **E1-E12**
+are new from the 2026-11-23 engine review: a static read of the gateway, allocator, `workspace-control.py`, the `dojo`
+CLI and the base compose file. None of them has been reproduced on a stack yet.
 
-## Priorities
+## The flow at a glance
 
-Decided at the 2026-10-01 review. Done since: committing the working tree (`4481225`), the home demo dry run,
-platform review tier 1 and the merge to `main` (PR #6), the Phase 9 live checks apart from the class-sized run
-(PR #7) (2026-10-02), Cloud-Policy-as-Code (RV35) with RV19, the Phase 10 sweep and the student reset build (PR #8)
-and the pack's pids cap (PR #9) (2026-10-03), then on `feat/zellij-terminal` (merged in PR #17): the Zellij flavor, the CTF range scaffold/SAST/control plane, RV29/RV30/RV25/RV27 and the ctf-range digest pins (2026-10-04, see RELEASES). The user's own browser checks ([Manual checks](#manual-checks))
-fit in around these; tofu-basics T9.4/T9.9 are the oldest.
+| Phase | Goal | Size | Done when |
+|---|---|---|---|
+| [0](#phase-0-land-the-2026-11-08-review-branch) | Land the 2026-11-08 review branch | S | Browser check passed; both branches merged |
+| [1](#phase-1-quick-fixes-correctness-and-hardening) | Quick fixes: one regression, small hardening, small scale wins | 1-2 days | Unit tests pass; one bot stack passes |
+| [2](#phase-2-class-scale-performance) | Class-scale performance, measured before and after | M-L | The load test shows the gain; class-sized run passes |
+| [3](#phase-3-public-run-readiness) | Public-run readiness: blast radius, sessions, pre-class checks | M-L | Done before the next `--env prod` class |
+| [4](#phase-4-engine-structure-and-hygiene) | Engine structure and hygiene | M | Each refactor passes unit tests and one bot stack |
+| [5](#phase-5-live-checks-and-browser-passes) | Live checks and browser passes (backlog) | ongoing | Run alongside phases 1-4 whenever a stack is up |
+| [6](#phase-6-content-and-feature-tracks) | Content and feature tracks | L | — |
+| [Later](#later) | Follow-ups, known limits, accepted residuals, tech to revisit | — | — |
+
+**Why this order.** Phase 1 holds a likely regression (E1) and fixes that each take under an hour. Phase 2 comes before
+the class-sized run, so that run checks the fixes instead of measuring known waste, and it starts with a baseline
+measurement. Phase 3 is the one design decision (E7) and has to be settled before a public class, not after. Phase 4's
+refactors come after the behaviour fixes, so a refactor never hides a regression, and before new content, so new
+packs don't copy the old patterns. Phase 5 is not a blocker: whenever a stack is up for something else, take the
+matching check from it.
+
+## Phase 0: land the 2026-11-08 review branch
 
 | # | Work | Effort | Description |
 |---|---|---|---|
-| 1 | Student reset: live checks | S | All four hooks have now run live: DNS and cert 2026-10-03, cloud (with a non-empty pre-state) and vault's capstone 2026-10-04. Left: the vault reset once on the Ubuntu WSL/Docker host, and the purge-line finding in [Now](#now) |
-| 2 | Phase 10 leftovers | S | Done apart from the browser looks: `slide-overflow.sh` ran on dns-as-code and dojo-introduction `--test 5 --fast` re-ran with 0 skips (2026-10-04, [Now](#now)). Left: the two browser looks (the 7 overflowing slides were trimmed 2026-10-15, RELEASES) |
-| 3 | Platform review tiers 3-4 | L | RV22-RV33, RV35 done; RV34 and RV37 dropped (2026-10-15); RV36 (more workshops) and RV38 (reset button) on hold |
+| 0.1 | Browser check **[you]** | S | The watch tile and `pbcopy` in the student's own browser. Everything else passed live 2026-11-09 (log below) |
+| 0.2 | Merge `chore/centralize-plans`, then `fix/review-2026-11-08` | S | `chore/centralize-plans` is not on `main` yet. Ask before merging or pushing. Afterwards, move the batch list and the live-check log below to RELEASES |
 
-## Up next
+**What the branch holds.** A read-only review of `304ead5..9108cac` (security, scale, gaps); the fixes are committed
+from f29ebbe on and unit-tested (170 OK).
 
-### Review of 2026-11-08: resume here
-
-Status 2026-11-09 (end of day): the batch 1-3 fixes are committed on `fix/review-2026-11-08` (from f29ebbe on,
-**not pushed**), unit-tested (170 OK) and live-checked locally on port 8081 (item 1 below). Left before merging:
-the user's browser check (watch tile, `pbcopy`), then merge after `chore/centralize-plans` reaches `main` (ask first).
-Then items 2-8.
-
-A read-only review of `304ead5..9108cac` (security, scale, gaps). The batch 1-3 fixes:
+The batch 1-3 fixes:
 - netlab `clean()` crash fixed;
 - node healthcheck 10 s → 30 s;
 - S1: per-node host keys from the seed, plus `known_hosts`, with host-key checking on in the checker, view, terminal and the five `ansible.cfg` files;
@@ -61,256 +60,258 @@ A read-only review of `304ead5..9108cac` (security, scale, gaps). The batch 1-3 
 - S3: tmux/zellij sockets in `/run/dojo/<uid>` (0700), via `ensure_runtime_dir()`, a new `/etc/zsh/zshenv` and `provision-account.sh`;
 - S5: the watch client attaches with `TERM=screen-256color`, so OSC 52 doesn't reach the facilitator (tested on local tmux 3.6). Live-check: the roster terminal dot, the watch tile, `pbcopy` in the student's own browser, zellij, and that the zellij image's own zshenv still has its lines.
 
+**Live-check log (2026-11-09).**
+
 | # | Work | Effort | Description |
 |---|---|---|---|
-| 1 | Finish the live check | S | Run 2026-11-09, locally on port 8081 (VS Code on Windows held 8080 under mirrored WSL networking).
+| — | Live check: passed | — | Run 2026-11-09, locally on port 8081 (VS Code on Windows held 8080 under mirrored WSL networking).
 **git-fundamentals `--test 3 --fast`: all passed.** Bots done; Forgejo WAL on; sockets in `/run/dojo/<uid>` (0700); a planted `/tmp/tmux-<uid>` no longer blocks a terminal; the roster shows terminal state; stop took 30 s with nothing left behind.
 **netlab-ansible `--test 2 --fast`: all passed on the rerun.** Host keys match `known_hosts`; no ssh prompt; nodes can't reach `web-terminal:7682`; the `mgmt_iface` (no `ip`) and bot `/run/dojo/<uid>` fixes hold (terminal RestartCount 0, `NETLAB_INPUT` present); both bots passed A1-A11 incl. A5 (only the expected pre-lab demo FAILs); testuser1 done in 16 min, testuser2 in 26 (slower, never stalled); stop 2m35s, nothing left.
 **zellij (`git-fundamentals --terminal zellij --test 3 --fast`): passed.** `/etc/zsh/zshenv` has the `/run/dojo/$UID` block first, then the zellij layer's lines; sockets live in `/run/dojo/<uid>/zellij/` under the 0700 dir (zellij still writes only its log to `/tmp/zellij-<uid>/`); bots done; about 76 MB RSS per student (the memory warning guesses 100 MB).
 **15-pod stop: back to plain `down` (0ef506d).** `netlab-ansible --test 14 --fast` (15 pods; generate.py caps netlab at 15 students, and `--test 15` adds a 16th), 142 containers, compose up 7-8 min. 8 parallel `rm -f -t 0` before `down`: **11m35s** (netavark veth and dependency races, then `down` retried every container). One `rm -f -t 0 --depend <ids>`: **7m42s** (434 s in the rm, still ~3 s per container, plus a netavark error). Plain `down`: **7m48s**. Same cost, so the pre-pass is gone and stop prints how long `down` took; the ~3 s per rootless container is the open item in the netlab entry below. Not checked: the watch tile and `pbcopy` in a real browser. |
-| 2 | Per-pod netlab management network | M | S1's full fix: a pod with root and NET_ADMIN can still ARP-spoof on the flat `netlab_mgmt` network (host keys now stop the impersonation, not the reach) |
-| 3 | Netlab start and size | M/L | Create and start the pods in parallel batches (compose up took 8m42s for 142 containers); longer term, pc/sw/fw in one container per branch via netns (about halves start, stop and memory) |
-| 4 | Still open from 2026-10-18 | S each | The whole content dir (cloud-policy solutions, srx stages) is mounted in the terminal (`engine/docker-compose.yml:243`); the `--pass` gate token is unsalted sha256 (`start.py:341`); the CTF `view.py` CSP still allows `'unsafe-inline'`; achievements `CLIENT_HASH` hashes a file students can read; the terminal pids limit is one fixed total |
-| 5 | Small scale wins | S | Forgejo and dojo-cloud healthchecks at 5 s, the ctf-range and runner-pool ones at 10 s → 15-30 s; `Cache-Control: max-age` on secret-free static assets in the Caddyfile (now `no-store`); prune about 2.5 GB of dangling images (hook `maintain.py`'s removal into stop or a `./dojo prune`); code-server idle timeout 900 s → 300-600 s?; the memory warning guesses 100 MB per zellij student, measured about 76 MB (2026-11-09): lower it? |
-| 6 | Tests and healthchecks | S | Unit tests for the `netlab` and `wan` cmd.d plug-ins and the inline `dojo-check` wrapper in `workshops/ctf-defend/compose/terminal/Dockerfile:15-25`; check for an image HEALTHCHECK on dns-api, zone-viewer, dns-admin, cloud-api, wan-api, openbao (none in compose) |
-| 7 | Save before stop | S | `./dojo export` (or a section in `docs/operations.md`): the roster, scores and repos, before `./dojo stop` wipes the volumes **[engine]** |
-| 8 | Docs | S | The README's gateway/network matrix and CTF rows for the new packs; rewrite the stale "Up next" text below (dated 2026-10-15, before netlab); local CLAUDE.md pack list |
 
-### Earlier (2026-10-15)
+## Phase 1: quick fixes, correctness and hardening
 
+Each is small. Batch them on one branch, then run both unit suites and one bot stack
+(`git-fundamentals --test 3 --fast`, then `./dojo stop`).
 
-Resume here (updated 2026-10-15). The vault reset fix merged to `main` in PR #12: `lab_11.sh` and `lab_12.sh` pass after
-a reset, and passed again locally 2026-10-15 (reset twice). Branches are tidy: everything is merged to `main` (PRs #17,
-#33, #34); only the Dependabot Flask bump (PR #32) is open.
-The split smoke run is parked (see [Later](#later)); the full-stack smoke loop is paused. Next, one stack at a time
-(`podman ps` first):
-1. ~~**Vault capstone two-step**~~, ~~**cloud reset + capstone**~~, ~~**the Phase 10 leftovers**~~: all run 2026-10-04 on the
-   Mac (see [Now](#now)). Nothing is left on a stack here. No stack is up: each run ended with `./dojo stop`.
-2. ~~**The two findings of 2026-10-04**~~: `no_push_since_step`'s sub-second hole, and the purge line that
-   never named policy objects or tofu states. Both fixed 2026-10-05 (`418d5ad`), unit-tested, no stack needed.
-3. **One run on the Ubuntu WSL/Docker host** (a podman run here passed the bots without the opts, 2026-10-15; a reset twice plus lab 11/12 also passed here; only the Ubuntu/Docker host itself is open) with `RUNNER_POOL_SECURITY_OPT_1/2` unset, to confirm the defaults
-   (`no-new-privileges=true`, bare `no-new-privileges`) change nothing there. This and the browser looks are all
-   that the Mac cannot do.
+| # | Work | Effort | Description |
+|---|---|---|---|
+| 1.1 | **E1** Allocator keepalive mismatch (likely a regression from 2026-11-08) **[engine]** | S | [Brief](#e1-allocator-keepalive-mismatch-11). `engine/gateway/Caddyfile:77` keeps idle allocator connections for 60 s, but the allocator closes them after 3 s (`Handler.timeout = 3`, `engine/allocator/handler.py`). The old 2 s < 3 s rule was there so that Caddy never sends a request down a connection the allocator is closing. Go retries idempotent GETs, so polls hide it; a POST that hits the race (`/login`, `/assign`, Release, Reset) gets a 502. Either go back to 2 s, or give the allocator a 65 s idle wait for the request line and keep 3 s for headers and body. Fix the stale "keepalive 2s" comments in `handler.py` |
+| 1.2 | **E2** Two addresses can lock the class out of signing in **[engine]** | S | [Brief](#e2-class-login-lockout-12). `LOGIN_USER_GUARD` (`engine/allocator/accounts.py:128`) allows 100 wrong guesses a minute per account name, and the class shares one account. Each address is capped at 60, so two addresses (a phone and a laptop) lock the class username for everyone; signed-in browsers keep working, new sign-ins get 429. Exempt the shared class account (the per-address limit already covers it), or lock it only when many addresses are failing |
+| 1.3 | **E3** Gateway container hardening **[engine]** | S | [Brief](#e3-gateway-hardening-13). The gateway service in `engine/docker-compose.yml` has none of the allocator's hardening: add `no-new-privileges`, `read_only` (plus tmpfs or named volumes for Caddy's `/data` and `/config`) and a `pids_limit` |
+| 1.4 | **E4** Password reveal as a POST **[engine]** | S | [Brief](#e4-password-reveal-as-a-post-14). `/admin/api/forgejo-password/<sid>` is a GET, so a link from another site can trigger it (it can't read the answer) and pad the `forgejo-password-shown` audit log. Make it a POST with the `X-Requested-With: dojo-admin` check, as Release and Reset have |
+| 1.5 | Still open from 2026-10-18 (2026-11-08 item 4) | S each | The whole content dir (cloud-policy solutions, srx stages) is mounted in the terminal (`engine/docker-compose.yml:243`); the `--pass` gate token is unsalted sha256 (`start.py:341`); the CTF `view.py` CSP still allows `'unsafe-inline'` (also lowers E7's risk); achievements `CLIENT_HASH` hashes a file students can read; the terminal pids limit is one fixed total |
+| 1.6 | Small scale wins (2026-11-08 item 5) | S | Forgejo and dojo-cloud healthchecks at 5 s, the ctf-range and runner-pool ones at 10 s → 15-30 s; `Cache-Control: max-age` on secret-free static assets in the Caddyfile (now `no-store`); prune about 2.5 GB of dangling images (hook `maintain.py`'s removal into stop or a `./dojo prune`); code-server idle timeout 900 s → 300-600 s?; the memory warning guesses 100 MB per zellij student, measured about 76 MB (2026-11-09): lower it? |
+| 1.7 | Tests and healthchecks (2026-11-08 item 6) | S | Unit tests for the `netlab` and `wan` cmd.d plug-ins and the inline `dojo-check` wrapper in `workshops/ctf-defend/compose/terminal/Dockerfile:15-25`; check for an image HEALTHCHECK on dns-api, zone-viewer, dns-admin, cloud-api, wan-api, openbao (none in compose) |
 
-On the Mac (rootful Podman + SELinux) start with `--env mac-podman` (sets `RUNNER_POOL_SECURITY_OPT_1=unmask=/proc/*` and
-`RUNNER_POOL_SECURITY_OPT_2=label=type:container_engine_t`), or no runner or app can start (`unshare: mount /proc
-failed`). Details in `modules/runner-pool/README.md`. The Mac's
-published port 8080 can reset connections from the host; reach the gateway from inside the lab network instead, with
-`Host: localhost:8080` (the facilitator login is the `/login` cookie, and Reset needs `X-Requested-With: dojo-admin`).
-Every `--test` run uses `--fast`.
+## Phase 2: class-scale performance
 
-**Answered 2026-10-02**
+Measure first (2.1), fix (2.2-2.5), then prove it at class size (2.6).
 
-| Question | Answer |
-|---|---|
-| Reset button | Yes, a full **Reset environment** button on `/admin` (RV38), with Release all as its first step. Nothing may persist past `./dojo stop` |
-| Shared helpers (RV20/RV21) | One copy in `modules/_shared/`, copied into `<context>/_shared/` at build time (`SHARED=` in `module.env`) |
-| Shared-repo changes on reset (2026-10-03) | Left alone: a student reset never touches what they changed in a shared repo (e.g. dns-as-code `<user>-app` records in `dojo.test` stay) |
-| Next workshop | Cloud-Policy-as-Code (RV35), merged to `main` in PR #8 (2026-10-03) |
+| # | Work | Effort | Description |
+|---|---|---|---|
+| 2.1 | P9 load test: baseline **[stack]** | M | 30-60 simulated students polling, plus a burst of first VS Code opens (brief in [`docs/reviews/2026-10-18.md`](docs/reviews/2026-10-18.md)). Record allocator calls per second, p95 latency and 502s, so 2.2 and 2.3 have a before and after |
+| 2.2 | **E5** One allocator call per `/ide` and `/term` request, not two **[engine]** | S-M | [Brief](#e5-one-allocator-call-per-ide-and-term-request-22). Every `/ide`/`/term` request, assets included, goes through `session_gate` (`/session-check`) and then the `/auth-check` proxy (`engine/allocator/api.py:25`); a first code-server load is hundreds of requests per student. Have `/auth-check` check the `dojo_login` cookie itself and skip `session_gate` on the `@ide`/`@term` blocks. Keep the 303-to-`/login` behaviour for a page load without a login |
+| 2.3 | **E6** Longer ready cache, cheaper readiness check **[engine]** | S | [Brief](#e6-longer-ready-cache-cheaper-readiness-check-23). `READY_CACHE` keeps "ready" for 2 s (`engine/allocator/allocation.py:293`), so an active student causes a `/start` call every 2 s per tool, and each one parses all of `/proc/net/tcp` (`port_open`, `engine/web-terminal/workspace-control.py:597`); with 30 code-servers that file holds thousands of lines. Keep "ready" for 15-30 s (release and reset already call `forget_user`), and check the one port with a `connect()` instead of a full scan. Trade-off to test: a code-server that dies inside the window gives a 502 until the entry expires |
+| 2.4 | Netlab start and size (2026-11-08 item 3) | M/L | Create and start the pods in parallel batches (compose up took 8m42s for 142 containers); longer term, pc/sw/fw in one container per branch via netns (about halves start, stop and memory) |
+| 2.5 | Netlab stop time | S | Stopping a 138-container stack takes about 7 minutes: a rootless `podman rm` costs about 3 s per container here, not helped by `-t 0`, parallel removal, cgroupfs or no network (measured 2026-10-28; the parallel pre-pass was reverted 2026-11-09, 0ef506d). Cause not found (storage or conmon?): try `podman system` options or fewer containers per pod |
+| 2.6 | N3 9.4: class-sized run **[stack]** (ask before starting; skipped by the user 2026-10-02) | M | On dns-as-code or git-fundamentals with ~20 bots: shell hook latency, state sweep budget (`gap=20`, `budget=40`), no dropped events, `/admin` leaderboard and toasts still responsive. Also recheck the **facilitator VS Code tab "unknown error"** (seen once under load, a retry fixed it, not reproduced at 10 bots) with the `/auth-check` logging from remediation T1.4; sizing for 20-35 students is extrapolated from 10 bots until this run. Rerun 2.1 here for the after numbers. Also closes achievements Phase 9 |
+| 2.7 | CTF class numbers (CTF-SPIKES S9/S14) | M | Persona-swarm tuning, cold start at 40 students, queue concurrency, idle timeout: class-only numbers, take them in 2.6 |
 
-## Now
+## Phase 3: public-run readiness
 
-Live checks for what was built 2026-10-02 and 2026-10-03 (all unit-tested; nothing below has run on a stack unless
-it says so). A brief for an agent is built from these lines.
+Finish before the next `--env prod` class. Settle 3.1's decision first: it decides how 3.2 is built.
 
-| Check | Stack | What to confirm |
+| # | Work | Effort | Description |
+|---|---|---|---|
+| 3.1 | **E7** Facilitator tools on their own origin **[engine] [you: decision]** | M | [Brief](#e7-facilitator-on-its-own-origin-31). `/admin`, Forgejo, every extension route and the facilitator's own `/ide`/`/term` all share one origin. The `X-Requested-With` check stops forged requests from other sites but not a script running on this origin, so one XSS in Forgejo, a module UI or the CTF view (`'unsafe-inline'`, 1.5) can act as the facilitator: read every Forgejo password, take a Forgejo site-admin session through `/forgejo-login`, reset or release students, or open the facilitator's terminal. Today the only defence is each module's `textContent` rule. Fix: serve `/admin` and the facilitator's tools from a second origin (`admin.<host>` behind the home-lab Caddy; a second port locally), with a cookie that is never set on the student origin. Decision: the hostname scheme for `--env home`/`--env prod`, and whether local runs get it too |
+| 3.2 | **E8** Revocable, shorter facilitator session **[engine]** | S | [Brief](#e8-revocable-shorter-facilitator-session-32). The `dojo_login` cookie is stateless and valid for 12 h (`engine/allocator/accounts.py`), so `/logout` only clears the browser's copy. Add a server-side session epoch (bump it on logout, or with a "sign everyone out" button) and a shorter facilitator lifetime (4 h?) |
+| 3.3 | Per-pod netlab management network (2026-11-08 item 2) | M | S1's full fix: a pod with root and NET_ADMIN can still ARP-spoof on the flat `netlab_mgmt` network (host keys now stop the impersonation, not the reach) |
+| 3.4 | P15 `doctor --live`: pre-class readiness check | M | Design in [`docs/reviews/2026-10-18.md`](docs/reviews/2026-10-18.md) (P13/P15); not built |
+| 3.5 | P10 failure and recovery; P12 fresh-machine bootstrap | M each | Kill services mid-class and interrupt start/stop/restart: do students recover? `setup.sh`/`setup.ps1` on a clean machine. Briefs in the 2026-10-18 review |
+| 3.6 | **E9** Save before stop, through a module hook (2026-11-08 item 7) **[engine]** | S-M | [Brief](#e9-save-before-stop-through-a-module-hook-36). `./dojo stop` already saves feedback, scores and the roster to `results/` (`engine/dojo/stop.py`); student repos are not saved yet. Do it generically: an `exports` kind in `extensions.json` (like `resets`) through which any module adds files to `results/`. Then the engine no longer calls achievements by name (`engine/dojo/archive.py`, `results.py`). The auto-add of `achievements` in `engine/dojo/envfiles.py:185` could become a pack setting too |
+
+## Phase 4: engine structure and hygiene
+
+No behaviour change. Every E item in phases 1-4 links to its [execution brief](#execution-briefs-e1-e12). Before each refactor, make sure its tests exist; after it, run unit tests and one bot stack.
+
+| # | Work | Effort | Description |
+|---|---|---|---|
+| 4.1 | **E10** Split `workspace-control.py` (1124 lines) **[engine]** | M | [Brief](#e10-split-workspace-controlpy-41). The one file worth splitting (also 2026-10-18 review §3.8). A package with `ports` (listeners, squat sweep), `namespaces` (holder, userns), `sessions` (tmux/zellij, watch), `accounts` (reset, hooks), `reaper` and `http` |
+| 4.2 | **E11** Route table in the allocator **[engine]** | S-M | [Brief](#e11-route-table-in-the-allocator-42). Replace the `do_GET` (154 lines) and `do_POST` if-chains in `engine/allocator/handler.py` with a table of `(method, path) → handler, flags`. Facilitator-only and `X-Requested-With` become per-route flags; the same 403 block appears three times in `do_POST` today |
+| 4.3 | Caddyfile snippets **[engine]** | S | `@ide` and `@term` are about 30 identical lines each: one snippet with the tool as its argument. The four access-code matchers repeat the same two regexes |
+| 4.4 | Comments: invariants, not history **[engine]** | S | `docker-compose.yml` is 47% comments, the Caddyfile 36%, `entrypoint.sh` 33%, much of it history ("remediation T3.4", "used to be"). Some are already wrong: `workspace-control.py` says it is threaded "unlike the allocator" and puts tmux sockets in `/tmp/tmux-<uid>`, and `handler.py` says "keepalive 2s". Keep the rules ("Caddy's idle limit must stay under the allocator's") and leave the history to git and RELEASES |
+| 4.5 | **E12** Move the git-fundamentals bot steps out of the engine **[engine]** | S-M | [Brief](#e12-move-the-git-fundamentals-bot-steps-out-of-the-engine-45). `engine/web-terminal/bot-runner.sh` (769 lines) carries git-fundamentals' `step_lab1`-`step_lab5` as its default. Packs can already supply their own steps, so move them to `workshops/git-fundamentals/` and keep only the framework (`run_cmd`, `think`, state, portal login) in the engine |
+| 4.6 | CI: Python lint, types and a Caddy invariant test | S | [Brief](#46-ci-additions-supports-e1). Add ruff and a type check to `.github/workflows/ci.yml`, plus a test that reads the Caddyfile and the allocator's timeout and fails if they break 1.1's rule |
+| 4.7 | Declarative pack settings | L | `workshop.env`/`module.env` are run with `sh` (`engine/dojo/envfiles.py:92`). TOML, like `dojo.toml`, would make validation and `--dry-run` simpler (2026-10-18 review §3.4). Long term |
+| 4.8 | Docs (2026-11-08 item 8, plus trimming) | S-M | The README's gateway/network matrix and CTF rows for the new packs; local CLAUDE.md pack list. Trim the overlap between `engine/README.md` (1142 lines) and `docs/architecture.md`/`docs/security.md`; shorten RELEASES (912 lines) by moving old detail to `docs/archive/` |
+
+## Execution briefs: E1-E12
+
+One brief per finding from the 2026-11-23 review: where to change, how, how to test, and when it counts as done. All
+need **[engine]** approval first. Shared rules: work on a feature branch; run both unit suites
+(`PYTHONPATH=engine:$(echo engine/.cache/pylib-*) python3 -B -m unittest discover -s engine/dojo/tests -t engine` and
+`cd engine/allocator && python3 -B -m unittest discover -s tests`); a live check uses `--test N --fast`, waits on
+`~/.dojo-bot-done` and ends with `./dojo stop`; when it's done, delete the row and the brief here and add a line to RELEASES.
+
+#### E1: allocator keepalive mismatch (1.1)
+
+- **Where:** `engine/gateway/Caddyfile:77` (`keepalive 60s` in `(allocator_timeouts)`); `engine/allocator/handler.py:40` (`timeout = 3`) and the comment above it; `.github/scripts/caddy-lint.py`.
+- **Change (option A, recommended first):** set `keepalive 2s` again. Rewrite the comment as a rule: "must stay below `Handler.timeout`". Fix the "keepalive 2s" wording in `handler.py` to match.
+- **Change (option B, only if 2.1 shows the reconnects cost something):** keep 60 s in Caddy and give the allocator a separate idle timeout. In `Handler.handle_one_request`, call `self.connection.settimeout(IDLE_S)` (e.g. 65) before the request line is read, then `settimeout(3)` once it has arrived, so slow headers and bodies still time out at 3 s. Threads: an idle kept-alive connection holds one thread for up to `IDLE_S`; Caddy's per-host idle pool (32 by default) bounds that.
+- **Test:** add a rule to `caddy-lint.py` (see 4.6) that reads the keepalive value and `Handler.timeout` and fails unless keepalive < timeout. Live: `git-fundamentals --test 3 --fast`, then `./dojo logs gateway --grep '"status":502'` for the run shows no 502 on a POST.
+- **Done when:** the lint rule is in CI, the stack run shows no 502s, and the comments state the rule.
+
+#### E2: class-login lockout (1.2)
+
+- **Where:** `engine/allocator/accounts.py` (`login_guard_key`, `LOGIN_USER_GUARD` at line 128); `engine/allocator/api.py` `handle_login`; tests in `engine/allocator/tests/test_login.py`.
+- **Change:** have `login_guard_key()` return `None` for `TTYD_USERNAME` (the shared class account), so only the per-address limit applies to it. Keep the per-account limit for the facilitator and bot accounts. Correct the comment "one address alone can never lock an account out".
+- **Alternative if the facilitator account needs the same protection:** count distinct failing addresses per account and block only past N addresses (e.g. 10) in the window.
+- **Test:** unit tests: (a) 2 addresses × 60 wrong guesses for the class account, then a right password from a third address gets 303, not 429; (b) the facilitator account is still blocked after 100; (c) an address over 60 is still blocked.
+- **Done when:** both new tests pass and the existing login tests still pass. No stack needed.
+
+#### E3: gateway hardening (1.3)
+
+- **Where:** the `gateway:` service in `engine/docker-compose.yml`.
+- **Change:** add `security_opt: [no-new-privileges:true]`, `read_only: true` and `pids_limit: ${GATEWAY_PIDS_LIMIT:-256}`. Mount Caddy's state as named volumes (`gateway_data:/data`, `gateway_config:/config`) and add both to `volumes:`, so `./dojo stop` removes them (CLAUDE.md: name every volume an image declares). Map the new env var in `engine/dojo/config.py` only if it should be settable.
+- **Risk:** the caddy binary uses file capabilities (`cap_net_bind_service`), and `no-new-privileges` can block file caps. The ports are 8080/8443 (unprivileged), so this should be fine, but check that Caddy starts.
+- **Test:** `./dojo git-fundamentals --dry-run`, then a live start: the gateway is healthy, `/login` loads, `podman inspect workshop_gateway` shows the options, `./dojo stop` leaves no `engine_gateway_*` volume. An `https://` `PUBLIC_BASE_URL` run (Let's Encrypt writes to `/data`) is a separate check on the public host.
+- **Done when:** the gateway starts healthy with the options set and stop leaves nothing behind.
+
+#### E4: password reveal as a POST (1.4)
+
+- **Where:** `engine/allocator/handler.py` (the GET route `/admin/api/forgejo-password/` at line 364, moved into `do_POST`); `engine/allocator/api.py` `handle_forgejo_password`; `engine/allocator/static/admin.js:119` (the `fetch`); `engine/allocator/tests/test_handlers.py`.
+- **Change:** serve it on POST only, behind the same `X-Requested-With: dojo-admin` check as Release. In `admin.js`, send `method: 'POST'` and the header. A GET now gets 405 (or 404).
+- **Test:** unit tests: a GET doesn't return the password; a POST without the header gets 403; a POST with it returns the password and writes the audit line. Live: the Roster's **Password** button still works **[you]**, in a browser.
+- **Done when:** the unit tests pass and the button works.
+
+#### E5: one allocator call per `/ide` and `/term` request (2.2)
+
+- **Where:** the `@ide`/`@term` blocks in `engine/gateway/Caddyfile` (lines 291 and 320, under `import session_gate any` at line 250); `engine/allocator/api.py` `handle_auth_check`; `engine/allocator/handler.py` `resolve_identity`.
+- **Security pitfall (must hold):** today the facilitator's identity reaches `/auth-check` as `X-Auth-User`, copied from `X-Session-User`, which the session gate sets. Without the gate, that header comes from the client, and anyone could claim to be the facilitator. So:
+  1. In `@ide`/`@term`, strip it first: `request_header -X-Session-User`, inside a `route` so the order holds.
+  2. Make `handle_auth_check` take the account from the `dojo_login` cookie itself (`self.session_account()`), not from `X-Auth-User`. With no valid login, a page load gets the `/login?next=` redirect (same logic as `handle_session_check`) and anything else gets 401.
+  3. Students are still identified by the slot cookie (`dojo_session`), as now.
+- **Structure:** move `/ide` and `/term` out of the `session_gate any` `route` into their own `handle` blocks ahead of it, or keep them inside and match them out of the gate.
+- **Test:**
+  - Unit tests for `handle_auth_check`: no cookie gets 303 or 401; the class login without a slot gets 303 to `/`; a forged `X-Auth-User`/`X-Session-User: facilitator` without the facilitator's cookie is refused; the facilitator's cookie gets 200.
+  - `caddy-lint.py` still passes.
+  - Live **[stack]**: VS Code and Terminal open for a student and from `/admin`; a forged header is refused with `curl -H 'X-Session-User: facilitator'`; rerun 2.1 and compare allocator calls per first VS Code load (expect about half).
+- **Done when:** all of that passes and 2.1's numbers show the drop.
+
+#### E6: longer ready cache, cheaper readiness check (2.3)
+
+- **Where:** `engine/allocator/allocation.py:293` (`READY_CACHE = TTLCache(2.0)`); `engine/web-terminal/workspace-control.py` `port_open` (line 597) and the `/start` handler in `do_POST`.
+- **Change:**
+  1. Raise the TTL to `READY_TTL_S` (env, default 20).
+  2. Check that `forget_user` is called on every path that stops a workspace: release, reset, release-unused, idle timeout. Today it's called when `control_request` sees a `/stop` (`allocation.py:305-310`). An idle-timeout stop inside web-terminal is not seen by the allocator, so a stale entry is possible.
+  3. In `port_open`, try a `socket.create_connection(("127.0.0.1", port), timeout=0.2)` instead of `_listeners()`; keep `_listeners()` for the squat sweep.
+- **Trade-off:** if code-server dies inside the TTL, Caddy proxies to a closed port and the student gets a 502 until the entry expires. Either clear the entry when Caddy reports an error (the allocator can't see that), or keep the TTL short enough (about 10-20 s) for the starting page to take over after one reload.
+- **Test:** unit tests for the TTL and `forget_user`; a test of `port_open` against a listening and a closed port. Live: idle out one student's code-server (set `CODE_SERVER_IDLE_TIMEOUT_SECONDS=60` for the run) and reopen it: the starting page, then the IDE, with no lasting 502. Rerun 2.1.
+- **Done when:** the tests pass, the idle-reopen check passes, and 2.1 shows fewer `/start` calls.
+
+#### E7: facilitator on its own origin (3.1)
+
+- **Decision first [you]:**
+  - The hostnames: e.g. `admin.dojo.macleodtech.ca` and `admin.dojoh.macleodtech.ca` on the home-lab Caddy, a second DNS name and certificate each.
+  - Locally: a second port (`localhost:8081`), since two ports are two origins.
+  - Whether `--env home` must have it, or only `--env prod`.
+- **Where:** `engine/gateway/Caddyfile` (a second site block, `{$GATEWAY_ADMIN_LISTEN}`); `engine/gateway/entrypoint.sh`; `engine/dojo/config.py` (new `admin_base_url`/`GATEWAY_ADMIN_LISTEN`); `engine/docker-compose.yml` (a second published port); `engine/allocator/accounts.py` and `handler.py` (cookies); `render_extensions.py` (facilitator-gated routes and `admin_tabs` served on the admin origin); the docs (`docs/security.md` §2, `docs/operations.md`).
+- **Design:**
+  - The admin origin serves `/admin*`, `/login`, the facilitator's `/ide` and `/term` and facilitator-gated extension routes.
+  - The student origin answers `/admin*` with a redirect to the admin origin and refuses a facilitator sign-in (redirects to the admin origin's `/login`).
+  - The facilitator's `dojo_login` cookie is host-only on the admin origin (no `Domain=` attribute), so the browser never sends it to the student origin.
+  - `/admin` tabs that frame student-origin pages (Forgejo, slides, module UIs) use the student origin's URLs. Framing needs `frame-ancestors` to allow the admin origin; the allocator's CSP is `frame-ancestors 'self'` today.
+  - The facilitator has no session on the student origin. Pages that check facilitator identity there (Forgejo admin through `/forgejo-login`) move to the admin origin.
+- **Order:** spike the framing first (Forgejo and one module UI framed from the other origin, sign-in inside the frame), then the cookie split, then the routing.
+- **Test:**
+  - Live **[stack]**: every `/admin` tab loads (P8's list).
+  - A script on the student origin can't read `/admin/api/sessions`: fetch it from a page served under `/slides`; it should fail on CORS or a redirect.
+  - The facilitator's terminal opens only from the admin origin.
+  - `--env home` with the real hostnames **[you]**.
+- **Done when:** the P8 pass works on the admin origin and the cross-origin checks fail as they should; `docs/security.md` is updated.
+
+#### E8: revocable, shorter facilitator session (3.2)
+
+- **Where:** `engine/allocator/accounts.py` (`SESSION_SECONDS` at line 24, `_SESSION_KEY` at line 25, `make_session`, `read_session`); `handler.py` `/logout`; the `allocator_state` volume (holds the epoch).
+- **Change:**
+  1. Add an epoch, a number kept in the allocator's state file and mixed into the signature (`body = name.exp.epoch`). `read_session` refuses any other epoch.
+  2. A facilitator `/logout` bumps the epoch for the facilitator account only (keep one epoch per account), so all facilitator cookies stop working; the class account isn't affected.
+  3. Make the lifetime per account: facilitator `FACILITATOR_SESSION_HOURS` (default 4), class still 12 h. Map the setting in `config.py`.
+- **Test:** unit tests: an old-epoch cookie is refused; logging out one facilitator browser signs out another; the class cookie survives a facilitator logout; the lifetime is honoured. Live: sign in as the facilitator in two browsers, log out in one, and the other gets the `/login` redirect on its next request.
+- **Done when:** the tests pass and the two-browser check passes.
+
+#### E9: save before stop through a module hook (3.6)
+
+- **Where:** `engine/allocator/render_extensions.py` (a new kind in `KINDS`: `"exports": {"required": ("id", "label", "upstream", "path"), "optional": ("timeout",)}`, validated like `resets`, with its own derived token `EXPORT_TOKEN_<SERVICE>`); `engine/dojo/archive.py` and `results.py` (call each export instead of `achievements` by name); `modules/achievements/extensions.json` and its service (serve the export); `workshops/README.md` (the contract); `engine/dojo/stop.py` (calls the archive already).
+- **Contract:** `GET <path>` with `X-Dojo-Export-Token`; it answers JSON or CSV, which is saved as `results/<run>/<id>.<ext>`. A failure is noted in the archive and never blocks the stop (as today).
+- **Repos:** add an engine export of the Forgejo org and the students' repos (`git clone --mirror` through the bootstrap network, or Forgejo's archive API) into `results/<run>/repos/`, behind a `--with-repos` flag since it can be large.
+- **Then:** the achievements auto-add in `envfiles.py:185` can stay (it's a toggle), but archive and results must not name the module.
+- **Test:** unit tests for the new manifest kind (bad path, unknown upstream, duplicate id); `test_archive`-style tests with a fake export. Live: `ACHIEVEMENTS_ENABLED=1 ./dojo git-fundamentals --test 2 --fast`, then `./dojo stop`: `results/` holds the same files as before plus `repos/` with `--with-repos`.
+- **Done when:** `rg -n achievements engine/dojo/archive.py engine/dojo/results.py` finds nothing and the stop run saves the same results.
+
+#### E10: split `workspace-control.py` (4.1)
+
+- **Where:** `engine/web-terminal/workspace-control.py` (1124 lines); its Dockerfile `COPY`; `engine/web-terminal/tests/`.
+- **Change:** a package `engine/web-terminal/workspace_control/` with:
+  - `config.py`: env, ports, names;
+  - `ports.py`: `_listeners`, `port_open`, the squat sweep;
+  - `namespaces.py`: holder, `ns_prefix`, userns;
+  - `sessions.py`: tmux/zellij, `start_watch`, `list_sessions`;
+  - `workspaces.py`: `start_workspace`, `stop_user`, the locks;
+  - `accounts.py`: reset, hooks, `remove_account_files`;
+  - `reaper.py`: `_TrackedPopen`, `reap_children`;
+  - `http.py`: the Handler.
+- Keep `workspace-control.py` as a 10-line entry point, so the image's command and healthcheck don't change. Move code only, no edits: do the comment cleanup (4.4) in a separate commit.
+- **Test:** the existing tests (`engine/web-terminal/tests/`) import from the new modules; add an import smoke test. Live: `git-fundamentals --test 3 --fast` and the zellij flavor (`--terminal zellij --test 2 --fast`): bots done, watch tile and reset work, no zombies (`ps -eo stat | rg Z` in the terminal).
+- **Done when:** both stacks pass and no new module is over about 300 lines.
+
+#### E11: route table in the allocator (4.2)
+
+- **Where:** `engine/allocator/handler.py` (`do_GET`, `do_POST`); `engine/allocator/tests/test_handlers.py`.
+- **Change:** `ROUTES = {("GET", "/session-check"): Route(handler, admin=False, xrw=False), ...}` plus a short list of prefix routes (`/login/assets/`, `/admin/api/forgejo-password/`, `/admin/release/`, `/admin/reset/`). `do_GET`/`do_POST` keep only the gateway-token check, `refuse_non_facilitator` and a lookup, then 404. The `X-Requested-With` check runs once, from the `xrw` flag. Keep exact-path matching: it's what makes `/x/../admin` harmless.
+- **Test:** before the refactor, add a test that walks every `(method, path)` the current code serves and records its status for an anonymous request, a student and the facilitator; the refactor must give the same table. Existing handler tests pass.
+- **Done when:** the table test is unchanged and `do_GET` is under 30 lines.
+
+#### E12: move the git-fundamentals bot steps out of the engine (4.5)
+
+- **Where:** `engine/web-terminal/bot-runner.sh` (`step_lab1_*` to `step_lab5_*`, about lines 410-612, and the default `STEPS` arrays by `PERSONA` at about 640-675); `workshops/git-fundamentals/content/bots/steps.sh` (already extends them: it renames `step_lab4_history` at line 124).
+- **Keep in the engine** (other packs call them): `step_ensure_clone` (dns-as-code, tofu-basics, vault-fundamentals, srx-terraform), `step_sync_main`, `step_wrap_round` (most packs), `cleanup_merged_pr`, `branch_name`, `run_cmd`, `think`, `narrate`, state and the portal login.
+- **Move:** the five `step_labN_*` functions and the persona `STEPS` arrays into the git-fundamentals `steps.sh`. Then drop the `eval "$(declare -f ...)"` rename there; the pack defines its own `step_lab4_history` directly.
+- **New engine default:** with no `BOT_STEPS_FILE`, run no lab steps: say "no bot steps for this workshop" and write `~/.dojo-bot-done`.
+  - **ctf-defend has no `steps.sh`** and today falls back to the git-fundamentals steps. Check whether that's intended. If so, give it its own `steps.sh` that sources git-fundamentals'; if not, the new default fixes it.
+  - Also check `rg -n step_lab workshops modules` for any other caller.
+- **Test:** `bash -n` on both files, shellcheck (CI). Live: `git-fundamentals --test 3 --fast` (all three personas finish round 1 with the same steps as before; compare the bot logs' step names) and one other pack that uses `step_ensure_clone` (`dns-as-code --test 2 --fast`).
+- **Done when:** both stacks pass and `bot-runner.sh` is under about 500 lines.
+
+#### 4.6: CI additions (supports E1)
+
+- **Where:** `.github/workflows/ci.yml`, `.github/scripts/lint-repo.sh`, `.github/scripts/caddy-lint.py`, a new `ruff.toml` (or a `[tool.ruff]` in a root `pyproject.toml`).
+- **Change:**
+  1. Ruff on `engine/` and `modules/` with a small rule set (`E9,F` first: syntax errors, undefined names, unused imports); widen later.
+  2. A type check (mypy or pyright) on `engine/dojo/` only, since it already has type hints, with `--ignore-missing-imports`.
+  3. The E1 rule in `caddy-lint.py`.
+  4. Pin the tool versions in CI like the other checks (`check-dep-pins.sh`).
+- **Done when:** CI is green on `main` with the new jobs, and a deliberate keepalive of 60 s makes `caddy-lint.py` fail.
+
+## Phase 5: live checks and browser passes
+
+A backlog, not a blocker: whenever a stack is up for something else, take the matching check from here. A brief for an
+agent is built from these lines (say when the stack is torn down).
+
+### 5.1 Stack checks
+
+| # | Check | Effort | Stack / what to confirm |
+|---|---|---|---|
+| 5.1.1 | Ubuntu WSL/Docker host run **[you: other machine]** | S | `vault-fundamentals --test 2 --fast` with `RUNNER_POOL_SECURITY_OPT_1/2` unset, to confirm the defaults (`no-new-privileges=true`, bare `no-new-privileges`) change nothing on Docker. A reset twice plus labs 11 and 12 already passed on podman here (2026-10-15) |
+| 5.1.2 | Student reset: close out | S | R0's no-purge teardown (delete own repos, leave the org, delete the account without purge) is marked "not yet live". Once seen live, move R0-R4 and R3.x to RELEASES (git-fundamentals result: steps 3-5 s, idempotent, a bot restarts from round 1, the optional score clear clears only that student). Status table in [Reference](#student-reset-build-status) |
+| 5.1.3 | D1 student `dojo` command | S | Zellij flavor (`dojo fix-terminal` opens the layout tab; `dojo help` in a Zellij pane), a CTF pack (`dojo flag submit`, `dojo reset`, `dojo check` through the ctf-defend wrapper), vault/tofu-basics (`dojo env`), and Tab completion by hand in a browser terminal |
+| 5.1.4 | P7 live for the other packs | M | Lab walk-throughs for cert-autorenewal and vault-fundamentals |
+| 5.1.5 | P8 on a CTF stack | S | The `/admin` tabs on a CTF stack, and the code-server IDE tab from `/admin` |
+| 5.1.6 | PC-S4 (CLOUD-POLICY-AS-CODE-PLAN) | S | Confirm live that cloud-api on `runner_net` with the Dojo Cloud CA works for CI jobs; refresh the plan's stale status line ("not yet live") |
+| 5.1.7 | CTF-SPIKES S16, S15, S6 | S each | S16: Zellij flavor reconnect with the tile open, hours of runtime, browser keys. S15 (*check*): can a pack hide the VS Code tab, and does anything else start code-server eagerly. S6 (*check*): the multi-arch skopeo archive (~370 MB, `image load` ~3 min per start): trim to index plus amd64 |
+| 5.1.8 | CTF-SPIKES S8 | S | End-to-end TXID check and internal-agent flag wiring (CTF-P5) |
+| 5.1.9 | NETLAB-PLAN s9 | S each | Host iptables/nft rule count with the class running; nginx and sshd under load; re-run capability, sysctl and no-new-privileges results under rootless podman (*check*) |
+| 5.1.10 | netlab leftovers | S each | Not measured in the 2026-11-06 15-pod run: the checker with 15 pods checking at once, a real student on the stack, start time and idle memory of a 15-student class. The A11 capstone assertion is unit-tested but not yet run on a stack. The checker's rate limit (6 per minute) is tight for testing |
+| 5.1.11 | Not verified since `f977209` (code-server memory cut) | S each | tofu-basics `tests/e2e.sh` on the new web-terminal image; `./dojo capacity` printing "Left out N" for a closed tab (dry-run only so far) |
+| 5.1.12 | Not exercised in P4/P5 (remediation) | M | 300 app-db connections · the app-host shim on 443 (base URL was plain `http://localhost:8080`) · a real-browser "Release unused" |
+| 5.1.13 | Split smoke run (parked 2026-10-03) | M | See [Later: smoke run](#smoke-run) for where it stands |
+| 5.1.14 | P11 slide overflow sweep | S | `workshops/assets/slide-overflow.sh <workshop>` over every deck (done so far: dns-as-code, vault-fundamentals, git-fundamentals; the 7 overflowing slides were trimmed 2026-10-15) |
+
+### 5.2 Browser checks **[you]**
+
+| Check | Effort | Description |
 |---|---|---|
-| Vault reset | `vault-fundamentals --test 2 --fast` | **Fixed 2026-10-03** (`fix/vault-reset`): app-db's worker was started with `su-exec`, which the Postgres image no longer has (now `gosu`), and `kv_wipe` failed on an already-empty folder (`bao list -format=json` says `{}`). Two resets in a row of testuser1 passed all 12 steps, locally, and `lab_11.sh` (12 checks) and `lab_12.sh` (9) passed after a reset (rootful Podman on macOS needs `RUNNER_POOL_SECURITY_OPT_1/2` in `.env` for the pool and app-host; `openbao-setup` needed more than 64m). Left: run `vault-fundamentals --test 2 --fast` once on the Ubuntu WSL/Docker host with the two variables unset, to confirm the repeated `no-new-privileges:true` changes nothing there |
-| Cloud reset + capstone | `tofu-basics --test 2 --fast` | **Both halves passed 2026-10-04 on the Mac (rootful Podman).** Reset with a non-empty pre-state: testuser1 and testuser2 each given one Running container group, reset of testuser1 ran 9 steps all ok, `dojo-cloud-teardown: removed 1 container group(s), 1 resource group(s)`; afterwards testuser1's was gone, testuser2's still Running, and testuser1's bot restarted from round 1 (so a fresh `ci-hello-dev` appears — don't read that as the old one surviving). Capstone two-step as `student01` (not a bot: bot accounts have no `credential.helper`, so they cannot push outside the bot runner's `GIT_ASKPASS`): two sites from one `for_each` → "Halfway", `tofu destroy` → "Passed! +300". Left: nothing here — the `policyObjects` sub-item became its own finding below |
-| Vault capstone two-step | vault stack | **Passed 2026-10-04** (needs `ACHIEVEMENTS_ENABLED=1`; it was 0, so `dojo-check`/`dojo-challenge` were not in the terminal image at all). "Halfway" → rotate `capstone/app` with no push → "Passed! +300", and a push in between answers "main of `<user>`/capstone changed after step 1 passed (a push deploys). Back to step 1". The push case only holds with a gap of more than a second — see the `no_push_since_step` finding below |
-| Browser looks (user) | any | Widget frame full height on first load; the Reset dialog's "Also clear their achievements and score" checkbox |
+| Widget and Reset dialog | S | Widget frame at full height on first load (`toast.js` asks the widget to report again once it listens); the Reset dialog's "Also clear their achievements and score" checkbox |
+| Achievements looks | S | A red negative score (board, widget, `/admin`) and a negative toast in VS Code; the badge PNG download, capstone badge tier and a typed certificate name; a real student's stale-branch roster PR |
+| Hidden-tab toasts | S | With the landing page open in a background tab, an unlock in the VS Code terminal pops up in VS Code (`toast.js` skips polling while `document.hidden`), and the landing page shows queued toasts when it comes to the front |
+| CTF Target Viewer card | S | As a student, in a browser (the real-time dwell run and the student SOC feed passed 2026-10-15, RELEASES) |
+| C5 untested CLI paths (out of band) | S | `CORP_CA_BUNDLE` for the first-run wheel download behind TLS inspection, and the error without it ([`C5-guide.md`](C5-guide.md) step 2). Everything else passed on macOS (podman) and Docker |
 
-Slide overflow checker: `workshops/assets/slide-overflow.sh <workshop> [page.md ...]`. It timed out after login on dns-as-code (it waited for
-`networkidle`, but the portal polls); fixed 2026-10-03 and clean on git-fundamentals (5 pages). **Run on dns-as-code 2026-10-04: the
-fix holds (no timeout), and it found 2 overflows** — `cheat-sheet.md` slide 6 `<table>` 110 px past (the `doctor` command table) and
-`presentation.md` slide 11 `<p>` 34 px past. Also run on vault-fundamentals the same day (not asked for, but the stack was up):
-`index.md`, `lab-index.md` and `labs.md` clean, **`presentation.md` over on 5 slides** — 8 `<li>` 45 px, 10 `<li>` 5 px, 21 `<p>` 10 px,
-31 `<p>` 10 px, 49 `<p>` 12 px. So 7 slides across two decks need trimming; the checker itself is now proven on three packs.
+### 5.3 Manual passes **[you]**
 
-Passed 2026-10-03: DNS reset (no purge, PRs kept as Ghost, zone gone, shared records kept, second reset ok), cert reset
-(crontab gone, two seeded records, clean reload; the pre-state was not captured) and dojo-introduction `--test 5 --fast` (no skips).
-
-Passed 2026-10-04 (all on the Mac, rootful Podman): the cloud reset and both capstone two-steps above, the dns-as-code slide run,
-and dojo-introduction `--test 5 --fast` again now that the bot steps check their results — 5 bots, all 5 finished round 1,
-**0 skips and 0 retries** (a skip prints `FAST: <step> failed N times -- skipping it`). The only gateway error in that run was a
-single startup 502 on `/slides/` before the presentation container served, after which the stack reached 17 of 17 ready.
-
-Both of the 2026-10-04 findings below are **fixed** (`418d5ad`, unit-tested, no stack needed — see RELEASES.md).
-
-After the live checks pass: move student reset R0-R4 and R3.x to RELEASES (git-fundamentals live result: steps 3-5 s,
-idempotent, a bot restarts from round 1, the optional score clear clears only that student), and delete them below.
-
-## Next
-
-### Technology track: SRX with Terraform and Mist (`srx-terraform`)
-
-Plan and spike results: [`docs/plans/SRX-MIST-PLAN.md`](docs/plans/SRX-MIST-PLAN.md). Workshop buckets (`WORKSHOP_TRACK`) are on
-`feat/workshop-tracks` (2026-11-04). The spike showed the real `Juniper/mist` provider 0.11.0 running a full SRX build
-(apply, empty re-plan, drift, import, destroy) against a fake API answering as `api.mist.com`, offline.
-
-| # | Work | Effort |
-|---|---|---|
-| T4 | An SRX engineer answers [`SRX-REVIEW.md`](workshops/srx-terraform/SRX-REVIEW.md) (best: `config_cmd` for one hub and one spoke in a real org), then the renderer follows; confirm on a real org the `dns_override`/`ntp_override` flags and device `vars` over site vars | M |
-
-### Open items pulled from `docs/plans/` (2026-11-06)
-
-Merged in from the plan documents. Items marked *check* may already be closed in a later plan entry; confirm before
-starting. The plans keep the detail.
-
-| Plan | Work | Effort |
-|---|---|---|
-| CTF-WORKSHOP-PLAN | Lab Info primers: read each by hand for leaked payloads against every `solve.py` (CTF-P2b, open question 3) | S |
-| CTF-SPIKES S13 | Ramp curve shape, attention split across up to 4 targets, top-10 formula (design choices) | M |
-| CTF-SPIKES S13 | Facilitator-to-bot inject and hint-probe channel (plan 8.5), not built | M |
-| CTF-SPIKES S17 | Scanners for targets 8-11 (Semgrep, grype, pip-audit, offline), where findings render, and the stage in runner-pool's job | M |
-| CTF-SPIKES | Full defend loop against a real git-server clone and the real runner-pool, plus a warm-registry number for the real app image | M |
-| CTF-SPIKES S8 | End-to-end TXID check and internal-agent flag wiring (CTF-P5) | S |
-| CTF-SPIKES S9/S14 | Persona-swarm tuning, cold start at 40 students, queue concurrency, idle timeout: class-only numbers, fold into [N3 9.4](#n3-94-class-sized-run) | M |
-| CTF-SPIKES S16 | Zellij flavor: reconnect with the tile open, hours of runtime, browser keys | S |
-| CTF-SPIKES S15 | Can a pack hide the VS Code tab, and does anything else start code-server eagerly (*check*) | S |
-| CTF-SPIKES S6 | Multi-arch skopeo archive (~370 MB, `image load` ~3 min per start): trim to index plus amd64 (*check*) | S |
-| CLOUD-POLICY-AS-CODE-PLAN | PC-S4: confirm live that cloud-api on `runner_net` with the Dojo Cloud CA works for CI jobs; refresh the plan's stale status line ("not yet live") | S |
-| SRX-MIST-PLAN | Optional netfilter-backed gateways for traffic tests | L |
-| NETLAB-PLAN s9 | Host iptables/nft rule count with the class running; nginx and sshd under load | S |
-| NETLAB-PLAN s9 | Rootless podman cannot hold a 240-container class (`kernel.keys.maxkeys` 200 per uid; stopped at 196): document the ceiling and size classes to it | M |
-| NETLAB-PLAN s9 | Re-run capability, sysctl and no-new-privileges results under rootless podman (*check*) | S |
-
-### Review 2026-10-18 follow-ups
-
-The whole-repo review lives in [`docs/reviews/2026-10-18.md`](docs/reviews/2026-10-18.md) (code comments cite it as
-`REVIEW.md`); its fixes shipped in PRs #55-#59 (see RELEASES). Open from it:
-
-| Item | Effort | Notes |
-|---|---|---|
-| OpenTofu 1.13 | M | 1.12.8 is in (PR #59); move to 1.13.x once the labs and the OPA pairing are tested |
-| P7 live for the other packs | M | Lab walk-throughs for cert-autorenewal and vault-fundamentals |
-| P8 on a CTF stack | S | The `/admin` tabs on a CTF stack, and the code-server IDE tab from `/admin` |
-| P9 load test, P10-P12, P15 `doctor --live` | L | Briefs in the review |
-
-### CTF workshop series
-
-A five-session capture-the-flag series (CTF-1 to CTF-5, packs `ctf-access`, `ctf-server-trust`, `ctf-secrets-config`,
-`ctf-trust-chain`, `ctf-defend`). The range, all 14 targets and the CTF-5 defend tooling are built (see RELEASES, "CTF range
-build log"). The plan, with its checkpoint, is [`docs/plans/CTF-WORKSHOP-PLAN.md`](docs/plans/CTF-WORKSHOP-PLAN.md); it carries the detail.
-
-`workshops/ctf-defend-test` (the old shared facilitator harness) is deleted; `ctf-secrets-config` and `ctf-trust-chain`
-now ship all 3 of their targets each (see RELEASES, "`ctf-secrets-config`/`ctf-trust-chain` complete their ladders").
-
-| Step | Work |
-|---|---|
-| 1 | Defend lab redesign: built and live-verified (RELEASES; as-built contract: plan 8.13; no `INCIDENT.md` gate, decided against 2026-10-15 and removed); open: a pilot with 2-3 people (runbook and report script ready: docs/CTF-PILOT.md) to tune stagger (0.5 x dwell) and dwell. Stretch: `git-secrets` as a fourth target only if a rotation mechanism proves out |
-| 2 | Target Viewer card as a student, in a browser (the real-time dwell run and the student SOC feed passed 2026-10-15, RELEASES) |
-| 3 | Parked (2026-10-12): the CTF packs are a challenge in themselves, so they get no `dojo challenge` sections. A second, more obscure path per target would be their bonus challenge |
-
-### N3 9.4: class-sized run
-
-Skipped for now (user, 2026-10-02); ask before starting it. The rest of N3 (Phase 9 live checks) is in RELEASES.
-
-| Step | Work | Effort | Description |
-|---|---|---|---|
-| 9.4 | Class-sized concurrency run (last; skipped for now, 2026-10-02) | M | On dns-as-code or git-fundamentals with ~20 bots: shell hook latency, state sweep budget (`gap=20`, `budget=40`), no dropped events, `/admin` leaderboard and toasts still responsive. Also recheck the **facilitator VS Code tab "unknown error"** (seen once under load, a retry fixed it, not reproduced at 10 bots) with the `/auth-check` logging from remediation T1.4; sizing for 20-35 students is extrapolated from 10 bots until this run |
-
-Tools (`modules/achievements/tools/`, run from the repo root): `fired.py <workshop>` lists each catalog item with who
-earned it and the never-fired ids; `botaudit.py <workshop>` runs every bot command through the real matcher (static:
-runtime values, output and `requires` are not known, so its misses need a look, not a fix); `box.py` (usage in its
-header) counts challenge boxes on a lab page in headless Chromium. Working rules: every bot run uses `--test --fast`; long waits go to a sub-agent with a
-short brief and one blocking wait loop; bots stay lab-only (decided 2026-10-02: challenges are solved by hand, one
-solve each per pack); student commands that must reach achievements run in an interactive zsh (tmux), not `zsh -lc`.
-
-### Platform review (2026-10-01)
-
-A whole-stack review: four read-only passes over the engine runtime, the CLI and terminal images, the modules, and
-the workshops and docs. It left out items already on this roadmap and the accepted security residuals. Tiers are
-the suggested order. Line numbers are as of `7bc4ce9`.
-
-**Tier 1: load and crash fixes (before the class-sized run).** The engine items (RV1, RV3-RV5, RV8-RV12) shipped
-2026-10-01 (see RELEASES); the module items RV2, RV6 and RV7 passed live 2026-10-02 (see RELEASES).
-
-**Tier 2: CI and tests.** RV13-RV19 shipped 2026-10-02 (see RELEASES).
-
-**Tier 3: refactors and hygiene.** RV20 (`dojo_http.py`) and RV21 (`adapter_client.py`) shipped 2026-10-02; RV25
-(tool-pin drift check) and RV27 (`forgejo-runner` deleted) 2026-10-04 (see RELEASES). Tier 3 is done (RV26 shipped 2026-10-15).
-
-| ID | Work | Effort | Description |
-|---|---|---|---|
-
-**Tier 4: new features and workshops.**
-
-| ID | Work | Effort | Description |
-|---|---|---|---|
-| RV36 | More workshops (on hold 2026-10-15) | L each | GitOps with a reconciler (Argo CD or Flux on k3s), needs a capacity check; then supply chain (cosign, SBOM), observability as code, secrets rotation |
-| RV38 | Reset environment button (on hold 2026-10-15: a full reset is `./dojo stop` and a rebuild; Release all and the per-student reset exist) | M | Asked for 2026-10-02: a button on `/admin` that releases every slot and puts every student back to a fresh start without restarting the stack (between two sessions of a class). Build it on the student reset's per-student hook contract (`STUDENT-RESET-PLAN.md` §4.4): run the reset for every student, then module hooks clear their own state (achievements, sensei, dojo-cloud). Facilitator gate, a typed confirmation, audit line. A smaller first step, **Release all**, only clears the slot table. Rule: **nothing survives `./dojo stop`**; every state file stays in a named volume (`allocator_state` is, verified 2026-10-01), and RV13's CI should fail any compose fragment that writes state outside one. Engine change, approved |
-
-### Student reset
-
-The facilitator resets one student's whole environment. Design: `docs/archive/STUDENT-RESET-PLAN.md`; settled
-decisions in [Reference](#student-reset-decisions). **Status 2026-10-02: everything is built; engine plus achievements
-passed live on git-fundamentals; the module hooks wait for their live runs ([Now](#now)).**
-
-| ID | Work | Status |
-|---|---|---|
-| R0 | Spikes | Done live on git-fundamentals: a reset takes 3-5 s; Forgejo lets the name be made again at once; the new token reaches git; a bot restarts from round 1. Found: **purge** deleted the student's merged PRs, against Q5, so the teardown now deletes their own repos, leaves the org, and deletes the account without purge (falls back to purge if refused, and says so). Not yet live |
-| R1 | Engine machinery and Roster UI | Live on git-fundamentals. Added 2026-10-02: `resets` entries may be `"optional": true` (a checkbox in the dialog, off by default, sent as `optional=<ids>`); the terminal reset also removes the student's crontab |
-| R2 | Hook contract | Docs in `workshops/README.md` (incl. `optional`) |
-| R3.1 | dojo-cloud | Built: `/_dojo/reset/<user>` on cloud-api, teardown through `Portal._purge` and its policy objects (`policy_api.purge`, added with RV35; live check in [Now](#now)) |
-| R3.2 | openbao | Built: `openbao-reset` relay; `openbao-setup` stays up and runs reset jobs with its own token (the token never moves, unlike R9's wording); one-user mode in `10-tenancy.sh`, `20-ci.sh`, `30-platform.sh` |
-| R3.3 | runners | Built: runner-pool stops runners busy with the student's own repos (`/spool/kill/`) |
-| R3.4 | vault apps | Built: app-host empties both slots and locks the capstone slot; app-db drops and remakes the student's database (through app-host) |
-| R3.5 | DNS packs | Built: dns-gate deletes zones at/under `<user>.<parent>` and their names in shared zones, then re-creates `DNS_GATE_RESET_RECORDS` (cert-autorenewal sets its two seeded A records); cert-autorenewal's webroot moved to `account.d`, with a `reset.d` that removes the old site. Shared-repo records stay by decision (2026-10-03) |
-| R3.6 | achievements | Built and live: `achievements-progress` (forgets seeds, watches, half-done two-step checks, Sensei activity) and optional `achievements-score` |
-| R4.1 | Docs | Done: `engine/README.md` "Reset a student", `workshops/README.md`, dns-gate and openbao READMEs |
-| R4.2 | Live pass per workshop | The [Now](#now) table |
-
-### Achievements
-
-An optional layer over the labs (`ACHIEVEMENTS_ENABLED`): toasts on every student page, a class leaderboard, a
-goal-only challenge per lab, a capstone, and a certificate at the end. Rule: **ask before editing any `engine/`
-file**. Done (RELEASES): phases 0-2 (design and catalogs, catalog core, engine workspace and widgets, score service
-and toasts), 4 (challenges), 5 (cheat tiers and names), 7 (Sensei), 8 (toast surfaces). Phase 9 is built and live on
-git-fundamentals and dns-as-code ([N3](#n3-94-class-sized-run)). Design, decisions and working notes:
-[Reference](#achievements-design).
-
-| ID | Work | Effort | Description |
-|---|---|---|---|
-| Phase 6 | Certificate: one decision left | S | Certificate, badge PNG and name dialog are done; one decision is left |
-| Phase 9 | Class-sized run | M | Built and live on all packs, cloud-policy-as-code included (RELEASES); only the class-sized run is left ([N3](#n3-94-class-sized-run)) |
-| — | Browser look | S | Not looked at in a browser yet: a red negative score (board, widget, `/admin`) and a negative toast in VS Code; the badge PNG download, capstone badge tier and a typed certificate name; a real student's stale-branch roster PR |
-| — | Widget resize: browser check | S | Fixed 2026-10-02, not seen in a browser: the landing page's widget frame should have its full height on first load (`toast.js` asks the widget to report again once it listens) |
-| — | Hidden-tab toasts: browser check | S | Built 2026-10-02, not seen in a browser: with the landing page open in a background tab, an unlock in the VS Code terminal pops up in VS Code (`toast.js` skips polling while `document.hidden`), and the landing page shows queued toasts when it comes to the front |
-
-### Student `dojo` command follow-ups
-
-Built 2026-10-16 (see RELEASES). Left:
-
-| ID | Work | Effort | Description |
-|---|---|---|---|
-| D1 | Live checks not yet done | S | Zellij flavor (`dojo fix-terminal` opens the layout tab; `dojo help` in a Zellij pane), a CTF pack (`dojo flag submit`, `dojo reset`, `dojo check` through the ctf-defend wrapper), vault/tofu-basics (`dojo env`), and Tab completion by hand in a browser terminal |
-| D2 | Retire the shims | S | Once a live class has used `dojo ...`: drop `dojo-check`/`dojo-challenge`/`lab-prep`/`sensei` as student-facing names (the prompt hook still calls `dojo-check --shell`/`--echo`, which stay) and the old-marker strip in `lab-reader.js` |
-| D3 | `dojo help` per workshop | S | Optional workshop footer (e.g. "start with `dojo prep N` if you join late") from a `dojo-help` text file in `cmd.d`'s sibling; today every workshop shows the same generic footer |
-
-### `dojo` CLI follow-ups
-
-C1-C4 shipped 2026-10-01 (see RELEASES).
-
-| ID | Work | Effort | Description |
-|---|---|---|---|
-| C5 | Untested paths | S | Everything else passed on macOS (podman) and Docker (RELEASES). Left, for the user out of band: `CORP_CA_BUNDLE` for the first-run wheel download behind TLS inspection, and the error without it (C5-guide.md step 2). Steps: [`C5-guide.md`](C5-guide.md). (The flaky allocator test first seen here is fixed: see RELEASES.) |
-
-### Remediation leftovers
-
-None are Critical or Important.
-
-| ID | Work | Effort | Description |
-|---|---|---|---|
-| FIND-11 | PowerDNS keys | — | Partial, accepted (2026-10-03): per-student DNS keys and the gate's ownership checks are in; PowerDNS's own key stays a one-way hash of `GATEWAY_TOKEN`, which students never see and which already opens the whole lab |
-| FIND-17 | Unseal share | — | Partial, accepted (D9): the single unseal share stays on the setup volume |
-| FIND-15 | dojo-cloud socket | — | Accepted, no work: socket `0660 root:cloud`; privileged DinD stays |
-| FIND-19 | Plaintext backends | — | Accepted, no work: plaintext to OpenBao and Postgres, documented |
-| — | Not exercised in P4/P5 | M | 300 app-db connections · the app-host shim on 443 (base URL was plain `http://localhost:8080`) · a real-browser "Release unused" |
-
-## Manual checks
-
-Browser passes only the user can do.
+Longer browser passes, each a sitting or more.
 
 | Check | Effort | Description |
 |---|---|---|
@@ -320,7 +321,7 @@ Browser passes only the user can do.
 | vault-fundamentals | S-M | A person walking labs 7-9 in the UI (the tests make the UI's secret steps with the same API calls), the Runners panel's look beyond screenshots, and "Release unused" in a real browser. The rest of the P4/P5 browser pass was done by the user 2026-09-29 |
 | UI changes, weekend of 2026-09-26 | S | The `/admin` sidebar at desktop width and under 700 px, and Mermaid diagrams in the lab reader, light and dark |
 
-### Modules browser pass
+#### Modules browser pass
 
 For each workshop: `./dojo stop`, `./dojo <workshop>`, open the base URL as a student and in a private window as
 the facilitator.
@@ -345,11 +346,75 @@ the facilitator.
 | tofu-basics | **Dojo Cloud** card and tab; the portal opens on the student's subscription; the facilitator's tab shows the progress view; after a Track B `apply` the resource shows in both |
 
 This per-workshop table predates three packs and still needs rows for **vault-fundamentals** (its own browser notes are
-in [Manual checks](#manual-checks) above), **dojo-introduction** and **cloud-policy-as-code** before the pass is complete.
+in [5.3](#53-manual-passes-you) above), **dojo-introduction** and **cloud-policy-as-code** before the pass is complete.
+
+
+## Phase 6: content and feature tracks
+
+New teaching material and features. Pick one track at a time; each starts on its own branch.
+
+### 6.1 CTF workshop series
+
+A five-session capture-the-flag series (CTF-1 to CTF-5, packs `ctf-access`, `ctf-server-trust`, `ctf-secrets-config`,
+`ctf-trust-chain`, `ctf-defend`). The range, all 14 targets and the CTF-5 defend tooling are built (see RELEASES, "CTF range
+build log"). The plan, with its checkpoint, is [`docs/plans/CTF-WORKSHOP-PLAN.md`](docs/plans/CTF-WORKSHOP-PLAN.md); it carries the detail.
+`workshops/ctf-defend-test` (the old shared facilitator harness) is deleted; `ctf-secrets-config` and `ctf-trust-chain`
+now ship all 3 of their targets each.
+
+| # | Work | Effort | Description |
+|---|---|---|---|
+| 6.1.1 | Defend pilot **[you]** | M | Defend lab redesign: built and live-verified (RELEASES; as-built contract: plan 8.13; no `INCIDENT.md` gate, decided against 2026-10-15 and removed); open: a pilot with 2-3 people (runbook and report script ready: docs/CTF-PILOT.md) to tune stagger (0.5 x dwell) and dwell. Stretch: `git-secrets` as a fourth target only if a rotation mechanism proves out |
+| 6.1.2 | Lab Info primers leak audit (CTF-P2b, open question 3) | S | Read each by hand for leaked payloads against every `solve.py` |
+| 6.1.3 | Ramp and scoring design (CTF-SPIKES S13) **[you: decisions]** | M | Ramp curve shape, attention split across up to 4 targets, top-10 formula |
+| 6.1.4 | Facilitator-to-bot inject and hint-probe channel (S13, plan 8.5) | M | Not built |
+| 6.1.5 | Scanners for targets 8-11 (S17) | M | Semgrep, grype, pip-audit, offline; where findings render, and the stage in runner-pool's job |
+| 6.1.6 | Full defend loop on real services (CTF-SPIKES) | M | Against a real git-server clone and the real runner-pool, plus a warm-registry number for the real app image |
+| — | Bonus challenges | — | Parked (2026-10-12): the CTF packs are a challenge in themselves, so they get no `dojo challenge` sections. A second, more obscure path per target would be their bonus challenge |
+
+### 6.2 Technology track: SRX with Terraform and Mist (`srx-terraform`)
+
+Plan and spike results: [`docs/plans/SRX-MIST-PLAN.md`](docs/plans/SRX-MIST-PLAN.md). Workshop buckets (`WORKSHOP_TRACK`) are on
+`feat/workshop-tracks` (2026-11-04). The spike showed the real `Juniper/mist` provider 0.11.0 running a full SRX build
+(apply, empty re-plan, drift, import, destroy) against a fake API answering as `api.mist.com`, offline.
+
+| # | Work | Effort | Description |
+|---|---|---|---|
+| T4 | SRX engineer review **[you: find a reviewer]** | M | An SRX engineer answers [`SRX-REVIEW.md`](workshops/srx-terraform/SRX-REVIEW.md) (best: `config_cmd` for one hub and one spoke in a real org), then the renderer follows; confirm on a real org the `dns_override`/`ntp_override` flags and device `vars` over site vars |
+| — | Netfilter-backed gateways | L | Optional, for traffic tests (SRX-MIST-PLAN) |
+
+### 6.3 Platform features
+
+| # | Work | Effort | Description |
+|---|---|---|---|
+| 6.3.1 | OpenTofu 1.13 | M | 1.12.8 is in (PR #59); move to 1.13.x once the labs and the OPA pairing are tested |
+| 6.3.2 | Achievements Phase 6: certificate **[you: decision]** | S | Certificate, badge PNG and name dialog are done; one decision is left |
+| 6.3.3 | D2 Retire the shims | S | Once a live class has used `dojo ...`: drop `dojo-check`/`dojo-challenge`/`lab-prep`/`sensei` as student-facing names (the prompt hook still calls `dojo-check --shell`/`--echo`, which stay) and the old-marker strip in `lab-reader.js` |
+| 6.3.4 | D3 `dojo help` per workshop | S | Optional workshop footer (e.g. "start with `dojo prep N` if you join late") from a `dojo-help` text file in `cmd.d`'s sibling; today every workshop shows the same generic footer |
+| 6.3.5 | netlab probe agent | S | The checker and `netlab-view` use SSH for now |
+| 6.3.6 | netlab capstone record | S | The capstone verifies from the checker's in-memory record, so a checker restart means students re-run their checks |
+| 6.3.7 | netlab class ceiling (NETLAB-PLAN s9) | M | Rootless podman cannot hold a 240-container class (`kernel.keys.maxkeys` 200 per uid; stopped at 196): document the ceiling and size classes to it |
+
+### 6.4 On hold
+
+| ID | Work | Effort | Description |
+|---|---|---|---|
+| RV36 | More workshops (on hold 2026-10-15) | L each | GitOps with a reconciler (Argo CD or Flux on k3s), needs a capacity check; then supply chain (cosign, SBOM), observability as code, secrets rotation |
+| RV38 | Reset environment button (on hold 2026-10-15: a full reset is `./dojo stop` and a rebuild; Release all and the per-student reset exist) | M | Asked for 2026-10-02: a button on `/admin` that releases every slot and puts every student back to a fresh start without restarting the stack (between two sessions of a class). Build it on the student reset's per-student hook contract (`STUDENT-RESET-PLAN.md` §4.4): run the reset for every student, then module hooks clear their own state (achievements, sensei, dojo-cloud). Facilitator gate, a typed confirmation, audit line. A smaller first step, **Release all**, only clears the slot table. Rule: **nothing survives `./dojo stop`**; every state file stays in a named volume (`allocator_state` is, verified 2026-10-01), and RV13's CI should fail any compose fragment that writes state outside one. Engine change, approved |
 
 ## Later
 
-- **netlab: remaining work** (module merged; see `docs/plans/NETLAB-PLAN.md`). **Done 2026-11-06 (locally, rootless podman): full-size class run** with 14 `--fast` bots plus one student account = 15 pods (demo bots get pods too, so `--test 15` is refused): start 13m17s (compose 8m42s), 142 containers, idle memory 2.5 GB used of 14 GB, all 14 bots finished round 1, slides clean on 5 pages, stop 7m10s. testuser12's A10 skip was a kv-v2 mount "upgrading" 400 outlasting the bot's 24 s retry (fixed: 2 min, write and read-back together); the A11 check was vacuous and now asserts the capstone state on both branches (unit-tested, not yet run on a stack). **S** Not measured: nginx and sshd under load, the checker with 15 pods checking at once, a real student on the stack. **S** The probe agent (the checker and `netlab-view` use SSH for now). **S** Measure start time and idle memory of the 15-student class. **S** The checker's rate limit (6 per minute) is tight for testing. **M** A management network per pod, so a student with root on their own nodes cannot reach other pods' SSH (the per-uid firewall only covers the terminal). **S** Stopping a 138-container stack takes about 7 minutes: a rootless `podman rm` costs about 3 s per container here, not helped by `-t 0`, parallel removal, cgroupfs or no network (measured 2026-10-28); cause not found (storage or conmon?), so try `podman system` options or fewer containers per pod. **S** The netlab capstone verifies from the checker's in-memory record, so a checker restart means students re-run their checks.
+Follow-ups with no date, known limits, and accepted residuals.
+
+### Accepted residuals (remediation leftovers)
+
+None are Critical or Important.
+
+| ID | Work | Effort | Description |
+|---|---|---|---|
+| FIND-11 | PowerDNS keys | — | Partial, accepted (2026-10-03): per-student DNS keys and the gate's ownership checks are in; PowerDNS's own key stays a one-way hash of `GATEWAY_TOKEN`, which students never see and which already opens the whole lab |
+| FIND-17 | Unseal share | — | Partial, accepted (D9): the single unseal share stays on the setup volume |
+| FIND-15 | dojo-cloud socket | — | Accepted, no work: socket `0660 root:cloud`; privileged DinD stays |
+| FIND-19 | Plaintext backends | — | Accepted, no work: plaintext to OpenBao and Postgres, documented |
 
 ### Smoke run
 
@@ -393,13 +458,6 @@ in [Manual checks](#manual-checks) above), **dojo-introduction** and **cloud-pol
 | Chained-line exit codes | — | The hook sees only the line's exit code, so in a chained line a failure is credited only where it is provable (the last pipeline of the last list; see `matcher._segment_exits`): `a; git push; echo $?` can't earn `f-rejected` |
 | Command text and hand-posted events | — | The hook sends the text of every command to the service (kept nowhere, only matched), and a student can post their own shell events by hand, which earns only what typing the command would |
 
-### Not verified since `f977209` (code-server memory cut)
-
-| Work | Effort | Description |
-|---|---|---|
-| tofu-basics e2e | S | `tests/e2e.sh` on the new web-terminal image |
-| Capacity "Left out N" | S | `./dojo capacity` printing "Left out N" for a closed tab (dry-run only) |
-
 ### Tech to revisit
 
 | Tech | Why parked | Revisit when |
@@ -416,6 +474,56 @@ in [Manual checks](#manual-checks) above), **dojo-introduction** and **cloud-pol
 ## Reference
 
 Settled material the work items above point to. Not work items.
+
+### Running on the Mac
+
+On the Mac (rootful Podman + SELinux) start with `--env mac-podman` (sets `RUNNER_POOL_SECURITY_OPT_1=unmask=/proc/*` and
+`RUNNER_POOL_SECURITY_OPT_2=label=type:container_engine_t`), or no runner or app can start (`unshare: mount /proc
+failed`). Details in `modules/runner-pool/README.md`. The Mac's
+published port 8080 can reset connections from the host; reach the gateway from inside the lab network instead, with
+`Host: localhost:8080` (the facilitator login is the `/login` cookie, and Reset needs `X-Requested-With: dojo-admin`).
+Every `--test` run uses `--fast`.
+
+### Achievements tools and bot rules
+
+
+Tools (`modules/achievements/tools/`, run from the repo root): `fired.py <workshop>` lists each catalog item with who
+earned it and the never-fired ids; `botaudit.py <workshop>` runs every bot command through the real matcher (static:
+runtime values, output and `requires` are not known, so its misses need a look, not a fix); `box.py` (usage in its
+header) counts challenge boxes on a lab page in headless Chromium. Working rules: every bot run uses `--test --fast`; long waits go to a sub-agent with a
+short brief and one blocking wait loop; bots stay lab-only (decided 2026-10-02: challenges are solved by hand, one
+solve each per pack); student commands that must reach achievements run in an interactive zsh (tmux), not `zsh -lc`.
+
+### Answers of 2026-10-02
+
+
+| Question | Answer |
+|---|---|
+| Reset button | Yes, a full **Reset environment** button on `/admin` (RV38), with Release all as its first step. Nothing may persist past `./dojo stop` |
+| Shared helpers (RV20/RV21) | One copy in `modules/_shared/`, copied into `<context>/_shared/` at build time (`SHARED=` in `module.env`) |
+| Shared-repo changes on reset (2026-10-03) | Left alone: a student reset never touches what they changed in a shared repo (e.g. dns-as-code `<user>-app` records in `dojo.test` stay) |
+| Next workshop | Cloud-Policy-as-Code (RV35), merged to `main` in PR #8 (2026-10-03) |
+
+### Student reset build status
+
+The facilitator resets one student's whole environment. Design: `docs/archive/STUDENT-RESET-PLAN.md`; settled
+decisions in [Reference](#student-reset-decisions). **Status 2026-10-02: everything is built; engine plus achievements
+passed live on git-fundamentals; the module hooks have since run live (2026-10-03/04); left: 5.1.2.**
+
+| ID | Work | Status |
+|---|---|---|
+| R0 | Spikes | Done live on git-fundamentals: a reset takes 3-5 s; Forgejo lets the name be made again at once; the new token reaches git; a bot restarts from round 1. Found: **purge** deleted the student's merged PRs, against Q5, so the teardown now deletes their own repos, leaves the org, and deletes the account without purge (falls back to purge if refused, and says so). Not yet live |
+| R1 | Engine machinery and Roster UI | Live on git-fundamentals. Added 2026-10-02: `resets` entries may be `"optional": true` (a checkbox in the dialog, off by default, sent as `optional=<ids>`); the terminal reset also removes the student's crontab |
+| R2 | Hook contract | Docs in `workshops/README.md` (incl. `optional`) |
+| R3.1 | dojo-cloud | Built: `/_dojo/reset/<user>` on cloud-api, teardown through `Portal._purge` and its policy objects (`policy_api.purge`, added with RV35; live: 2026-10-04) |
+| R3.2 | openbao | Built: `openbao-reset` relay; `openbao-setup` stays up and runs reset jobs with its own token (the token never moves, unlike R9's wording); one-user mode in `10-tenancy.sh`, `20-ci.sh`, `30-platform.sh` |
+| R3.3 | runners | Built: runner-pool stops runners busy with the student's own repos (`/spool/kill/`) |
+| R3.4 | vault apps | Built: app-host empties both slots and locks the capstone slot; app-db drops and remakes the student's database (through app-host) |
+| R3.5 | DNS packs | Built: dns-gate deletes zones at/under `<user>.<parent>` and their names in shared zones, then re-creates `DNS_GATE_RESET_RECORDS` (cert-autorenewal sets its two seeded A records); cert-autorenewal's webroot moved to `account.d`, with a `reset.d` that removes the old site. Shared-repo records stay by decision (2026-10-03) |
+| R3.6 | achievements | Built and live: `achievements-progress` (forgets seeds, watches, half-done two-step checks, Sensei activity) and optional `achievements-score` |
+| R4.1 | Docs | Done: `engine/README.md` "Reset a student", `workshops/README.md`, dns-gate and openbao READMEs |
+| R4.2 | Live pass per workshop | Done for every hook; left: 5.1.2 |
+
 
 ### Student reset decisions
 
@@ -480,7 +588,7 @@ nonce)`; a nonce can only be used once).
 | A25 | Challenge repo | One public repo `{user}/challenge-repo` under each student's account for every challenge; only its owner can push |
 | A26 | dns-as-code review PR | Sensei only *opens* the `dns-bot` review PR (`SENSEI_SEED`), never approves or merges it |
 | A27 | Scope of a score | Individuals only: people may work together, but the lab and the achievements are each student's own |
-| A28 | Storage and reset | State lives in a named module volume: it survives restarts within a class and `./dojo stop` removes it. The facilitator's student reset (see [Student reset](#student-reset)) can clear or keep that student's achievements, their choice at reset time |
+| A28 | Storage and reset | State lives in a named module volume: it survives restarts within a class and `./dojo stop` removes it. The facilitator's student reset (see [Student reset](#student-reset-build-status)) can clear or keep that student's achievements, their choice at reset time |
 | A29 | Branching | `feat/achievements` was cut from `feat/front-door` (both front-door and remediation reached `main` in PR #4, 2026-09-29). The student workspace page is built first (phase 1b) because it is useful with achievements off |
 | A30 | Funny unlocks and the Moments table | **Funny unlocks are worth 0 points** (`ACHIEVEMENTS_FUNNY_POINTS`, default 0, only the person launching the lab can raise it) so they never help a score; they just call you out. Each student's landing page has its own **Moments** table, shown only once they have unlocked one: title, the joke, what they did to earn it (the catalog's `when`) and when. It is private to that student (not on the leaderboard, not in anyone else's view), appears in the certificate's summary page, and the facilitator's `/admin` view lists a student's moments too. A funny event still toasts (5 s, no points shown). **Cheating still subtracts** (A7: -1 at most). The catalog validator refuses a positive `points` on a funny unlock or a cheat. |
 
