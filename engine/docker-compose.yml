@@ -435,6 +435,10 @@ services:
       # The workshop's extension routes, rendered from its extensions.json
       # by dojo before every start; gateway/Caddyfile imports them.
       - ./.generated/gateway:/etc/caddy/extensions:ro
+      # Caddy's only writable paths (certs, autosave), named so `./dojo stop`
+      # removes them and the root filesystem can be read-only.
+      - gateway_data:/data
+      - gateway_config:/config
     networks:
       - public
       - workshop_lab
@@ -448,6 +452,16 @@ services:
       - ALL
     cap_add:
       - NET_BIND_SERVICE
+    # No setuid/file-capability gain, so only the bounding-set capability
+    # above works: Caddy binds the port named in PUBLIC_BASE_URL (8080 by
+    # default; a port below 1024 needs the capability in the bounding set,
+    # which cap_add provides). Read-only root, writable /data, /config, /tmp.
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    tmpfs:
+      - /tmp
+    pids_limit: ${GATEWAY_PIDS_LIMIT:-512}
     # Backstop, same reasoning as git-server's above -- Caddy proxying 30
     # concurrent sessions is still lightweight, this is just a ceiling.
     mem_limit: ${GATEWAY_MEM_LIMIT:-256m}
@@ -456,6 +470,8 @@ volumes:
   terminal_home:
   forgejo_data:
   allocator_state:
+  gateway_data:
+  gateway_config:
 
 networks:
   public:

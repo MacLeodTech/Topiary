@@ -373,10 +373,6 @@ class Handler(ViewsMixin, ApiMixin, http.server.BaseHTTPRequestHandler):
             self.handle_status_api()
             return
 
-        if path.startswith("/admin/api/forgejo-password/"):
-            self.handle_forgejo_password(path[len("/admin/api/forgejo-password/"):])
-            return
-
         self.send_response(404)
         self.end_headers()
 
@@ -425,6 +421,10 @@ class Handler(ViewsMixin, ApiMixin, http.server.BaseHTTPRequestHandler):
                 self.end_headers()
                 return
             self.handle_reset(path[len("/admin/reset/"):])
+            return
+
+        if path.startswith("/admin/api/forgejo-password/"):
+            self.handle_forgejo_password(path[len("/admin/api/forgejo-password/"):])
             return
 
         if path == "/admin/release-unused":

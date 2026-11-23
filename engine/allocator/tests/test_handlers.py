@@ -422,13 +422,23 @@ class AdminNeedsFacilitator(HandlerTest):
         for who in ({}, cookie, {"X-Auth-User": "student"}):
             for method, path in (("GET", "/admin"), ("GET", "/admin/"), ("GET", "/admin/admin.js"),
                                  ("GET", "/admin/api/sessions"), ("GET", "/admin/api/status"),
-                                 ("GET", f"/admin/api/forgejo-password/{sid}"),
+                                 ("POST", f"/admin/api/forgejo-password/{sid}"),
                                  ("POST", f"/admin/release/{sid}"), ("POST", "/admin/release-unused")):
                 headers = {**who, "X-Requested-With": "dojo-admin"}
                 status = self.request(method, path, "" if method == "POST" else None, headers)[0]
                 self.assertEqual(status, 403, f"{method} {path} as {who}")
         self.assertTrue(self.held(sid))
         self.assertEqual(self.request("GET", "/admin/api/status", headers={"X-Auth-User": FAC})[0], 200)
+
+    def test_password_reveal_is_a_post_with_the_admin_header(self):
+        """E4: a GET (a link from another site) must not reveal or audit it."""
+        sid, _ = self.student()
+        url = f"/admin/api/forgejo-password/{sid}"
+        self.assertEqual(self.request("GET", url, headers=ADMIN)[0], 404)
+        self.assertEqual(self.request("POST", url, "", {"X-Auth-User": FAC})[0], 403)
+        status, _, body = self.request("POST", url, "", ADMIN)
+        self.assertEqual(status, 200)
+        self.assertEqual(json.loads(body)["studentId"], sid)
 
 
 class LoginPage(HandlerTest):

@@ -117,6 +117,7 @@ document.getElementById('release-unused').onclick = (e) =>
 function togglePassword(sid, btn, out) {
   if (out.textContent) { out.textContent = ''; btn.textContent = 'Password'; return; }
   fetch('/admin/api/forgejo-password/' + encodeURIComponent(sid), {
+    method: 'POST',
     headers: { 'X-Requested-With': 'dojo-admin' },
   }).then(r => r.ok ? r.json() : Promise.reject(r.status))
     .then(d => { out.textContent = d.password; btn.textContent = 'Hide'; })
