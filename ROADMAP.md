@@ -77,12 +77,8 @@ Each is small. Batch them on one branch, then run both unit suites and one bot s
 
 | # | Work | Effort | Description |
 |---|---|---|---|
-| 1.1 | **E1** Allocator keepalive mismatch (likely a regression from 2026-11-08) **[engine]** | S | [Brief](#e1-allocator-keepalive-mismatch-11). `engine/gateway/Caddyfile:77` keeps idle allocator connections for 60 s, but the allocator closes them after 3 s (`Handler.timeout = 3`, `engine/allocator/handler.py`). The old 2 s < 3 s rule was there so that Caddy never sends a request down a connection the allocator is closing. Go retries idempotent GETs, so polls hide it; a POST that hits the race (`/login`, `/assign`, Release, Reset) gets a 502. Either go back to 2 s, or give the allocator a 65 s idle wait for the request line and keep 3 s for headers and body. Fix the stale "keepalive 2s" comments in `handler.py` |
-| 1.2 | **E2** Two addresses can lock the class out of signing in **[engine]** | S | [Brief](#e2-class-login-lockout-12). `LOGIN_USER_GUARD` (`engine/allocator/accounts.py:128`) allows 100 wrong guesses a minute per account name, and the class shares one account. Each address is capped at 60, so two addresses (a phone and a laptop) lock the class username for everyone; signed-in browsers keep working, new sign-ins get 429. Exempt the shared class account (the per-address limit already covers it), or lock it only when many addresses are failing |
-| 1.3 | **E3** Gateway container hardening **[engine]** | S | [Brief](#e3-gateway-hardening-13). The gateway service in `engine/docker-compose.yml` has none of the allocator's hardening: add `no-new-privileges`, `read_only` (plus tmpfs or named volumes for Caddy's `/data` and `/config`) and a `pids_limit` |
-| 1.4 | **E4** Password reveal as a POST **[engine]** | S | [Brief](#e4-password-reveal-as-a-post-14). `/admin/api/forgejo-password/<sid>` is a GET, so a link from another site can trigger it (it can't read the answer) and pad the `forgejo-password-shown` audit log. Make it a POST with the `X-Requested-With: dojo-admin` check, as Release and Reset have |
-| 1.5 | Still open from 2026-10-18 (2026-11-08 item 4) | S each | The whole content dir (cloud-policy solutions, srx stages) is mounted in the terminal (`engine/docker-compose.yml:243`); the `--pass` gate token is unsalted sha256 (`start.py:341`); the CTF `view.py` CSP still allows `'unsafe-inline'` (also lowers E7's risk); achievements `CLIENT_HASH` hashes a file students can read; the terminal pids limit is one fixed total |
-| 1.6 | Small scale wins (2026-11-08 item 5) | S | Forgejo and dojo-cloud healthchecks at 5 s, the ctf-range and runner-pool ones at 10 s → 15-30 s; `Cache-Control: max-age` on secret-free static assets in the Caddyfile (now `no-store`); prune about 2.5 GB of dangling images (hook `maintain.py`'s removal into stop or a `./dojo prune`); code-server idle timeout 900 s → 300-600 s?; the memory warning guesses 100 MB per zellij student, measured about 76 MB (2026-11-09): lower it? |
+| 1.5 | Still open from 2026-10-18 (2026-11-08 item 4). **Triaged 2026-11-23, none done:** the CTF `view.py` CSP wraps the intentionally vulnerable target apps, which use inline scripts, so only E7's separate origin fixes it; the gate token is hashed in the browser (`gate.js`), so a salt needs a per-run value in the page; narrowing the content mount needs a per-pack list (cloud-policy and srx `lab-prep` read solutions and stages from it); `CLIENT_HASH` is a design question; the terminal pids limit is already sized per class (`sizing.py`), so drop it | S each | The whole content dir (cloud-policy solutions, srx stages) is mounted in the terminal (`engine/docker-compose.yml:243`); the `--pass` gate token is unsalted sha256 (`start.py:341`); the CTF `view.py` CSP still allows `'unsafe-inline'` (also lowers E7's risk); achievements `CLIENT_HASH` hashes a file students can read; the terminal pids limit is one fixed total |
+| 1.6 | Small scale wins (2026-11-08 item 5). **Triaged 2026-11-23:** `./dojo prune` already exists (hook it into stop if wanted); keep the 100 MB zellij warning (76 MB measured plus headroom); the 5 s and 10 s healthchecks gate startup, so slowing them costs start time for little gain. Open: `Cache-Control` on static assets, code-server idle timeout | S | Forgejo and dojo-cloud healthchecks at 5 s, the ctf-range and runner-pool ones at 10 s → 15-30 s; `Cache-Control: max-age` on secret-free static assets in the Caddyfile (now `no-store`); prune about 2.5 GB of dangling images (hook `maintain.py`'s removal into stop or a `./dojo prune`); code-server idle timeout 900 s → 300-600 s?; the memory warning guesses 100 MB per zellij student, measured about 76 MB (2026-11-09): lower it? |
 | 1.7 | Tests and healthchecks (2026-11-08 item 6) | S | Unit tests for the `netlab` and `wan` cmd.d plug-ins and the inline `dojo-check` wrapper in `workshops/ctf-defend/compose/terminal/Dockerfile:15-25`; check for an image HEALTHCHECK on dns-api, zone-viewer, dns-admin, cloud-api, wan-api, openbao (none in compose) |
 
 ## Phase 2: class-scale performance
@@ -135,36 +131,6 @@ need **[engine]** approval first. Shared rules: work on a feature branch; run bo
 `cd engine/allocator && python3 -B -m unittest discover -s tests`); a live check uses `--test N --fast`, waits on
 `~/.dojo-bot-done` and ends with `./dojo stop`; when it's done, delete the row and the brief here and add a line to RELEASES.
 
-#### E1: allocator keepalive mismatch (1.1)
-
-- **Where:** `engine/gateway/Caddyfile:77` (`keepalive 60s` in `(allocator_timeouts)`); `engine/allocator/handler.py:40` (`timeout = 3`) and the comment above it; `.github/scripts/caddy-lint.py`.
-- **Change (option A, recommended first):** set `keepalive 2s` again. Rewrite the comment as a rule: "must stay below `Handler.timeout`". Fix the "keepalive 2s" wording in `handler.py` to match.
-- **Change (option B, only if 2.1 shows the reconnects cost something):** keep 60 s in Caddy and give the allocator a separate idle timeout. In `Handler.handle_one_request`, call `self.connection.settimeout(IDLE_S)` (e.g. 65) before the request line is read, then `settimeout(3)` once it has arrived, so slow headers and bodies still time out at 3 s. Threads: an idle kept-alive connection holds one thread for up to `IDLE_S`; Caddy's per-host idle pool (32 by default) bounds that.
-- **Test:** add a rule to `caddy-lint.py` (see 4.6) that reads the keepalive value and `Handler.timeout` and fails unless keepalive < timeout. Live: `git-fundamentals --test 3 --fast`, then `./dojo logs gateway --grep '"status":502'` for the run shows no 502 on a POST.
-- **Done when:** the lint rule is in CI, the stack run shows no 502s, and the comments state the rule.
-
-#### E2: class-login lockout (1.2)
-
-- **Where:** `engine/allocator/accounts.py` (`login_guard_key`, `LOGIN_USER_GUARD` at line 128); `engine/allocator/api.py` `handle_login`; tests in `engine/allocator/tests/test_login.py`.
-- **Change:** have `login_guard_key()` return `None` for `TTYD_USERNAME` (the shared class account), so only the per-address limit applies to it. Keep the per-account limit for the facilitator and bot accounts. Correct the comment "one address alone can never lock an account out".
-- **Alternative if the facilitator account needs the same protection:** count distinct failing addresses per account and block only past N addresses (e.g. 10) in the window.
-- **Test:** unit tests: (a) 2 addresses × 60 wrong guesses for the class account, then a right password from a third address gets 303, not 429; (b) the facilitator account is still blocked after 100; (c) an address over 60 is still blocked.
-- **Done when:** both new tests pass and the existing login tests still pass. No stack needed.
-
-#### E3: gateway hardening (1.3)
-
-- **Where:** the `gateway:` service in `engine/docker-compose.yml`.
-- **Change:** add `security_opt: [no-new-privileges:true]`, `read_only: true` and `pids_limit: ${GATEWAY_PIDS_LIMIT:-256}`. Mount Caddy's state as named volumes (`gateway_data:/data`, `gateway_config:/config`) and add both to `volumes:`, so `./dojo stop` removes them (CLAUDE.md: name every volume an image declares). Map the new env var in `engine/dojo/config.py` only if it should be settable.
-- **Risk:** the caddy binary uses file capabilities (`cap_net_bind_service`), and `no-new-privileges` can block file caps. The ports are 8080/8443 (unprivileged), so this should be fine, but check that Caddy starts.
-- **Test:** `./dojo git-fundamentals --dry-run`, then a live start: the gateway is healthy, `/login` loads, `podman inspect workshop_gateway` shows the options, `./dojo stop` leaves no `engine_gateway_*` volume. An `https://` `PUBLIC_BASE_URL` run (Let's Encrypt writes to `/data`) is a separate check on the public host.
-- **Done when:** the gateway starts healthy with the options set and stop leaves nothing behind.
-
-#### E4: password reveal as a POST (1.4)
-
-- **Where:** `engine/allocator/handler.py` (the GET route `/admin/api/forgejo-password/` at line 364, moved into `do_POST`); `engine/allocator/api.py` `handle_forgejo_password`; `engine/allocator/static/admin.js:119` (the `fetch`); `engine/allocator/tests/test_handlers.py`.
-- **Change:** serve it on POST only, behind the same `X-Requested-With: dojo-admin` check as Release. In `admin.js`, send `method: 'POST'` and the header. A GET now gets 405 (or 404).
-- **Test:** unit tests: a GET doesn't return the password; a POST without the header gets 403; a POST with it returns the password and writes the audit line. Live: the Roster's **Password** button still works **[you]**, in a browser.
-- **Done when:** the unit tests pass and the button works.
 
 #### E5: one allocator call per `/ide` and `/term` request (2.2)
 

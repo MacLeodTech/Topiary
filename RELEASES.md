@@ -7,6 +7,14 @@ and verified, it moves here in a line or two. Detail behind older entries (desig
 Entries are grouped by what reached `main`. Dates are commit or merge dates; "locally" means tested on the
 WSL2 desktop stack at `http://localhost:8080`.
 
+## Phase 1 engine fixes E1-E4 (2026-11-23, branch `fix/phase1-quick-fixes`, not merged)
+
+- **E1:** the allocator waits 65 s for the next request on an idle kept-alive connection (3 s still covers a request's line, headers and body), so it never closes one before Caddy's 60 s keepalive drops it.
+- **E2:** wrong passwords on the shared class account no longer feed the per-account guard; the per-address limit (60 a minute) still applies.
+- **E3:** the gateway runs with `no-new-privileges`, a read-only root (named `gateway_data` and `gateway_config` volumes, `/tmp` tmpfs) and a 512 pids limit. Untested: a `PUBLIC_BASE_URL` port below 1024.
+- **E4:** the Forgejo password reveal is a POST with the `X-Requested-With` check; a GET answers 404.
+- Tested: allocator suite 191 OK, `./dojo` suite 170 OK; locally, `git-fundamentals --test 3 --fast` on port 8081: gateway healthy and read-only, 3 bots finished, reveal GET 404 / POST without header 403 / POST with it 200, class login 303 after 8 wrong guesses.
+
 ## Live checks of 2026-10-03/04 (moved here from ROADMAP's "Now" section, 2026-11-23)
 
 The finished part of the old roadmap's "Now" section, kept as it was. What was still open (the Ubuntu WSL/Docker run, the browser looks, closing out student reset) is in ROADMAP Phase 5.
