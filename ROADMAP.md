@@ -6,7 +6,7 @@ why, but don't update them. When you finish an item: delete it here and add a li
 
 Last updated: 2026-11-23. The file is now one prioritized flow (phases 0-6), and the 2026-11-23 engine review's
 findings (**E1-E12**) are folded in. Earlier versions are in git history (before this change: `d2a37fb`). ·
-Working branch: `fix/review-2026-11-08` (not pushed); cut a feature branch for each new batch of work.
+Cut a feature branch for each new batch of work.
 
 **Effort:** **S** one sitting (an hour or two) · **M** a day or so · **L** several days · **—** no work planned.
 **Tags:** **[engine]** edits `engine/`, so ask first (CLAUDE.md) · **[you]** only the user can do it (a browser, another
@@ -15,6 +15,18 @@ machine, a decision) · **[stack]** needs a live run (`./dojo <workshop> --test 
 **IDs:** each item keeps its old ID (RV, R, D, C, T, P, S, CTF-…), so commits and the review docs still match. **E1-E12**
 are new from the 2026-11-23 engine review: a static read of the gateway, allocator, `workspace-control.py`, the `dojo`
 CLI and the base compose file. None of them has been reproduced on a stack yet.
+
+## Start here (updated 2026-11-23)
+
+**State:** Phase 0 (the 2026-11-08 review branch and `chore/centralize-plans`), Phase 1 (E1-E4, the 1.7 tests; 1.5/1.6 triaged) and Phase 2's E5/E6 are on `main`. Details are in RELEASES. Both unit suites pass; E1-E5 passed on a live stack. `tools/loadtest.py` is the class-scale load test (`./dojo students N` first, `git checkout dojo.toml` after).
+
+**Next, in order:**
+1. **0.1 [you]:** the browser check of the watch tile and `pbcopy` (everything else in Phase 0 passed).
+2. **2.6 [stack, ask first]:** the class-sized run (about 20 bots, 2.1's script) that closes Phase 2. It also settles two open measurements: E6's 502-after-death trade-off (kill a code-server and time the recovery; the first try with `pkill` showed no 502, so check the kill landed) and a real page's assets for the `/ide` call count.
+3. **3.2 (E8) [engine]:** a revocable, shorter facilitator session. No decision needed; start here while 3.1 waits.
+4. **3.1 (E7) [you: decision]:** pick the admin hostnames for `--env home`/`--env prod` and whether local runs get a second port; then build it.
+5. **2.4/2.5:** netlab start and stop time (need a big netlab stack; slow on 13 GB).
+6. Then 3.3-3.6, Phase 4 refactors, and Phase 5/6 as time allows.
 
 ## The flow at a glance
 
@@ -41,7 +53,6 @@ matching check from it.
 | # | Work | Effort | Description |
 |---|---|---|---|
 | 0.1 | Browser check **[you]** | S | The watch tile and `pbcopy` in the student's own browser. Everything else passed live 2026-11-09 (log below) |
-| 0.2 | Merge `chore/centralize-plans`, then `fix/review-2026-11-08` | S | `chore/centralize-plans` is not on `main` yet. Ask before merging or pushing. Afterwards, move the batch list and the live-check log below to RELEASES |
 
 **What the branch holds.** A read-only review of `304ead5..9108cac` (security, scale, gaps); the fixes are committed
 from f29ebbe on and unit-tested (170 OK).
