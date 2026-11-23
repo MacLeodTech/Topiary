@@ -15,5 +15,6 @@
 # Socket directory of this account's own (see workspace-control.py's
 # ensure_runtime_dir); never the shared /tmp. zshenv sets it for zsh; this
 # script runs under sh straight from code-server.
-[ -d "/run/dojo/$(id -u)" ] && export TMUX_TMPDIR="/run/dojo/$(id -u)"
+uid=$(id -u)
+[ -d "/run/dojo/$uid" ] && export TMUX_TMPDIR="/run/dojo/$uid"
 exec tmux new-session -A -s "vscode-$$"
