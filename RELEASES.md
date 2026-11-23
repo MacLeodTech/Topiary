@@ -14,6 +14,7 @@ WSL2 desktop stack at `http://localhost:8080`.
 - **E3:** the gateway runs with `no-new-privileges`, a read-only root (named `gateway_data` and `gateway_config` volumes, `/tmp` tmpfs) and a 512 pids limit. Untested: a `PUBLIC_BASE_URL` port below 1024.
 - **E4:** the Forgejo password reveal is a POST with the `X-Requested-With` check; a GET answers 404.
 - Tested: allocator suite 191 OK, `./dojo` suite 170 OK; locally, `git-fundamentals --test 3 --fast` on port 8081: gateway healthy and read-only, 3 bots finished, reveal GET 404 / POST without header 403 / POST with it 200, class login 303 after 8 wrong guesses.
+- **Item 1.7 (2026-11-23):** unit tests for `dojo netlab check` (`modules/netlab/test_netlab_cmd.py`), `dojo wan` (`modules/wan-cloud/test_wan_cmd.py`) and the ctf-defend inline `dojo-check` wrapper (`workshops/ctf-defend/test_dojo_check_wrapper.py`, cut from the Dockerfile as written). The healthcheck audit found none missing: dns-api (dns-gate), zone-viewer, dns-admin, cloud-api and wan-api set a `HEALTHCHECK` in their Dockerfiles, and openbao in compose.
 
 ## Live checks of 2026-10-03/04 (moved here from ROADMAP's "Now" section, 2026-11-23)
 
