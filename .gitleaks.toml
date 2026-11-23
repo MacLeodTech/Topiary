@@ -17,5 +17,5 @@ paths = [
   # credentials planted in the CTF targets, which the exploit guides walk through
   '''^workshops/ctf-[a-z-]+/content/lab/exploit-guide/''',
   # a prose table row the generic-api-key rule mistakes for a key
-  '''^docs/plans/CTF-WORKSHOP-PLAN\.md$''',
+  '''^docs/(plans/)?CTF-WORKSHOP-PLAN\.md$''',
 ]
