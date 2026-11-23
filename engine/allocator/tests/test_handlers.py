@@ -32,6 +32,11 @@ import handler  # noqa: E402
 import server  # noqa: E402
 
 FAC = config.FACILITATOR_USERNAME
+
+
+def login_cookie(account):
+    """The signed dojo_login cookie /auth-check now reads itself."""
+    return f"{accounts.SESSION_COOKIE}={accounts.make_session(account)}"
 ADMIN = {"X-Auth-User": FAC, "X-Requested-With": "dojo-admin"}
 
 
@@ -59,7 +64,10 @@ class HandlerTest(unittest.TestCase):
                         mock.patch.object(allocation, "STATUS_CACHE", allocation.TTLCache(3.0)),
                         mock.patch.object(allocation, "ASSIGN_LIMIT", allocation.AssignLimit(100, 100)),
                         mock.patch.object(allocation, "STATE_FILE", ""),
-                        mock.patch.object(config, "audit")]
+                        mock.patch.object(config, "audit"),
+                        # read_session only honours these two names; other test modules reset them
+                        mock.patch.object(accounts, "TTYD_USERNAME", config.TTYD_USERNAME),
+                        mock.patch.object(accounts, "FACILITATOR_USERNAME", FAC)]
         for p in self.patches:
             p.start()
         self.httpd = server.make_server(("127.0.0.1", 0))
@@ -99,7 +107,7 @@ class HandlerTest(unittest.TestCase):
 
     def student(self, name="Ada"):
         sid, token = allocation.claim_slot(name, "10.0.0.1")
-        return sid, {"Cookie": f"{config.COOKIE_NAME}={token}"}
+        return sid, {"Cookie": f"{config.COOKIE_NAME}={token}; {login_cookie(config.TTYD_USERNAME)}"}
 
     def held(self, sid):
         return allocation.slot_snapshot(sid)["name"] is not None
@@ -218,10 +226,29 @@ class AuthCheck(HandlerTest):
         self.assertEqual(self.request("GET", "/auth-check?tool=shell")[0], 400)
         self.assertEqual(self.request("GET", "/auth-check")[0], 400)
 
-    def test_no_identity_goes_to_the_front_page(self):
-        status, headers, _ = self.request("GET", "/auth-check?tool=ide")
+    def test_no_login_is_refused_without_a_start(self):
+        """E5: /ide and /term skip the gateway's session gate, so the sign-in is checked here."""
+        self.assertEqual(self.request("GET", "/auth-check?tool=ide")[0], 401)
+        status, headers, _ = self.request("GET", "/auth-check?tool=ide", headers={
+            "Accept": "text/html", "X-Forwarded-Uri": "/ide/?folder=/home"})
+        self.assertEqual((status, headers["Location"]), (303, "/login?next=%2Fide%2F%3Ffolder%3D%2Fhome"))
+        forged = {"Cookie": f"{accounts.SESSION_COOKIE}=forged.0.sig"}
+        self.assertEqual(self.request("GET", "/auth-check?tool=ide", headers=forged)[0], 401)
+        self.assertEqual(self.control.calls, [])
+
+    def test_forged_identity_headers_are_ignored(self):
+        """E5: with no gate in front, X-Auth-User and X-Session-User are the client's, not proof."""
+        for header in ("X-Auth-User", "X-Session-User"):
+            self.assertEqual(self.request("GET", "/auth-check?tool=ide", headers={header: FAC})[0], 401, header)
+        # A class login (not the facilitator's) that also claims to be the facilitator gets no facilitator workspace.
+        forged = {"Cookie": login_cookie(config.TTYD_USERNAME), "X-Auth-User": FAC, "X-Session-User": FAC}
+        self.assertEqual(self.request("GET", "/auth-check?tool=ide", headers=forged)[0], 303)
+        self.assertEqual(self.control.calls, [])
+
+    def test_class_login_without_a_slot_goes_to_the_front_page(self):
+        status, headers, _ = self.request("GET", "/auth-check?tool=ide", headers={"Cookie": login_cookie(config.TTYD_USERNAME)})
         self.assertEqual((status, headers["Location"]), (303, "/"))
-        forged = {"Cookie": f"{config.COOKIE_NAME}=not-a-real-token"}
+        forged = {"Cookie": f"{login_cookie(config.TTYD_USERNAME)}; {config.COOKIE_NAME}=not-a-real-token"}
         self.assertEqual(self.request("GET", "/auth-check?tool=ide", headers=forged)[0], 303)
         self.assertEqual(self.control.calls, [])
 
@@ -272,7 +299,7 @@ class AuthCheck(HandlerTest):
 
     def test_facilitator_gets_their_own_workspace(self):
         self.control.answers["/start/"] = b'{"ready": true}'
-        status, headers, _ = self.request("GET", "/auth-check?tool=ide", headers={"X-Auth-User": FAC})
+        status, headers, _ = self.request("GET", "/auth-check?tool=ide", headers={"Cookie": login_cookie(FAC)})
         self.assertEqual((status, headers["X-Upstream-Port"]), (200, str(allocation.ide_port(FAC))))
         self.assertEqual(self.control.calls, [("POST", f"/start/ide/{FAC}")])
 

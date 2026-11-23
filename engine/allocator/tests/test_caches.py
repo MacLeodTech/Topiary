@@ -111,5 +111,12 @@ class SingleFlightTest(unittest.TestCase):
         self.assertEqual(flights._calls, {})
 
 
+class ReadyTtlTest(unittest.TestCase):
+    def test_ready_is_trusted_for_a_while(self):
+        """E6: a 2 s TTL made a control call every 2 s per active tool; stops still clear it at once."""
+        self.assertGreaterEqual(allocation.READY_TTL_S, 10)
+        self.assertEqual(allocation.READY_CACHE.ttl, allocation.READY_TTL_S)
+
+
 if __name__ == "__main__":
     unittest.main()

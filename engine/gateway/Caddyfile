@@ -18,18 +18,20 @@
 #
 # /admin/* -> session_gate with role=facilitator: only the facilitator's own
 #   login gets in; the class login is refused with a 403.
-# everything else (/, /slides/*, /git/*, /ide/*, /term/*) -> session_gate for
-# either account. Past that gate:
+# /ide/* and /term/* -> one auth-check call that also checks the sign-in itself
+#   (snippet tool_route; no session_gate, so one allocator call per request).
+# everything else (/, /slides/*, /git/*) -> session_gate for either account.
+# Past those checks:
 #   - / is the allocator's name-entry + tool-picker flow (see engine/allocator/)
 #   - /ide/*, /term/* and /admin/watch/* reach web-terminal as
 #     web-terminal-ingress: its alias on the terminal_ingress network,
 #     the only network its IDE/terminal ports accept (remediation T2.2a;
 #     see docker-compose.yml and web-terminal/entrypoint.sh).
-#   - /ide/* and /term/* are gated a second time by an auth-check call
-#     (forward_auth's own pattern, written out longhand so a still-starting
-#     workspace can get its own response -- see the @ide/@term blocks
-#     below), which calls the allocator to confirm this browser session
-#     actually holds a student/facilitator slot before proxying to that
+#   - /ide/* and /term/* are checked by an auth-check call (forward_auth's
+#     own pattern, written out longhand so a still-starting workspace can
+#     get its own response -- see snippet tool_route), which calls the
+#     allocator to confirm this browser is signed in and actually holds
+#     a student/facilitator slot before proxying to that
 #     student's own code-server/ttyd process (dynamic port, injected via
 #     the X-Upstream-Port response header -- see engine/allocator/
 #     allocator/api.py's /auth-check). This is what stops a released or
@@ -102,6 +104,50 @@
 		uri /session-check?role={args[0]}
 		header_up X-Gateway-Token {$GATEWAY_TOKEN}
 		copy_headers X-Session-User
+	}
+}
+
+# /ide and /term are written out longhand (what forward_auth is sugar
+# for) instead of using the forward_auth directive itself, so a 202
+# from /auth-check -- code-server/ttyd just spawned and isn't
+# listening yet, see allocator/api.py's handle_auth_check -- can
+# serve the self-refreshing starting page below instead of Caddy
+# immediately dialing a port nothing is listening on yet (that race
+# used to surface to the student as a 502). Any other non-2xx
+# (e.g. the 303 redirect for no session, or a disabled tool's 404)
+# still falls through to the client unchanged, same as forward_auth.
+#
+# One allocator call per request (ROADMAP E5): these two routes sit outside
+# session_gate, because /auth-check reads and checks the signed dojo_login
+# cookie itself (allocator/api.py handle_auth_check) and never trusts an
+# X-Session-User or X-Auth-User header from the client. A page load with no
+# sign-in gets the same /login redirect the gate gives, so X-Forwarded-Method
+# and X-Forwarded-Uri tell the allocator what was asked.
+(tool_route) {
+	reverse_proxy allocator:8080 {
+		import allocator_timeouts
+		method GET
+		rewrite /auth-check?tool={args[0]}
+		# Logged by the allocator's auth-check line (T1.4).
+		header_up X-Forwarded-Uri {http.request.orig_uri}
+		header_up X-Forwarded-Method {http.request.method}
+		header_up X-Gateway-Token {$GATEWAY_TOKEN}
+
+		@ready status 200
+		handle_response @ready {
+			uri strip_prefix /{args[0]}
+			reverse_proxy web-terminal-ingress:{rp.header.X-Upstream-Port} {
+				import strip_dojo_cookies
+			}
+		}
+
+		@starting status 202
+		handle_response @starting {
+			header Cache-Control "no-store"
+			root * /srv/static
+			rewrite * /starting.html
+			file_server
+		}
 	}
 }
 
@@ -245,6 +291,16 @@
 		}
 	}
 
+	@ide path /ide*
+	handle @ide {
+		import tool_route ide
+	}
+
+	@term path /term*
+	handle @term {
+		import tool_route term
+	}
+
 	handle {
 		route {
 		import session_gate any
@@ -276,73 +332,6 @@
 			reverse_proxy git-server:3000 {
 				header_up -Authorization
 				import strip_dojo_cookies
-			}
-		}
-
-		# /ide and /term are written out longhand (what forward_auth is sugar
-		# for) instead of using the forward_auth directive itself, so a 202
-		# from /auth-check -- code-server/ttyd just spawned and isn't
-		# listening yet, see allocator/api.py's handle_auth_check -- can
-		# serve the self-refreshing starting page below instead of Caddy
-		# immediately dialing a port nothing is listening on yet (that race
-		# used to surface to the student as a 502). Any other non-2xx
-		# (e.g. the 303 redirect for no session, or a disabled tool's 404)
-		# still falls through to the client unchanged, same as forward_auth.
-		@ide path /ide*
-		handle @ide {
-			reverse_proxy allocator:8080 {
-				import allocator_timeouts
-				method GET
-				rewrite /auth-check?tool=ide
-				header_up X-Auth-User {http.request.header.X-Session-User}
-				# Logged by the allocator's auth-check line (T1.4).
-				header_up X-Forwarded-Uri {http.request.orig_uri}
-				header_up X-Gateway-Token {$GATEWAY_TOKEN}
-
-				@ide_ready status 200
-				handle_response @ide_ready {
-					uri strip_prefix /ide
-					reverse_proxy web-terminal-ingress:{rp.header.X-Upstream-Port} {
-						import strip_dojo_cookies
-					}
-				}
-
-				@starting status 202
-				handle_response @starting {
-					header Cache-Control "no-store"
-					root * /srv/static
-					rewrite * /starting.html
-					file_server
-				}
-			}
-		}
-
-		@term path /term*
-		handle @term {
-			reverse_proxy allocator:8080 {
-				import allocator_timeouts
-				method GET
-				rewrite /auth-check?tool=term
-				header_up X-Auth-User {http.request.header.X-Session-User}
-				# Logged by the allocator's auth-check line (T1.4).
-				header_up X-Forwarded-Uri {http.request.orig_uri}
-				header_up X-Gateway-Token {$GATEWAY_TOKEN}
-
-				@term_ready status 200
-				handle_response @term_ready {
-					uri strip_prefix /term
-					reverse_proxy web-terminal-ingress:{rp.header.X-Upstream-Port} {
-						import strip_dojo_cookies
-					}
-				}
-
-				@starting status 202
-				handle_response @starting {
-					header Cache-Control "no-store"
-					root * /srv/static
-					rewrite * /starting.html
-					file_server
-				}
 			}
 		}
 

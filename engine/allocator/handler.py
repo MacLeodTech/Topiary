@@ -183,7 +183,7 @@ class Handler(ViewsMixin, ApiMixin, http.server.BaseHTTPRequestHandler):
                 return part[len(COOKIE_NAME) + 1:]
         return None
 
-    def resolve_identity(self):
+    def resolve_identity(self, account=None):
         """Return (username_for_control_plane, student_id_or_None) for the
         current request, or (None, None) if it isn't valid.
 
@@ -195,7 +195,11 @@ class Handler(ViewsMixin, ApiMixin, http.server.BaseHTTPRequestHandler):
         contrast, only ever comes from the dojo_session cookie minted when
         they claim a slot via /assign.
         """
-        if self.headers.get("X-Auth-User") == FACILITATOR_USERNAME:
+        # `account` is the signed login cookie's owner when the caller has
+        # read it itself (/auth-check does); then the header is not consulted.
+        facilitator = (account == FACILITATOR_USERNAME) if account is not None \
+            else self.headers.get("X-Auth-User") == FACILITATOR_USERNAME
+        if facilitator:
             return FACILITATOR_USERNAME, None
         token = self.get_cookie()
         if token is None:

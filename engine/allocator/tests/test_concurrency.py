@@ -22,6 +22,7 @@ for _k, _v in {"FORGEJO_ADMIN_USER": "admin", "FORGEJO_ADMIN_PASSWORD": "x",
                "STUDENT_COUNT": "30", "EXTENSIONS_FILE": os.path.join(HERE, "no-such-file.json")}.items():
     os.environ.setdefault(_k, _v)
 import allocation  # noqa: E402
+import accounts
 import config  # noqa: E402
 import handler  # noqa: E402
 import server  # noqa: E402
@@ -52,7 +53,8 @@ class IdleSocketsTest(unittest.TestCase):
             self.idle.append(socket.create_connection(("127.0.0.1", self.port)))
         time.sleep(0.2)  # let the server accept them
         req = urllib.request.Request(f"http://127.0.0.1:{self.port}/auth-check?tool=ide",
-                                     headers={"X-Gateway-Token": config.GATEWAY_TOKEN})
+                                     headers={"X-Gateway-Token": config.GATEWAY_TOKEN,
+                                              "Cookie": f"{accounts.SESSION_COOKIE}={accounts.make_session(accounts.TTYD_USERNAME)}"})
 
         class NoRedirect(urllib.request.HTTPRedirectHandler):
             def redirect_request(self, *a, **k):

@@ -41,7 +41,15 @@ class ApiMixin:
         # The page or asset the browser asked for (gateway/Caddyfile sends
         # it), without the query string, to tell a page load from an asset.
         uri = self.headers.get("X-Forwarded-Uri", "").split("?", 1)[0][:200]
-        username, _sid = self.resolve_identity()
+        # /ide and /term skip the gateway's session gate (one allocator call per
+        # request, not two), so the sign-in is checked here, from the signed
+        # cookie. Never from X-Auth-User or X-Session-User: a client could send those.
+        account = self.session_account()
+        if account is None:
+            audit_check("auth-check", None, tool, 401, uri=uri)
+            self.deny_without_login()
+            return
+        username, _sid = self.resolve_identity(account)
         if username is None:
             audit_check("auth-check", None, tool, 303, uri=uri)
             self.send_response(303)
@@ -263,6 +271,21 @@ class ApiMixin:
             })
         self.send_json(rows)
 
+    def deny_without_login(self):
+        """No valid dojo_login cookie: a browser page load goes to /login (and
+        back to where it was going), anything else (a poll, an asset) gets 401."""
+        wants_page = (self.headers.get("X-Forwarded-Method", "GET") == "GET"
+                      and "text/html" in self.headers.get("Accept", ""))
+        if wants_page:
+            target = local_path(self.headers.get("X-Forwarded-Uri", ""))
+            self.redirect("/login" if not target or target == "/"
+                          else "/login?next=" + urllib.parse.quote(target, safe=""))
+        else:
+            self.send_response(401)
+            self.send_header("Cache-Control", "no-store")
+            self.send_header("Content-Length", "0")
+            self.end_headers()
+
     def handle_session_check(self, parsed):
         """Caddy's forward_auth target for every gated request. 200 plus
         X-Session-User (Caddy copies it to X-Auth-User upstream) when the
@@ -272,17 +295,7 @@ class ApiMixin:
         account = self.session_account()
         role = urllib.parse.parse_qs(parsed.query).get("role", [""])[0]
         if account is None:
-            wants_page = (self.headers.get("X-Forwarded-Method", "GET") == "GET"
-                          and "text/html" in self.headers.get("Accept", ""))
-            if wants_page:
-                target = local_path(self.headers.get("X-Forwarded-Uri", ""))
-                self.redirect("/login" if not target or target == "/"
-                              else "/login?next=" + urllib.parse.quote(target, safe=""))
-            else:
-                self.send_response(401)
-                self.send_header("Cache-Control", "no-store")
-                self.send_header("Content-Length", "0")
-                self.end_headers()
+            self.deny_without_login()
             return
         if role == "facilitator" and account != FACILITATOR_USERNAME:
             self.send_html(page("Facilitator only", (

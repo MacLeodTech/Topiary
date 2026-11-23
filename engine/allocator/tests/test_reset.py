@@ -20,6 +20,7 @@ for _k, _v in {"FORGEJO_ADMIN_USER": "admin", "FORGEJO_ADMIN_PASSWORD": "x",
                "EXTENSIONS_FILE": os.path.join(HERE, "no-such-file.json")}.items():
     os.environ.setdefault(_k, _v)
 import reset  # noqa: E402
+import accounts
 import allocation  # noqa: E402
 import config  # noqa: E402
 import pages  # noqa: E402
@@ -441,7 +442,8 @@ class HttpTest(unittest.TestCase):
 
     def test_fenced_student_gets_the_starting_page_and_progress_shows(self):
         sid, token = allocation.claim_slot("Ada", "10.0.0.1")
-        cookie = {"Cookie": f"{config.COOKIE_NAME}={token}"}
+        cookie = {"Cookie": f"{config.COOKIE_NAME}={token}; "
+                            f"{accounts.SESSION_COOKIE}={accounts.make_session(accounts.TTYD_USERNAME)}"}
         self.resets.request(sid)
         self.assertEqual(self.request("GET", "/auth-check?tool=ide", headers=cookie)[0], 202)
         self.assertEqual(self.request("GET", "/forgejo-login", headers=cookie)[0], 503)

@@ -289,8 +289,14 @@ START_FLIGHTS = SingleFlight()
 # A workspace that answered ready is trusted for this long, so the hundreds of
 # asset requests behind one VS Code page load don't each make a control call
 # (identity and the reset fence are still checked on every request). Any stop
-# or reset of that user clears it (control_request below).
-READY_CACHE = TTLCache(2.0)
+# or reset of that user clears it (control_request below). Every miss is a
+# control call that parses /proc/net/tcp and checks who owns the port, so a
+# short TTL meant one such call every 2 s per active student per tool.
+# The cost of a long one: a workspace that dies inside the window (web-terminal
+# stops an idle code-server without telling the allocator) is proxied to a
+# closed port, a 502 for the student, until the entry expires.
+READY_TTL_S = float(_env_int("READY_TTL_S", 15))
+READY_CACHE = TTLCache(READY_TTL_S)
 # The roster's workspace status, shared by every open /admin tab.
 STATUS_CACHE = TTLCache(3.0)
 _FORGET_ON = re.compile(r"^/(?:stop|reset)/([A-Za-z0-9_-]+)")
