@@ -7,6 +7,13 @@ and verified, it moves here in a line or two. Detail behind older entries (desig
 Entries are grouped by what reached `main`. Dates are commit or merge dates; "locally" means tested on the
 WSL2 desktop stack at `http://localhost:8080`.
 
+## `workspace-control.py` split into a package, item 4.1 (2026-11-24)
+
+- The 1124-line file is now `engine/web-terminal/workspace_control/`: `config` (env, ports, sizing flags), `state` (what is running, locks, `audit`, names and ports), `procs`, `ports` (listeners, squat sweep), `namespaces` (holder, nproc prefix), `sessions` (tmux/zellij, watch), `workspaces` (start/stop), `accounts` (reset and hooks), `reaper` and `handler` (the HTTP handler and `main`). Every module is under 300 lines (a test keeps it that way). `workspace-control.py` is a 3-line entry point at the same path, so the image's command and healthcheck did not change; the Dockerfile copies the package next to it.
+- Code was moved by script from the AST, not retyped. The only edit: a method-local `import json` in the handler went, because the module now imports it at the top. The comment cleanup (4.4) is still a separate item.
+- Tests: the three existing suites now patch each name in the module that uses it (e.g. the status tests patch `handler.is_alive`), plus a package smoke test (modules import, the entry point only hands over, `subprocess.Popen` is the reaper's). Web terminal unit tests 30 OK, ruff clean.
+- Live: `git-fundamentals --test 3 --fast` (all done, container healthy with 0 restarts, no zombies, roster active) and `--terminal zellij --test 2 --fast` (same), plus a confirmed reset of a bot through the new `accounts.py` (`reset-done`, `ok: true`).
+
 ## E8 revocable, shorter facilitator session (2026-11-24)
 
 - Cookies carry a per-account epoch; a facilitator `/logout` bumps it (kept in `session-epochs.json` in the allocator volume, survives restarts), so every facilitator cookie dies; class and bot cookies are untouched. Facilitator lifetime is 4 h (`general.facilitator_session_hours`), class stays 12 h. Unit tests added (199 allocator, 170 dojo OK). Live on git-fundamentals: two facilitator cookies both worked, logout on one made both 401, class cookie unaffected, a new sign-in worked, epoch persisted across an allocator restart.

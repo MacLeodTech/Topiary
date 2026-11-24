@@ -93,6 +93,7 @@ RUN chmod 0755 /usr/local/bin/dojo /usr/local/share/dojo/cmd.d/fix-terminal \
 
 COPY entrypoint.sh /usr/local/bin/web-terminal-entrypoint
 COPY workspace-control.py /usr/local/bin/workspace-control.py
+COPY workspace_control/ /usr/local/bin/workspace_control/
 COPY healthcheck.sh /usr/local/bin/web-terminal-healthcheck
 RUN chmod +x /usr/local/bin/web-terminal-entrypoint /usr/local/bin/web-terminal-healthcheck
 # One account's setup, run by the entrypoint and by a student reset.

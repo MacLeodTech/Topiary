@@ -120,7 +120,6 @@ No behaviour change. Every E item in phases 1-4 links to its [execution brief](#
 
 | # | Work | Effort | Description |
 |---|---|---|---|
-| 4.1 | **E10** Split `workspace-control.py` (1124 lines) **[engine]** | M | [Brief](#e10-split-workspace-controlpy-41). The one file worth splitting (also 2026-10-18 review §3.8). A package with `ports` (listeners, squat sweep), `namespaces` (holder, userns), `sessions` (tmux/zellij, watch), `accounts` (reset, hooks), `reaper` and `http` |
 | 4.4 | Comments: invariants, not history **[engine]** | S | `docker-compose.yml` is 47% comments, the Caddyfile 36%, `entrypoint.sh` 33%, much of it history ("remediation T3.4", "used to be"). Some are already wrong: `workspace-control.py` says it is threaded "unlike the allocator" and puts tmux sockets in `/tmp/tmux-<uid>`, and `handler.py` says "keepalive 2s". Keep the rules ("Caddy's idle limit must stay under the allocator's") and leave the history to git and RELEASES |
 | 4.5 | **E12** Move the git-fundamentals bot steps out of the engine **[engine]** | S-M | [Brief](#e12-move-the-git-fundamentals-bot-steps-out-of-the-engine-45). `engine/web-terminal/bot-runner.sh` (769 lines) carries git-fundamentals' `step_lab1`-`step_lab5` as its default. Packs can already supply their own steps, so move them to `workshops/git-fundamentals/` and keep only the framework (`run_cmd`, `think`, state, portal login) in the engine |
 | 4.7 | Declarative pack settings | L | `workshop.env`/`module.env` are run with `sh` (`engine/dojo/envfiles.py:92`). TOML, like `dojo.toml`, would make validation and `--dry-run` simpler (2026-10-18 review §3.4). Long term |
@@ -164,33 +163,6 @@ need **[engine]** approval first. Shared rules: work on a feature branch; run bo
 - **Then:** the achievements auto-add in `envfiles.py:185` can stay (it's a toggle), but archive and results must not name the module.
 - **Test:** unit tests for the new manifest kind (bad path, unknown upstream, duplicate id); `test_archive`-style tests with a fake export. Live: `ACHIEVEMENTS_ENABLED=1 ./dojo git-fundamentals --test 2 --fast`, then `./dojo stop`: `results/` holds the same files as before plus `repos/` with `--with-repos`.
 - **Done when:** `rg -n achievements engine/dojo/archive.py engine/dojo/results.py` finds nothing and the stop run saves the same results.
-
-#### E10: split `workspace-control.py` (4.1)
-
-- **Where:** `engine/web-terminal/workspace-control.py` (1124 lines); its Dockerfile `COPY`; `engine/web-terminal/tests/`.
-- **Change:** a package `engine/web-terminal/workspace_control/` with:
-  - `config.py`: env, ports, names;
-  - `ports.py`: `_listeners`, `port_open`, the squat sweep;
-  - `namespaces.py`: holder, `ns_prefix`, userns;
-  - `sessions.py`: tmux/zellij, `start_watch`, `list_sessions`;
-  - `workspaces.py`: `start_workspace`, `stop_user`, the locks;
-  - `accounts.py`: reset, hooks, `remove_account_files`;
-  - `reaper.py`: `_TrackedPopen`, `reap_children`;
-  - `http.py`: the Handler.
-- Keep `workspace-control.py` as a 10-line entry point, so the image's command and healthcheck don't change. Move code only, no edits: do the comment cleanup (4.4) in a separate commit.
-- **Test:** the existing tests (`engine/web-terminal/tests/`) import from the new modules; add an import smoke test. Live: `git-fundamentals --test 3 --fast` and the zellij flavor (`--terminal zellij --test 2 --fast`): bots done, watch tile and reset work, no zombies (`ps -eo stat | rg Z` in the terminal).
-- **Done when:** both stacks pass and no new module is over about 300 lines.
-
-#### E12: move the git-fundamentals bot steps out of the engine (4.5)
-
-- **Where:** `engine/web-terminal/bot-runner.sh` (`step_lab1_*` to `step_lab5_*`, about lines 410-612, and the default `STEPS` arrays by `PERSONA` at about 640-675); `workshops/git-fundamentals/content/bots/steps.sh` (already extends them: it renames `step_lab4_history` at line 124).
-- **Keep in the engine** (other packs call them): `step_ensure_clone` (dns-as-code, tofu-basics, vault-fundamentals, srx-terraform), `step_sync_main`, `step_wrap_round` (most packs), `cleanup_merged_pr`, `branch_name`, `run_cmd`, `think`, `narrate`, state and the portal login.
-- **Move:** the five `step_labN_*` functions and the persona `STEPS` arrays into the git-fundamentals `steps.sh`. Then drop the `eval "$(declare -f ...)"` rename there; the pack defines its own `step_lab4_history` directly.
-- **New engine default:** with no `BOT_STEPS_FILE`, run no lab steps: say "no bot steps for this workshop" and write `~/.dojo-bot-done`.
-  - **ctf-defend has no `steps.sh`** and today falls back to the git-fundamentals steps. Check whether that's intended. If so, give it its own `steps.sh` that sources git-fundamentals'; if not, the new default fixes it.
-  - Also check `rg -n step_lab workshops modules` for any other caller.
-- **Test:** `bash -n` on both files, shellcheck (CI). Live: `git-fundamentals --test 3 --fast` (all three personas finish round 1 with the same steps as before; compare the bot logs' step names) and one other pack that uses `step_ensure_clone` (`dns-as-code --test 2 --fast`).
-- **Done when:** both stacks pass and `bot-runner.sh` is under about 500 lines.
 
 ## Phase 5: live checks and browser passes
 

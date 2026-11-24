@@ -83,7 +83,7 @@ fragment that joins `terminal_ingress`.
 Inside `web-terminal`, each student's IDE and terminal run in a PID namespace
 of their own (a user namespace mapping only their uid, kept alive by one
 holder process per student and joined with `nsenter`; see
-`workspace-control.py`), so `ps` shows a student only their own processes
+`workspace-control.py`, a thin entry point for the `workspace_control/` package: `config`, `state`, `procs`, `ports`, `namespaces`, `sessions`, `workspaces`, `accounts`, `reaper`, `handler`), so `ps` shows a student only their own processes
 and never a classmate's command-line arguments (remediation T2.3b, FIND-10).
 The facilitator and demo bots stay outside; `su`, `sudo` and `ping` don't
 work inside.

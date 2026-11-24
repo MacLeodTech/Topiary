@@ -2,18 +2,17 @@
 
 Run: cd engine/web-terminal && python3 -B -m unittest discover -s tests
 """
-import importlib.util
 import os
 import pathlib
+import sys
 import tempfile
 import unittest
 from unittest import mock
 
 HERE = pathlib.Path(__file__).resolve().parents[1]
-spec = importlib.util.spec_from_file_location("workspace_control", HERE / "workspace-control.py")
-wc = importlib.util.module_from_spec(spec)
+sys.path.insert(0, str(HERE))
 with mock.patch.dict("os.environ", {"CONTROL_TOKEN": "test"}):
-    spec.loader.exec_module(wc)
+    from workspace_control import sessions as wc
 
 
 class RuntimeDir(unittest.TestCase):
@@ -43,7 +42,7 @@ class RuntimeDir(unittest.TestCase):
 
 class WatchClipboard(unittest.TestCase):
     def test_tmux_watch_client_is_not_an_xterm(self):
-        src = (HERE / "workspace-control.py").read_text()
+        src = (HERE / "workspace_control" / "sessions.py").read_text()
         self.assertIn("env TERM=screen-256color tmux attach -t {session} -r", src)
 
     def test_shell_scripts_use_the_private_dir(self):
