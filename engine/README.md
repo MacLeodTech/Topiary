@@ -918,23 +918,24 @@ Spins up simulated "students" alongside the real stack — no extra
 Compose service, just extra accounts (`testuser1`..`testuser3` by
 default, `testuser1`..`testuserN` with `--test N`, max 35) provisioned the same way `student01`..`studentNN` are, plus a
 script (`web-terminal/bot-runner.sh`) that drives each one through the
-git-fundamentals lab on its own: clone, branch, edit, commit, push, open a
-pull request, then the Lab 2-5 review/stash/history/conflict/undo
-exercises — all for real, against the actual Forgejo instance, on branches
+workshop's labs on its own (the labs come from the pack's `content/bots/steps.sh`; for
+git-fundamentals: clone, branch, edit, commit, push, open a pull request, then the Lab 2-5
+review/stash/history/conflict/undo exercises) — all for real, against the actual Forgejo instance, on branches
 named `testuserN/round<N>-...` so anything they push is unambiguously
 traceable back to a bot, never confusable with real student work. Useful
 for demoing the whole workshop solo, or for exercising the facilitator
 dashboard (`/admin`) — watch tiles, Release, the live roster — without
 needing real students connected.
 
-**Per-workshop bot steps.** The steps above are the default. A workshop
-pack can give its bots its own labs by shipping
+**Per-workshop bot steps.** The runner is a framework; the labs belong to the pack. A workshop
+pack gives its bots their labs by shipping
 `content/bots/steps.sh`: `bot-runner.sh` sources it (the content dir is
 mounted read-only at `/opt/workshop-content`) after defining its helpers
 (`run_cmd`, `narrate`, `think`, `orient`, `branch_name`, `api_curl`) and the
-generic steps (`step_ensure_clone`, `step_sync_main`, `step_lab1_push_and_pr`,
-`step_wrap_round`). The file defines its own step functions, may redefine any
-of the engine's, and sets `STEPS` for each `$PERSONA`. Steps must be safe to
+generic steps (`step_ensure_clone`, `step_sync_main`, `step_wrap_round`). The file
+defines its own step functions, may redefine any of the engine's, and sets `STEPS` for
+each `$PERSONA`. A pack with no `steps.sh` (or one that sets no `STEPS`) gets no lab steps: the
+bot says so, writes `~/.dojo-bot-done` and idles, so `./dojo test` still completes. Steps must be safe to
 re-run from the top and return non-zero on failure (the runner retries that
 step with backoff).
 
@@ -985,11 +986,9 @@ same `FORGEJO_ORG`/`FORGEJO_REPO` as everything else, and is added to the
 `students` team by `bootstrap.sh` exactly like a real student account, so
 it can push and open pull requests.
 
-**Only meaningful for the git-fundamentals content** — `bot-runner.sh` is
-written against that workshop's `roster/team.yaml` file specifically (it
-falls back to editing a generic `NOTES-<bot>.md` if that file doesn't
-exist, so it won't crash against a different workshop's content, but it
-won't do anything workshop-specific for one either).
+**The git-fundamentals steps** (`step_lab1_*` to `step_lab5_*` and the persona `STEPS` lists) live in
+`workshops/git-fundamentals/content/bots/steps.sh`, written against that workshop's `roster/team.yaml`; the
+engine keeps none of them.
 
 **Stop the bots** without tearing down the rest of the stack: set
 `BOT_COUNT=0` in `.env` and re-run `./dojo <workshop-name>` (without

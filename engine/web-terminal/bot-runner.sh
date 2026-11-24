@@ -7,14 +7,15 @@
 # existing /admin/watch/<id> tile works on a bot with no special-casing on
 # that side beyond allocator/config.py's BOT_IDS).
 #
-# By default works through the git-fundamentals labs (clone, branch, edit, commit,
-# push, PR, plus the lab2-5 review/stash/history/conflict/undo exercises)
-# at a slow, human-ish pace, on branches named "<BOT_USER>/round<N>-...",
-# deliberately typing a wrong command here and there and then correcting
-# it -- so a facilitator watching gets constantly-changing terminal output
+# This file is the framework: pacing and personas, run_cmd (typing, mistakes), narrate,
+# resumable state, the portal login, the generic steps shared by several packs
+# (step_ensure_clone, step_sync_main, step_wrap_round, cleanup_merged_pr) and the round loop.
+# The labs themselves belong to the workshop: a pack ships content/bots/steps.sh (see
+# BOT_STEPS_FILE near the end of this file) that defines its step functions and sets STEPS for
+# "$PERSONA". A pack without one gets no lab steps. Bots work at a slow, human-ish pace, on branches
+# named "<BOT_USER>/round<N>-...", deliberately typing a wrong command here and there and
+# then correcting it, so a facilitator watching gets constantly-changing terminal output
 # and traceable Forgejo activity, without needing a real second person.
-# A workshop pack swaps in its own labs via content/bots/steps.sh (see
-# BOT_STEPS_FILE near the end of this file).
 #
 # Resumable by design: progress is a single (round, step) pair in
 # ~/.dojo-bot-state, rewritten after each step completes. bot-supervisor.sh
@@ -156,9 +157,9 @@ portal_curl() { curl -s $PORTAL_CONNECT -b "$PORTAL_COOKIES" "$@"; }
 #   - orient(): how often, and with what commands, a bot "looks around"
 #     (pwd/ls/whoami/cat/extra git status) beyond what the lab strictly asks
 #   - MISTAKE_MOD/REM: how often the scripted mistakes in
-#     step_lab1_branch_and_edit / step_lab4_history fire
-#   - which labs a round even attempts (see the PERSONA case below the STEPS
-#     array) -- the expert works all the way through Lab 5 every round, the
+#     the pack's first-lab and history steps fire
+#   - which labs a round even attempts (the pack's PERSONA case, in its
+#     content/bots/steps.sh) -- the expert works all the way through Lab 5 every round, the
 #     novice never gets past Lab 2. Sized so a ~10-minute demo window shows
 #     the expert cycling through the whole curriculum a couple of times
 #     while the novice is still visibly stuck early on -- see
@@ -407,210 +408,6 @@ cleanup_merged_pr() {
   PENDING_PR_NUMBER=""
 }
 
-step_lab1_branch_and_edit() {
-  cd "$REPO_DIR" || return 1
-  local branch; branch="$(branch_name "add-${BOT_USER}")"
-  narrate "Lab 1, steps 2-5 -- branch, edit the roster, review, commit"
-  run_cmd "git checkout -B '$branch' main"
-
-  local roster="roster/team.yaml"
-  if [ ! -f "$roster" ]; then
-    # A workshop other than git-fundamentals won't have this file --
-    # fall back to something generic so the bot still has real content
-    # to commit instead of failing outright.
-    roster="NOTES-${BOT_USER}.md"
-    narrate "roster/team.yaml not found (not the git-fundamentals content) -- using $roster instead"
-  fi
-
-  printf -- '- name: %s (demo bot, round %s)\n  role: QA\n' "$BOT_USER" "$ROUND" >> "$roster"
-  orient
-  run_cmd "git status"
-  run_cmd "git diff"
-
-  if [ $(( ROUND % MISTAKE_MOD )) -eq "$MISTAKE_REM" ]; then
-    narrate "(demo) committing before staging, on purpose, to show what that looks like"
-    run_cmd "git commit -m 'Add $BOT_USER to team roster'"
-    narrate "right -- nothing was staged. Fixing that."
-  fi
-
-  orient
-  run_cmd "git add '$roster'"
-  run_cmd "git commit -m 'Add $BOT_USER to team roster (round $ROUND)'"
-  run_cmd "git log -1"
-}
-
-step_lab1_push_and_pr() {
-  cd "$REPO_DIR" || return 1
-  local branch; branch="$(branch_name "add-${BOT_USER}")"
-  narrate "Lab 1, step 6 -- push (try the bare form first, like the lab shows)"
-  run_cmd "git push"
-  narrate "no upstream yet, as expected -- setting one"
-  run_cmd "git push -u origin '$branch'"
-
-  narrate "Lab 1, step 7 -- open a pull request"
-  local pr_json pr_number head="$branch"
-  # From a fork, the PR's head names the fork's owner: "<owner>:<branch>".
-  [ "$FORGEJO_FORK_WORKFLOW" = 1 ] && head="$BOT_USER:$branch"
-  pr_json="$(api_curl -X POST "$API/repos/$FORGEJO_ORG/$FORGEJO_REPO/pulls" \
-    -H 'Content-Type: application/json' \
-    -d "{\"head\":\"$head\",\"base\":\"main\",\"title\":\"[$BOT_USER] Add to roster (round $ROUND)\",\"body\":\"Demo bot activity -- safe to review and merge live, or close.\"}")"
-  pr_number="$(printf '%s' "$pr_json" | grep -o '"number":[0-9]*' | head -1 | cut -d: -f2)"
-  if [ -n "$pr_number" ]; then
-    narrate "opened PR #$pr_number for $branch"
-    PENDING_PR_BRANCH="$branch"
-    PENDING_PR_NUMBER="$pr_number"
-  else
-    narrate "PR open failed or already exists for $branch -- will re-check next round"
-  fi
-}
-
-step_lab2_review_and_undo() {
-  cd "$REPO_DIR" || return 1
-  narrate "Lab 2 -- reviewing and undoing before a commit"
-  orient
-  run_cmd "echo '- name: Test Entry' >> roster/team.yaml"
-  run_cmd "git status"
-  run_cmd "git restore roster/team.yaml"
-  run_cmd "git status"
-
-  run_cmd "echo '- name: Another Test' >> roster/team.yaml"
-  run_cmd "git add roster/team.yaml"
-  run_cmd "git status"
-  run_cmd "git restore --staged roster/team.yaml"
-  run_cmd "git status"
-  run_cmd "git restore roster/team.yaml"
-
-  run_cmd "touch scratch.log"
-  run_cmd "git status"
-  run_cmd "echo '*.log' >> .gitignore"
-  run_cmd "git status"
-  run_cmd "rm -f scratch.log .gitignore"
-  run_cmd "git status"
-}
-
-step_lab3_stash() {
-  # Follows lab3.md: a fresh practice branch with a commit of its own, an
-  # unfinished edit on it, a stash to visit main, then apply, pop and clean up.
-  # (It used to stash on main and pop onto the lab 1 branch, whose roster had
-  # its own line at the same end of the file: a conflict every time.)
-  cd "$REPO_DIR" || return 1
-  narrate "Lab 3 -- stashing"
-  local branch; branch="$(branch_name "stash-demo")"
-  # A retry restarts the step from the top: drop what the failed attempt left.
-  git restore --staged --worktree roster/team.yaml 2>/dev/null
-  git stash clear 2>/dev/null
-  orient
-  run_cmd "git checkout main" || return 1
-  run_cmd "git checkout -B '$branch'" || return 1
-  run_cmd "git branch --show-current"
-  run_cmd "echo '- name: ${BOT_USER} (stash demo)' >> roster/team.yaml"
-  run_cmd "git add roster/team.yaml"
-  run_cmd "git commit -m 'Add my entry'" || return 1
-  run_cmd "echo '- name: Work In Progress' >> roster/team.yaml"
-  run_cmd "git status"
-  run_cmd "git checkout main" || narrate "refused, as the lab says: switching would overwrite the unsaved edit"
-  run_cmd "git branch --show-current"
-  run_cmd "git stash" || return 1
-  run_cmd "git status"
-  run_cmd "git stash list"
-  run_cmd "git checkout main" || return 1
-  run_cmd "git status"
-  run_cmd "git log --oneline -3"
-  run_cmd "git checkout '$branch'" || return 1
-  run_cmd "git stash apply" || return 1
-  run_cmd "git status"
-  run_cmd "git stash list"
-  run_cmd "git restore roster/team.yaml"
-  run_cmd "git stash pop" || return 1
-  run_cmd "git diff"
-  run_cmd "git stash list"
-  run_cmd "git restore roster/team.yaml"
-  run_cmd "git checkout main" || return 1
-  run_cmd "git branch -D '$branch'"
-}
-
-step_lab4_history() {
-  cd "$REPO_DIR" || return 1
-  narrate "Lab 4 -- investigating history"
-  run_cmd "git log --oneline -5"
-  run_cmd "git log --oneline --graph --all -10"
-  local last_hash; last_hash="$(git log -1 --format=%H 2>/dev/null)"
-  [ -n "$last_hash" ] && run_cmd "git show --stat $last_hash"
-  run_cmd "git blame roster/team.yaml | tail -5"
-
-  local branch; branch="$(branch_name "lab4-explore")"
-  orient
-  run_cmd "git checkout -B '$branch'"
-  run_cmd "echo '- name: Branch Explorer' >> roster/team.yaml"
-  run_cmd "git add roster/team.yaml"
-  run_cmd "git commit -m 'Lab 4: branch comparison example'"
-  run_cmd "git diff main..$branch"
-
-  if [ $(( (ROUND + 1) % MISTAKE_MOD )) -eq "$MISTAKE_REM" ]; then
-    narrate "(demo) trying to clean up without switching off the branch first"
-    run_cmd "git branch -D '$branch'"
-    narrate "right -- can't delete the branch you're currently on. Switching first."
-  fi
-  run_cmd "git checkout main"
-  run_cmd "git branch -D '$branch'"
-}
-
-step_lab5_conflict() {
-  cd "$REPO_DIR" || return 1
-  narrate "Lab 5, part A -- causing and resolving a merge conflict"
-  orient
-  local a b
-  a="$(branch_name "conflict-a")"
-  b="$(branch_name "conflict-b")"
-
-  run_cmd "git checkout main"
-  run_cmd "git checkout -B '$a'"
-  run_cmd "sed -i 's/role: .*Engineer/role: Senior Engineer/' roster/team.yaml 2>/dev/null || echo '  role: Senior Engineer' >> roster/team.yaml"
-  run_cmd "git add roster/team.yaml"
-  run_cmd "git commit -m 'conflict-a: update role'"
-
-  run_cmd "git checkout main"
-  run_cmd "git checkout -B '$b'"
-  run_cmd "sed -i 's/role: .*Engineer/role: Principal Engineer/' roster/team.yaml 2>/dev/null || echo '  role: Principal Engineer' >> roster/team.yaml"
-  run_cmd "git add roster/team.yaml"
-  run_cmd "git commit -m 'conflict-b: update role'"
-
-  run_cmd "git merge '$a'"
-  narrate "conflict, as expected -- resolving by keeping the incoming version"
-  run_cmd "grep -v -E '^(<<<<<<<|=======|>>>>>>>)' roster/team.yaml > roster/team.yaml.resolved && mv roster/team.yaml.resolved roster/team.yaml"
-  run_cmd "git add roster/team.yaml"
-  run_cmd "git commit --no-edit"
-
-  run_cmd "git checkout main"
-  run_cmd "git branch -D '$a' '$b'"
-}
-
-step_lab5_undo() {
-  cd "$REPO_DIR" || return 1
-  narrate "Lab 5, part B -- safely undoing a change"
-  local branch; branch="$(branch_name "undo-demo")"
-  run_cmd "git checkout -B '$branch'"
-  run_cmd "echo '- name: Oops Entry' >> roster/team.yaml"
-  run_cmd "git add roster/team.yaml"
-  run_cmd "git commit -m 'Oops, wrong entry'"
-  run_cmd "git reset --soft HEAD~1"
-  run_cmd "git status"
-  # --soft kept the change staged: commit it again, then drop it for good (one commit back again, as Lab 5 does).
-  run_cmd "git commit -m 'Oops, wrong entry'"
-  run_cmd "git reset --hard HEAD~1"
-  run_cmd "git status"
-
-  run_cmd "echo '- name: Reverted Later' >> roster/team.yaml"
-  run_cmd "git add roster/team.yaml"
-  run_cmd "git commit -m 'Example commit to revert'"
-  run_cmd "git log --oneline -1"
-  run_cmd "git revert HEAD --no-edit"
-  run_cmd "git log --oneline -2"
-
-  run_cmd "git checkout main"
-  run_cmd "git branch -D '$branch'"
-}
-
 step_wrap_round() {
   cd "$REPO_DIR" || return 1
   run_cmd "git checkout main"
@@ -627,52 +424,6 @@ step_wrap_round() {
   sleep "$(rand_between "$BOT_ROUND_BREAK_MIN" "$BOT_ROUND_BREAK_MAX")"
 }
 
-# How far into the curriculum each persona gets per round -- this, plus the
-# delay ranges set above, is what makes the expert visibly "further along"
-# than the novice over the course of a demo: the novice's round never even
-# includes the Lab 3-5 steps, no matter how long it runs. Sized so that in
-# roughly a 10-minute demo window (see engine/README.md) the expert cycles
-# through the whole list a couple of times, the intermediate bot gets
-# through Lab 4 once or twice, and the novice is still visibly working
-# through Lab 1/Lab 2 material by the time you'd wrap up a live walkthrough.
-case "$PERSONA" in
-  expert)
-    STEPS=(
-      step_ensure_clone
-      step_sync_main
-      step_lab1_branch_and_edit
-      step_lab1_push_and_pr
-      step_lab2_review_and_undo
-      step_lab3_stash
-      step_lab4_history
-      step_lab5_conflict
-      step_lab5_undo
-      step_wrap_round
-    )
-    ;;
-  intermediate)
-    STEPS=(
-      step_ensure_clone
-      step_sync_main
-      step_lab1_branch_and_edit
-      step_lab1_push_and_pr
-      step_lab2_review_and_undo
-      step_lab3_stash
-      step_lab4_history
-      step_wrap_round
-    )
-    ;;
-  novice)
-    STEPS=(
-      step_ensure_clone
-      step_sync_main
-      step_lab1_branch_and_edit
-      step_lab1_push_and_pr
-      step_lab2_review_and_undo
-      step_wrap_round
-    )
-    ;;
-esac
 
 # A module can watch every bot command the way its shell hook watches a
 # student's: its terminal image ships /etc/dojo/bot.d/NN-<name>.sh, sourced
@@ -683,13 +434,13 @@ for bot_hook in /etc/dojo/bot.d/*.sh; do
   [ -r "$bot_hook" ] && . "$bot_hook"
 done
 
-# A workshop pack can replace the steps above with its own labs: it ships
-# content/bots/steps.sh (mounted at /opt/workshop-content), which is sourced
-# here, after every helper and default step is defined. It may define new
-# step functions, redefine any of the ones above (orient, step_sync_main,
-# ...), and must set STEPS for "$PERSONA". Without one, the bot runs the
-# git-fundamentals steps above. Changing a pack's STEPS between runs is
-# safe: a saved STEP past the end of the new list just starts a new round.
+# A workshop pack supplies its labs: it ships content/bots/steps.sh (mounted at
+# /opt/workshop-content), sourced here after every helper and generic step above is defined.
+# It defines its own step functions (and may redefine a helper such as orient or
+# step_sync_main) and must set STEPS for "$PERSONA". Without one the bot has no lab steps
+# (see below). Changing a pack's STEPS between runs is safe: a saved STEP past the end of
+# the new list just starts a new round.
+STEPS=()
 BOT_STEPS_FILE="${BOT_STEPS_FILE:-/opt/workshop-content/bots/steps.sh}"
 if [ -f "$BOT_STEPS_FILE" ]; then
   # shellcheck disable=SC1090
@@ -698,6 +449,14 @@ if [ -f "$BOT_STEPS_FILE" ]; then
 fi
 
 narrate "=== Topiary demo bot: $BOT_USER ($PERSONA, round $ROUND) ==="
+
+# No steps file (or one that sets no STEPS): nothing to do. Say so, leave the marker a check waits on,
+# and stay alive (bot-supervisor.sh restarts a bot whose tmux session ends).
+if [ "${#STEPS[@]}" -eq 0 ]; then
+  narrate "no bot steps for this workshop (it ships no content/bots/steps.sh) -- nothing to do"
+  echo "$ROUND" > "$HOME/.dojo-bot-done"
+  exec sleep infinity
+fi
 
 # Consecutive failures of whichever step is currently at index STEP --
 # reset on any success, at any index. A step can fail transiently (e.g.
