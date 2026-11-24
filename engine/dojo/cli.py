@@ -628,9 +628,9 @@ def export_results(fmt: str, out_file: Optional[str]) -> None:
 def export_feedback(fmt: str, out_file: Optional[str]) -> None:
     """The feedback module's answers (no usernames). `stop` saves them to results/ on its own."""
     import json as _json
-    from . import archive
+    from . import results
     rt = Runtime()
-    text = archive.fetch_feedback_csv(rt) if fmt == "csv" else _json.dumps(archive.fetch_feedback(rt), indent=2) + "\n"
+    text = results.fetch_feedback_csv(rt) if fmt == "csv" else _json.dumps(results.fetch_feedback(rt), indent=2) + "\n"
     if out_file:
         with open(out_file, "w") as fh:
             fh.write(text)

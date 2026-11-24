@@ -30,7 +30,7 @@ elif r.get("json") is not None:
     h["Content-Type"] = "application/json"
 req = urllib.request.Request("http://127.0.0.1:%s%s" % (r["port"], r["path"]), data=data, headers=h, method=r["method"])
 try:
-    resp = urllib.request.urlopen(req, timeout=15)
+    resp = urllib.request.urlopen(req, timeout=r.get("timeout", 15))
     code, body = resp.status, resp.read().decode()
 except urllib.error.HTTPError as e:
     code, body = e.code, e.read().decode()
@@ -64,15 +64,15 @@ def find_container(rt: Runtime, service: str, need_ready: bool = True) -> Contai
 
 
 def call(rt: Runtime, service: str, method: str, path: str, *, port: int = 8080, facilitator: bool = True,
-         form: Optional[Dict[str, str]] = None, body: Any = None) -> Tuple[int, Any]:
+         form: Optional[Dict[str, str]] = None, body: Any = None, timeout: int = 15) -> Tuple[int, Any]:
     """(HTTP status, parsed JSON or raw text) of one request made from inside SERVICE's container."""
     import subprocess
     c = find_container(rt, service)
     req = json.dumps({"method": method, "path": path, "port": port, "facilitator": facilitator,
-                      "form": form, "json": body})
+                      "form": form, "json": body, "timeout": timeout})
     try:
         res = subprocess.run([rt.cli, "exec", "-i", c.name, "python3", "-c", _CALL],
-                             input=req, capture_output=True, text=True, timeout=30)
+                             input=req, capture_output=True, text=True, timeout=timeout + 15)
     except (OSError, subprocess.TimeoutExpired) as exc:
         raise StackError(f"Could not reach {service}: {exc}")
     if res.returncode != 0:
