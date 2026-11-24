@@ -7,6 +7,11 @@ and verified, it moves here in a line or two. Detail behind older entries (desig
 Entries are grouped by what reached `main`. Dates are commit or merge dates; "locally" means tested on the
 WSL2 desktop stack at `http://localhost:8080`.
 
+## Caddyfile snippets, item 4.3 (2026-11-24, branch `refactor/caddy-snippets`)
+
+- The access-code matchers (`@needgate`, `@gateprobe_bad`, `@gateprobe_no`, `@gatebad`) import two snippets, `gate_needs_code` and `gate_wrong_code`, instead of repeating the same two cookie rules. `@ide`/`@term` already shared the `tool_route` snippet.
+- Tested: `caddy adapt` of the old and new Caddyfile gives the same JSON (apart from the file name Caddy records), with and without a gate code.
+
 ## Phase 1 engine fixes E1-E4 (2026-11-23, branch `fix/phase1-quick-fixes`, not merged)
 
 - **E1:** the allocator waits 65 s for the next request on an idle kept-alive connection (3 s still covers a request's line, headers and body), so it never closes one before Caddy's 60 s keepalive drops it.
