@@ -281,7 +281,6 @@ now ship all 3 of their targets each.
 | # | Work | Effort | Description |
 |---|---|---|---|
 | 6.1.1 | Defend pilot **[you]** | M | Defend lab redesign: built and live-verified (RELEASES; as-built contract: plan 8.13; no `INCIDENT.md` gate, decided against 2026-10-15 and removed); open: a pilot with 2-3 people (runbook and report script ready: docs/CTF-PILOT.md) to tune stagger (0.5 x dwell) and dwell. Stretch: `git-secrets` as a fourth target only if a rotation mechanism proves out |
-| 6.1.2 | Lab Info primers leak audit (CTF-P2b, open question 3) | S | Read each by hand for leaked payloads against every `solve.py` |
 | 6.1.3 | Ramp and scoring design (CTF-SPIKES S13) **[you: decisions]** | M | Ramp curve shape, attention split across up to 4 targets, top-10 formula |
 | 6.1.4 | Facilitator-to-bot inject and hint-probe channel (S13, plan 8.5) | M | Not built |
 | 6.1.5 | Scanners for targets 8-11 (S17) | M | Semgrep, grype, pip-audit, offline; where findings render, and the stage in runner-pool's job |

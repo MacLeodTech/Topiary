@@ -7,6 +7,13 @@ and verified, it moves here in a line or two. Detail behind older entries (desig
 Entries are grouped by what reached `main`. Dates are commit or merge dates; "locally" means tested on the
 WSL2 desktop stack at `http://localhost:8080`.
 
+## Lab Info primers leak audit, item 6.1.2 (2026-11-24)
+
+- **Method:** every distinctive string each of the 14 `solve.py` scripts sends (payloads, paths, headers, 200-odd literals) was searched for in the 15 primers; then the primers were searched for the telltale terms of each target's technique (injection strings, mass-assignment fields, metadata and file URLs, traversal, tfstate, git history, TLS-skip flags, shells, `docker.sock`) and every hit was read in context. It was a targeted search plus reading the hits, not a line-by-line read of all 15 primers.
+- **Found and fixed:** `sqlmap.md` spelled out the `' OR '1'='1` payload style that `sqli-login`'s solve uses; it now describes the idea without the string. `httpie.md` and `jq.md` used a JSON `"role": "user"` / `select(.role == "admin")` example, one step from `api-mass-assignment`'s `PATCH {"role": "admin"}`; they use a `team` field now. No other solve literal appears in any primer (only the generic `/login`, `/admin` and MIME types).
+- **Kept on purpose:** `opa.md`'s toy `input.role == "admin"` policy (the policy-bypass lab has no role), and `ncat.md`'s one-line mention of what a reverse shell is (no command).
+- **Stays fixed:** `modules/ctf-range/test_labinfo.py` runs in CI: no solve payload in a primer, the removed phrases stay out, no HTTP-tool primer shows a `role` field. It fails against the old `sqlmap.md` and `httpie.md`.
+
 ## E8 revocable, shorter facilitator session (2026-11-24)
 
 - Cookies carry a per-account epoch; a facilitator `/logout` bumps it (kept in `session-epochs.json` in the allocator volume, survives restarts), so every facilitator cookie dies; class and bot cookies are untouched. Facilitator lifetime is 4 h (`general.facilitator_session_hours`), class stays 12 h. Unit tests added (199 allocator, 170 dojo OK). Live on git-fundamentals: two facilitator cookies both worked, logout on one made both 401, class cookie unaffected, a new sign-in worked, epoch persisted across an allocator restart.
