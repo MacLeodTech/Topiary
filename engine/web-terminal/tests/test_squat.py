@@ -1,18 +1,17 @@
-"""Port-squat helpers of workspace-control.py (REVIEW.md P4).
+"""Port-squat helpers (workspace_control/ports.py) (REVIEW.md P4).
 
 Run: cd engine/web-terminal && python3 -B -m unittest discover -s tests
 """
-import importlib.util
 import io
 import pathlib
+import sys
 import unittest
 from unittest import mock
 
-SRC = pathlib.Path(__file__).resolve().parents[1] / "workspace-control.py"
-spec = importlib.util.spec_from_file_location("workspace_control", SRC)
-wc = importlib.util.module_from_spec(spec)
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
 with mock.patch.dict("os.environ", {"CONTROL_TOKEN": "test"}):
-    spec.loader.exec_module(wc)  # only defines things; servers start in main()
+    from workspace_control import ports as wc
+    from workspace_control.state import port_for
 
 HEADER = "  sl  local_address rem_address   st tx_queue rx_queue tr tm->when retrnmt   uid  timeout inode\n"
 
@@ -62,25 +61,25 @@ class Owner(unittest.TestCase):
             return wc._owner_allowed(port, uid)
 
     def test_root_allowed(self):
-        self.assertTrue(self.allowed(wc.port_for("ide", "student01"), 0))
+        self.assertTrue(self.allowed(port_for("ide", "student01"), 0))
 
     def test_owner_allowed(self):
-        self.assertTrue(self.allowed(wc.port_for("ide", "student01"), 1001))
+        self.assertTrue(self.allowed(port_for("ide", "student01"), 1001))
 
     def test_other_uid_refused(self):
-        self.assertFalse(self.allowed(wc.port_for("ide", "student01"), 1002))
+        self.assertFalse(self.allowed(port_for("ide", "student01"), 1002))
 
     def test_unknown_uid_refused(self):
-        self.assertFalse(self.allowed(wc.port_for("ide", "student01"), 4242))
+        self.assertFalse(self.allowed(port_for("ide", "student01"), 4242))
 
     def test_account_without_number_refused(self):
         self.users[1003] = "nonumber"
-        self.assertFalse(self.allowed(wc.port_for("ide", "student01"), 1003))
+        self.assertFalse(self.allowed(port_for("ide", "student01"), 1003))
 
 
 class PortOpen(unittest.TestCase):
     def setUp(self):
-        self.port = wc.port_for("ide", "student01")
+        self.port = port_for("ide", "student01")
         p = mock.patch.object(wc, "_evict")
         self.evict = p.start()
         self.addCleanup(p.stop)
