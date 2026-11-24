@@ -114,6 +114,7 @@ auth check by dialling the port directly. Workshop services a student must reach
 | `cloud_net`          | yes       | cloud-api, cloud-host                                                       | The privileged Docker-in-Docker host's only neighbour                    |
 | `ctf_net`, `ctf_ops` | yes       | ctf-range services                                                          | Vulnerable targets and the range's control plane                         |
 | `dns_admin_net`      | yes       | gateway, dns-server, dns-admin                                              | Keeps PowerDNS-Admin out of student reach                                |
+| `netlab_mgmt`        | yes       | web-terminal, netlab-checker, netlab-view, every netlab node                | SSH from the terminal and checker to the nodes; firewalled per pod       |
 
 ## 4. From command to running stack
 
