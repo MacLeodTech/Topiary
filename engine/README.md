@@ -200,7 +200,7 @@ Students only ever talk to `gateway`, at one address (`PUBLIC_BASE_URL`):
 
 Sign-in is the allocator's `/login` page (`allocator/login/`), not a browser
 popup. A correct username and password (the class login, or the
-facilitator's) sets a signed `dojo_login` cookie, good for 12 hours. It is
+facilitator's) sets a signed `dojo_login` cookie, good for 12 hours (the facilitator's 4, `FACILITATOR_SESSION_HOURS`; signing out as the facilitator revokes every facilitator cookie through a per-account epoch kept in `session-epochs.json`). It is
 derived from `GATEWAY_TOKEN` and both passwords, so changing either password
 signs everyone out. Caddy's `session_gate` snippet then calls the allocator's
 `/session-check` on every other request: no cookie sends a page load to
