@@ -209,12 +209,9 @@ class ApiMixin:
         """The Roster's "Password" button (remediation T2.1d): one student's
         own Forgejo password, for when the facilitator helps at a desk.
         Behind /admin's facilitator gate like the other /admin/api routes;
-        also needs the roster JS's X-Requested-With header, as Release does,
-        so no other page can have a browser fetch it. Logged."""
-        if self.headers.get("X-Requested-With") != "dojo-admin":
-            self.send_response(403)
-            self.end_headers()
-            return
+        also needs the roster JS's X-Requested-With header (the route table's
+        xrw flag), as Release does, so no other page can have a browser fetch
+        it. Logged."""
         if sid not in STUDENT_IDS:
             self.send_response(404)
             self.end_headers()

@@ -7,7 +7,7 @@ and verified, it moves here in a line or two. Detail behind older entries (desig
 Entries are grouped by what reached `main`. Dates are commit or merge dates; "locally" means tested on the
 WSL2 desktop stack at `http://localhost:8080`.
 
-## E8 revocable, shorter facilitator session (2026-11-24, branch `feat/e8-facilitator-session`, not merged)
+## E8 revocable, shorter facilitator session (2026-11-24)
 
 - Cookies carry a per-account epoch; a facilitator `/logout` bumps it (kept in `session-epochs.json` in the allocator volume, survives restarts), so every facilitator cookie dies; class and bot cookies are untouched. Facilitator lifetime is 4 h (`general.facilitator_session_hours`), class stays 12 h. Unit tests added (199 allocator, 170 dojo OK). Live on git-fundamentals: two facilitator cookies both worked, logout on one made both 401, class cookie unaffected, a new sign-in worked, epoch persisted across an allocator restart.
 
@@ -17,6 +17,16 @@ WSL2 desktop stack at `http://localhost:8080`.
 - **Caddy rule:** `caddy-lint.py` fails when a `keepalive` in the Caddyfile is not below the allocator's `IDLE_TIMEOUT` (the E1 invariant).
 - **Real bugs ruff found:** a duplicate `student_reset` in `modules/dojo-cloud/cloud-api/server.py` (the first was dead) and a duplicated `IndexTest` class in `ctf-controller` whose first copy never ran.
 - Tested: `ruff check engine modules` clean, `mypy -p dojo` clean, `./dojo` suite 170 OK.
+
+## E11 route table in the allocator, item 4.2 (2026-11-24)
+
+- `do_GET` and `do_POST` in `engine/allocator/handler.py` are now one dispatcher (`serve`) over `GET_ROUTES`/`POST_ROUTES` (exact paths) and a short prefix list. The gateway-token check, the `/admin` facilitator gate and the `X-Requested-With` check each run once (a route's `xrw` flag); the forgejo-password route's own copy of that check is gone. Exact-path matching is kept, so `/x/../admin` is a 404.
+- **Test first:** `tests/test_routes.py` records the status of 176 (method, path, role) combinations (anonymous, class, facilitator, facilitator with the header) from the old code; it passes unchanged on the new. Allocator suite 197 OK. Not run on a live stack: the test drives the real HTTP server.
+
+## Caddyfile snippets, item 4.3 (2026-11-24)
+
+- The access-code matchers (`@needgate`, `@gateprobe_bad`, `@gateprobe_no`, `@gatebad`) import two snippets, `gate_needs_code` and `gate_wrong_code`, instead of repeating the same two cookie rules. `@ide`/`@term` already shared the `tool_route` snippet.
+- Tested: `caddy adapt` of the old and new Caddyfile gives the same JSON (apart from the file name Caddy records), with and without a gate code.
 
 ## Phase 1 engine fixes E1-E4 (2026-11-23, branch `fix/phase1-quick-fixes`, not merged)
 
