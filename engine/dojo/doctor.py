@@ -62,7 +62,18 @@ def _strict_operator_env(env_name: str) -> Dict[str, str]:
     return operator_env(env_name)
 
 
-def run_checks(rt: Runtime, workshop: Optional[str], env_name: Optional[str]) -> List[Check]:
+def run_checks(rt: Runtime, workshop: Optional[str], env_name: Optional[str], live: bool = False,
+               students: Optional[int] = None, gate_pass: Optional[str] = None) -> List[Check]:
+    """`live` adds the public-run rules (livecheck.py) and turns a few warnings into failures."""
+    out = _run_checks(rt, workshop, env_name, live, students, gate_pass)
+    if live:
+        from .livecheck import escalate
+        escalate(out)
+    return out
+
+
+def _run_checks(rt: Runtime, workshop: Optional[str], env_name: Optional[str], live: bool,
+                students: Optional[int], gate_pass: Optional[str]) -> List[Check]:
     out: List[Check] = []
     add = out.append
 
@@ -213,6 +224,11 @@ def run_checks(rt: Runtime, workshop: Optional[str], env_name: Optional[str]) ->
         recorded = cur.workshop if cur else ""
         if containers and recorded and recorded != workshop:
             add(Check(WARN, "Switching workshop", f"{recorded} is running; starting {workshop} is refused until '{paths.PROG} stop'"))
+    if live:
+        from .livecheck import live_checks
+        resolved = res.env if workshop else env
+        out.extend(live_checks(resolved, env, students, gate_pass, origin_of=res.source_of if workshop else (lambda k: ".env or dojo.toml"),
+                               workshop=workshop, image_built=lambda tag: bool(rt.out("image", "inspect", "--format", "{{.Id}}", tag))))
     return out
 
 

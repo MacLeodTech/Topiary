@@ -7,6 +7,12 @@ and verified, it moves here in a line or two. Detail behind older entries (desig
 Entries are grouped by what reached `main`. Dates are commit or merge dates; "locally" means tested on the
 WSL2 desktop stack at `http://localhost:8080`.
 
+## `doctor --live`, item 3.4 (2026-11-24)
+
+- `./dojo doctor [workshop] --live [--students N] [--pass CODE]` adds the public-run rules from the 2026-10-18 P15 design (`engine/dojo/livecheck.py`): empty and short passwords, a missing `STUDENT_PASSWORD_SEED`, the facilitator password equal to a student secret, a short access code, CTF tokens that are empty or derived from an empty gateway token, the terminal's memory for N students, a workshop file that lowers your sizing (named with its file; a failure when below the class's need), and the workshop's terminal image not built. Unlimited cgroups, plain HTTP and a missing seed become failures. On a loopback-only machine the secret rules are warnings. It changes nothing.
+- A low pids cap is information, not a failure: the start already raises it (`sizing.fit_pids`). The P15 table's "start refuses" columns were not built; only doctor changed.
+- Tested: 14 new unit tests (`tests/test_livecheck.py`), the dojo suite (184), ruff and mypy; run on git-fundamentals and cloud-policy-as-code (reports its `workshop.env` 6g override).
+
 ## E8 revocable, shorter facilitator session (2026-11-24)
 
 - Cookies carry a per-account epoch; a facilitator `/logout` bumps it (kept in `session-epochs.json` in the allocator volume, survives restarts), so every facilitator cookie dies; class and bot cookies are untouched. Facilitator lifetime is 4 h (`general.facilitator_session_hours`), class stays 12 h. Unit tests added (199 allocator, 170 dojo OK). Live on git-fundamentals: two facilitator cookies both worked, logout on one made both 401, class cookie unaffected, a new sign-in worked, epoch persisted across an allocator restart.
