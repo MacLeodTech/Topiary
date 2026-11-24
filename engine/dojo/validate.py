@@ -77,8 +77,8 @@ def _check_extensions(ws: Workshop) -> List[str]:
         me = paths.MODULES / m / "module.env"
         if me.is_file():
             env.update({k: v for k, v, _ in parse_literal(me)})
-    with tempfile.TemporaryDirectory() as tmp:
-        tmp = Path(tmp)
+    with tempfile.TemporaryDirectory() as tmp_name:
+        tmp = Path(tmp_name)
         (tmp / "in").mkdir()
         for name, f in manifests:
             shutil.copyfile(f, tmp / "in" / name)

@@ -53,7 +53,7 @@ def backup(rt: Runtime, dest: Optional[Path]) -> Dict[str, Any]:
                     "files": cur.files if cur else [], "env_name": cur.env_name if cur else None,
                     "created": time.strftime("%Y-%m-%dT%H:%M:%S%z"), "volumes": vols}
         (Path(tmp) / "manifest.json").write_text(json.dumps(manifest, indent=2) + "\n")
-        with tarfile.open(dest, mode) as tar:
+        with tarfile.open(dest, mode) as tar:  # type: ignore[call-overload]
             tar.add(Path(tmp) / "manifest.json", arcname="manifest.json")
             for v in vols:
                 part = Path(tmp) / f"{v}.tar"
@@ -110,6 +110,8 @@ def restore(rt: Runtime, path: Path, manifest: Dict[str, Any]) -> List[str]:
                 src = tar.extractfile(member)
             except KeyError:
                 raise StackError(f"{path} lacks {member}.")
+            if src is None:
+                raise StackError(f"{path}: {member} is not a file.")
             part = Path(tmp) / f"{v}.tar"
             with open(part, "wb") as out:
                 shutil.copyfileobj(src, out)

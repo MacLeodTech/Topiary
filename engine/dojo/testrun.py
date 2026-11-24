@@ -88,7 +88,7 @@ def run_matrix(workshop: str, bots: int, matrix: Optional[Tuple[str, List[str]]]
         r = RunResult(label, bots=bots)
         results.append(r)
         saved = os.environ.get(key) if key else None
-        if key:
+        if key and value is not None:
             os.environ[key] = value
         t0 = time.monotonic()
         try:

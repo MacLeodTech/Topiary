@@ -7,6 +7,13 @@ and verified, it moves here in a line or two. Detail behind older entries (desig
 Entries are grouped by what reached `main`. Dates are commit or merge dates; "locally" means tested on the
 WSL2 desktop stack at `http://localhost:8080`.
 
+## CI additions, item 4.6 (2026-11-24, branch `chore/ci-lint-types`, not merged)
+
+- **Gating jobs:** `python-lint` (ruff `E9,F` over `engine/` and `modules/`, config in `ruff.toml`) and `python-types` (mypy over `engine/dojo`, 25 findings fixed). Both pin their tool versions.
+- **Caddy rule:** `caddy-lint.py` fails when a `keepalive` in the Caddyfile is not below the allocator's `IDLE_TIMEOUT` (the E1 invariant).
+- **Real bugs ruff found:** a duplicate `student_reset` in `modules/dojo-cloud/cloud-api/server.py` (the first was dead) and a duplicated `IndexTest` class in `ctf-controller` whose first copy never ran.
+- Tested: `ruff check engine modules` clean, `mypy -p dojo` clean, `./dojo` suite 170 OK.
+
 ## Phase 1 engine fixes E1-E4 (2026-11-23, branch `fix/phase1-quick-fixes`, not merged)
 
 - **E1:** the allocator waits 65 s for the next request on an idle kept-alive connection (3 s still covers a request's line, headers and body), so it never closes one before Caddy's 60 s keepalive drops it.

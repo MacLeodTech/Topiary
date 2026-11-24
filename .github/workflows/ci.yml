@@ -69,11 +69,9 @@ jobs:
       - run: ruff check engine modules
 
   python-types:
-    # mypy over the dojo CLI (the only package with type hints). Advisory until
-    # its 25 findings (2026-11-24) are fixed; then drop continue-on-error.
+    # mypy over the dojo CLI (the only package with type hints).
     runs-on: ubuntu-24.04
     timeout-minutes: 5
-    continue-on-error: true
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - run: pip install mypy==1.20.0 types-PyYAML

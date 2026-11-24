@@ -22,7 +22,7 @@ import tempfile
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple, cast
 
 from . import checks, paths, sizing, state
 from .build import Builder, BuildError, build_input_hash, sync_shared, terminal_input_hashes
@@ -353,7 +353,7 @@ def _plan(o: StartOptions, rt: Runtime) -> Plan:
     if bots is not None:
         env["BOT_COUNT"] = bots
         env["BOT_FAST"] = "1" if o.fast else "0"
-        env["CTF_TIME_SCALE"] = soc_time_scale(o, env)
+        env["CTF_TIME_SCALE"] = soc_time_scale(o, env) or TEST_TIME_SCALE
         if env["CTF_TIME_SCALE"] != "1":
             console.print(f"           SOC timeline x{env['CTF_TIME_SCALE']} (ctf-defend; CTF_TIME_SCALE=1 for the real clock).")
         verb = "would start" if o.dry_run else "starting"
@@ -443,7 +443,7 @@ def _content_image_tags(rt: Runtime, files: List[str], env: Dict[str, str],
             continue
         image = str(spec["image"])
         build_tags[service] = image
-        build_hashes[service] = build_input_hash(spec["build"], builder.salt, aliases)
+        build_hashes[service] = build_input_hash(cast(Dict[str, object], spec["build"]), builder.salt, aliases)
         image_overrides[service] = image
     return build_tags, build_hashes, image_overrides
 
@@ -822,7 +822,8 @@ def run_restart(services_: List[str], clean: bool) -> int:
 def run_build_all(env_name: Optional[str], dry_run: bool) -> int:
     from .workshops import workshops
     from .ui import ok as say_ok
-    built, failed = [], []
+    built: List[str] = []
+    failed: List[str] = []
     for w in workshops():
         step(f"Building {w.name}")
         code = run_start(StartOptions(w.name, env_name=env_name, dry_run=dry_run, build_only=True))
