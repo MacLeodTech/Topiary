@@ -32,6 +32,7 @@ dojo.toml  <  dojo.local.toml  <  .env  <  profile (--env NAME)  <  workshop.env
 | `general.student_prefix` | `STUDENT_PREFIX` | Account prefix (`student`) |
 | `general.class_username` | `TTYD_USERNAME` | Shared class sign-in name (`student`); its password is `TTYD_PASSWORD` in `.env` |
 | `general.facilitator_username` | `FACILITATOR_USERNAME` | Facilitator sign-in; has sudo in the terminal (`facilitator`) |
+| `general.facilitator_session_hours` | `FACILITATOR_SESSION_HOURS` | Facilitator sign-in lifetime (4); signing out of one browser ends them all. The class login stays 12 h |
 | `general.forgejo_admin_user` / `_email` | `FORGEJO_ADMIN_USER` / `_EMAIL` | Machine admin in Forgejo; avoid the reserved name `admin` (`workshop-admin`) |
 | `general.achievements` | `ACHIEVEMENTS_ENABLED` | Toasts, leaderboard, support desk for workshops with a catalog (true) |
 | `network.public_base_url` | `PUBLIC_BASE_URL` | What students type; port must match `http_port` (`http://localhost:8080`) |

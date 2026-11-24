@@ -23,10 +23,9 @@ CLI and the base compose file. None of them has been reproduced on a stack yet.
 **Next, in order:**
 1. **0.1 [you]:** the browser check of the watch tile and `pbcopy` (everything else in Phase 0 passed).
 2. **2.6 [stack, ask first]:** the class-sized run (about 20 bots, 2.1's script) that closes Phase 2. It also settles two open measurements: E6's 502-after-death trade-off (kill a code-server and time the recovery; the first try with `pkill` showed no 502, so check the kill landed) and a real page's assets for the `/ide` call count.
-3. **3.2 (E8) [engine]:** a revocable, shorter facilitator session. No decision needed; start here while 3.1 waits.
-4. **3.1 (E7) [you: decision]:** pick the admin hostnames for `--env home`/`--env prod` and whether local runs get a second port; then build it.
-5. **2.4/2.5:** netlab start and stop time (need a big netlab stack; slow on 13 GB).
-6. Then 3.3-3.6, Phase 4 refactors, and Phase 5/6 as time allows.
+3. **3.1 (E7) [you: decision]:** pick the admin hostnames for `--env home`/`--env prod` and whether local runs get a second port; then build it.
+4. **2.4/2.5:** netlab start and stop time (need a big netlab stack; slow on 13 GB).
+5. Then 3.3-3.6, Phase 4 refactors, and Phase 5/6 as time allows.
 
 ## The flow at a glance
 
@@ -110,7 +109,6 @@ Finish before the next `--env prod` class. Settle 3.1's decision first: it decid
 | # | Work | Effort | Description |
 |---|---|---|---|
 | 3.1 | **E7** Facilitator tools on their own origin **[engine] [you: decision]** | M | [Brief](#e7-facilitator-on-its-own-origin-31). `/admin`, Forgejo, every extension route and the facilitator's own `/ide`/`/term` all share one origin. The `X-Requested-With` check stops forged requests from other sites but not a script running on this origin, so one XSS in Forgejo, a module UI or the CTF view (`'unsafe-inline'`, 1.5) can act as the facilitator: read every Forgejo password, take a Forgejo site-admin session through `/forgejo-login`, reset or release students, or open the facilitator's terminal. Today the only defence is each module's `textContent` rule. Fix: serve `/admin` and the facilitator's tools from a second origin (`admin.<host>` behind the home-lab Caddy; a second port locally), with a cookie that is never set on the student origin. Decision: the hostname scheme for `--env home`/`--env prod`, and whether local runs get it too |
-| 3.2 | **E8** Revocable, shorter facilitator session **[engine]** | S | [Brief](#e8-revocable-shorter-facilitator-session-32). The `dojo_login` cookie is stateless and valid for 12 h (`engine/allocator/accounts.py`), so `/logout` only clears the browser's copy. Add a server-side session epoch (bump it on logout, or with a "sign everyone out" button) and a shorter facilitator lifetime (4 h?) |
 | 3.3 | Per-pod netlab management network (2026-11-08 item 2) | M | S1's full fix: a pod with root and NET_ADMIN can still ARP-spoof on the flat `netlab_mgmt` network (host keys now stop the impersonation, not the reach) |
 | 3.4 | P15 `doctor --live`: pre-class readiness check | M | Design in [`docs/reviews/2026-10-18.md`](docs/reviews/2026-10-18.md) (P13/P15); not built |
 | 3.5 | P10 failure and recovery; P12 fresh-machine bootstrap | M each | Kill services mid-class and interrupt start/stop/restart: do students recover? `setup.sh`/`setup.ps1` on a clean machine. Briefs in the 2026-10-18 review |
@@ -160,16 +158,6 @@ need **[engine]** approval first. Shared rules: work on a feature branch; run bo
   - The facilitator's terminal opens only from the admin origin.
   - `--env home` with the real hostnames **[you]**.
 - **Done when:** the P8 pass works on the admin origin and the cross-origin checks fail as they should; `docs/security.md` is updated.
-
-#### E8: revocable, shorter facilitator session (3.2)
-
-- **Where:** `engine/allocator/accounts.py` (`SESSION_SECONDS` at line 24, `_SESSION_KEY` at line 25, `make_session`, `read_session`); `handler.py` `/logout`; the `allocator_state` volume (holds the epoch).
-- **Change:**
-  1. Add an epoch, a number kept in the allocator's state file and mixed into the signature (`body = name.exp.epoch`). `read_session` refuses any other epoch.
-  2. A facilitator `/logout` bumps the epoch for the facilitator account only (keep one epoch per account), so all facilitator cookies stop working; the class account isn't affected.
-  3. Make the lifetime per account: facilitator `FACILITATOR_SESSION_HOURS` (default 4), class still 12 h. Map the setting in `config.py`.
-- **Test:** unit tests: an old-epoch cookie is refused; logging out one facilitator browser signs out another; the class cookie survives a facilitator logout; the lifetime is honoured. Live: sign in as the facilitator in two browsers, log out in one, and the other gets the `/login` redirect on its next request.
-- **Done when:** the tests pass and the two-browser check passes.
 
 #### E9: save before stop through a module hook (3.6)
 

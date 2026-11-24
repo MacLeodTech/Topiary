@@ -34,6 +34,7 @@ SCHEMA: Dict[Tuple[str, str], Tuple[str, str]] = {
     ("general", "student_prefix"): ("STUDENT_PREFIX", "str"),
     ("general", "class_username"): ("TTYD_USERNAME", "str"),
     ("general", "facilitator_username"): ("FACILITATOR_USERNAME", "str"),
+    ("general", "facilitator_session_hours"): ("FACILITATOR_SESSION_HOURS", "str"),
     ("general", "forgejo_admin_user"): ("FORGEJO_ADMIN_USER", "str"),
     ("general", "forgejo_admin_email"): ("FORGEJO_ADMIN_EMAIL", "str"),
     ("general", "achievements"): ("ACHIEVEMENTS_ENABLED", "bool"),

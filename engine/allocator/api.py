@@ -6,7 +6,7 @@ import time
 import urllib.parse
 
 from accounts import (check_login, GATE_GUARD, is_bot_id, LOGIN_GUARD, login_guard_key, LOGIN_USER_GUARD,
-                      make_session, SESSION_SECONDS)
+                      make_session, session_seconds)
 from allocation import (
     claim_slot, held_slots, ide_port, local_path, release_slot, slot_snapshot, slots, term_port,
     UNUSED_AFTER_SECONDS, watch_port,
@@ -351,7 +351,7 @@ class ApiMixin:
                            status=401, headers=NO_STORE_HEADERS)
             return
         config.audit("login", account=account, ip=ip, result="ok")
-        self.redirect(nxt, cookies=[self.session_cookie(make_session(account), SESSION_SECONDS)])
+        self.redirect(nxt, cookies=[self.session_cookie(make_session(account), session_seconds(account))])
 
     def handle_assign(self):
         # Idempotent: a valid existing cookie just re-renders the confirmation
