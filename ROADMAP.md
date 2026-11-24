@@ -114,4 +114,5 @@ Finish before the next `--env prod` class. Settle 3.1's decision first: it decid
 
 
 
+
 | 3.5 | P12 fresh-machine bootstrap | M | `setup.sh`/`setup.ps1` on a clean machine or WSL distro. Needs a machine you create; the P10 half is done (RELEASES, 2026-11-24). Brief in the 2026-10-18 review |
