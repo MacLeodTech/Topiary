@@ -125,7 +125,6 @@ No behaviour change. Every E item in phases 1-4 links to its [execution brief](#
 | 4.3 | Caddyfile snippets **[engine]** | S | `@ide` and `@term` are about 30 identical lines each: one snippet with the tool as its argument. The four access-code matchers repeat the same two regexes |
 | 4.4 | Comments: invariants, not history **[engine]** | S | `docker-compose.yml` is 47% comments, the Caddyfile 36%, `entrypoint.sh` 33%, much of it history ("remediation T3.4", "used to be"). Some are already wrong: `workspace-control.py` says it is threaded "unlike the allocator" and puts tmux sockets in `/tmp/tmux-<uid>`, and `handler.py` says "keepalive 2s". Keep the rules ("Caddy's idle limit must stay under the allocator's") and leave the history to git and RELEASES |
 | 4.5 | **E12** Move the git-fundamentals bot steps out of the engine **[engine]** | S-M | [Brief](#e12-move-the-git-fundamentals-bot-steps-out-of-the-engine-45). `engine/web-terminal/bot-runner.sh` (769 lines) carries git-fundamentals' `step_lab1`-`step_lab5` as its default. Packs can already supply their own steps, so move them to `workshops/git-fundamentals/` and keep only the framework (`run_cmd`, `think`, state, portal login) in the engine |
-| 4.6 | CI: Python lint, types and a Caddy invariant test | S | [Brief](#46-ci-additions-supports-e1). Add ruff and a type check to `.github/workflows/ci.yml`, plus a test that reads the Caddyfile and the allocator's timeout and fails if they break 1.1's rule |
 | 4.7 | Declarative pack settings | L | `workshop.env`/`module.env` are run with `sh` (`engine/dojo/envfiles.py:92`). TOML, like `dojo.toml`, would make validation and `--dry-run` simpler (2026-10-18 review §3.4). Long term |
 | 4.8 | Docs (2026-11-08 item 8, plus trimming) | S-M | The README's gateway/network matrix and CTF rows for the new packs; local CLAUDE.md pack list. Trim the overlap between `engine/README.md` (1142 lines) and `docs/architecture.md`/`docs/security.md`; shorten RELEASES (912 lines) by moving old detail to `docs/archive/` |
 
@@ -201,16 +200,6 @@ need **[engine]** approval first. Shared rules: work on a feature branch; run bo
   - Also check `rg -n step_lab workshops modules` for any other caller.
 - **Test:** `bash -n` on both files, shellcheck (CI). Live: `git-fundamentals --test 3 --fast` (all three personas finish round 1 with the same steps as before; compare the bot logs' step names) and one other pack that uses `step_ensure_clone` (`dns-as-code --test 2 --fast`).
 - **Done when:** both stacks pass and `bot-runner.sh` is under about 500 lines.
-
-#### 4.6: CI additions (supports E1)
-
-- **Where:** `.github/workflows/ci.yml`, `.github/scripts/lint-repo.sh`, `.github/scripts/caddy-lint.py`, a new `ruff.toml` (or a `[tool.ruff]` in a root `pyproject.toml`).
-- **Change:**
-  1. Ruff on `engine/` and `modules/` with a small rule set (`E9,F` first: syntax errors, undefined names, unused imports); widen later.
-  2. A type check (mypy or pyright) on `engine/dojo/` only, since it already has type hints, with `--ignore-missing-imports`.
-  3. The E1 rule in `caddy-lint.py`.
-  4. Pin the tool versions in CI like the other checks (`check-dep-pins.sh`).
-- **Done when:** CI is green on `main` with the new jobs, and a deliberate keepalive of 60 s makes `caddy-lint.py` fail.
 
 ## Phase 5: live checks and browser passes
 

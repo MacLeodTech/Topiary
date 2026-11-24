@@ -24,7 +24,7 @@ from . import paths
 try:                      # 3.11+; older Pythons use the pinned wheel boot.py unpacks
     import tomllib
 except ModuleNotFoundError:  # pragma: no cover
-    import tomli as tomllib
+    import tomli as tomllib  # type: ignore[no-redef]
 
 KEY_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 

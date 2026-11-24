@@ -108,7 +108,7 @@ class Runtime:
                              "--format", fmt).splitlines():
             parts = line.split("|", 3)
             if len(parts) == 4:
-                rows.append(Container(*parts))
+                rows.append(Container(parts[0], parts[1], parts[2], parts[3]))
         new = [c.id for c in rows if c.id not in self._oneshot]
         if new:
             fmt = "{{.Id}}|{{.HostConfig.RestartPolicy.Name}}|{{if .Config.Healthcheck}}hc{{end}}"
@@ -158,7 +158,7 @@ class Runtime:
             return []
         name_field = "{{.ImageName}}" if self.cli == "podman" else "{{.Config.Image}}"
         current: dict = {}  # image name -> the ID its tag points to now
-        stale = set()
+        stale: set = set()
         for line in self.out("inspect", "--format", "{{.Id}}|{{.Image}}|" + name_field,
                              *[c.id for c in live]).splitlines():
             full, image_id, name = (line.split("|") + ["", ""])[:3]

@@ -107,7 +107,7 @@ def save(rt: Runtime, now: Optional[float] = None) -> Optional[Path]:
         "feedback_answers": answers, "students_with_progress": scored,
         "services": services, "saved": sorted(got), "skipped": notes,
     }
-    d = _folder(manifest["workshop"], now)
+    d = _folder(str(manifest["workshop"]), now)
     d.mkdir(parents=True)
     for name, text in got.items():
         (d / name).write_text(text)

@@ -18,7 +18,7 @@ import mimetypes
 import os
 import re
 
-from mist_api import ApiError, MistApi
+from mist_api import ApiError, MistApi  # noqa: F401
 
 CSP = ("default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; "
        "base-uri 'none'; form-action 'none'; frame-ancestors 'self'")

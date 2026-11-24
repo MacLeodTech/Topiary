@@ -61,7 +61,7 @@ def follow(rt: Runtime, containers: List[Container], tail: str, since: Optional[
         cmd = [rt.cli, "logs", "-f", "--tail", tail, *(["--since", since] if since else []), c.name]
         p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, errors="replace")
         procs.append(p)
-        for line in p.stdout:
+        for line in p.stdout or ():
             line = line.rstrip("\n")
             if not rx or rx.search(line):
                 emit(c.service, line)

@@ -20,7 +20,7 @@ import re
 import subprocess
 import threading
 import time
-from typing import Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 from rich.console import Group
 from rich.markup import escape
@@ -72,7 +72,7 @@ class StartMonitor:
         self.followers: Dict[str, subprocess.Popen] = {}
         self.events_proc: Optional[subprocess.Popen] = None
         self.threads: List[threading.Thread] = []
-        self.live = None
+        self.live: Any = None
         self.quiet_since = time.time()
 
     # --- watching ------------------------------------------------------------
@@ -97,7 +97,7 @@ class StartMonitor:
         self.threads.append(t)
 
     def _read_events(self) -> None:
-        for _ in self.events_proc.stdout:  # any event of ours: take a fresh snapshot now
+        for _ in (self.events_proc.stdout if self.events_proc else None) or ():  # any event of ours: take a fresh snapshot now
             self.wake.set()
             if self.stopping.is_set():
                 break
@@ -152,7 +152,7 @@ class StartMonitor:
 
     def _follow(self, service: str, proc: subprocess.Popen) -> None:
         last = ""
-        for raw in proc.stdout:
+        for raw in proc.stdout or ():
             line = clean_log_line(raw)
             if line and line != last:
                 last = line

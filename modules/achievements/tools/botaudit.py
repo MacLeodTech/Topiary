@@ -1,5 +1,5 @@
 """Static audit: can any bot command fire each catalog shell item? python3 -B botaudit.py <workshop>"""
-import json, os, re, sys
+import os, re, sys
 R = os.getcwd()
 sys.path[:0] = [f"{R}/modules/achievements/catalog", f"{R}/modules/achievements/service"]
 import catalog as cat, matcher as mt
