@@ -1218,7 +1218,7 @@ class AuthFuzz(Stack):
             f"client_id={good_id.upper()}&client_secret={good_secret}", f"client_id={good_id}%00&client_secret={good_secret}",
             f"client_id={good_id}&client_secret={good_secret.upper()}", f"client_id[]={good_id}&client_secret[]={good_secret}",
             f"client_id={auth.app_id(FAC)}&client_secret={good_secret}", f"client_id={auth.app_id(B)}&client_secret={good_secret}",
-            f"client_id=&client_secret=", "&&&&", "=", "%", "%zz", "client_id", "client_id=" + "A" * 900_000,
+            "client_id=&client_secret=", "&&&&", "=", "%", "%zz", "client_id", "client_id=" + "A" * 900_000,
             f"client_id={good_id}&client_secret={good_secret}&scope=%ff%fe", f"client_id={good_id}&client_secret={good_secret}&resource=\x00",
             f"client_id={good_id}&client_secret={good_secret}&scope=https://management.dojo.cloud//.default",
         ]

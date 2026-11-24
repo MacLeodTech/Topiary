@@ -9,7 +9,7 @@ import subprocess
 import sys
 import tempfile
 from pathlib import Path
-from typing import List, Optional, Tuple
+from typing import List, Tuple
 
 from . import paths
 from .envfiles import parse_literal

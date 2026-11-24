@@ -27,7 +27,7 @@ import pki
 import portal_api
 import store as store_mod
 import tfstate
-import wan_ids
+import wan_ids  # noqa: F401
 
 BODY_LIMIT = 4 * 1024 * 1024
 CLIENT_GONE = (OSError,)   # the peer hung up or the TLS session died (ssl.SSLError is an OSError)
@@ -113,7 +113,7 @@ class App:
         org_id = self.auth.org_of[user]
         self.store.reset(org_id, user, self.key)
         states = self.states.purge(org_id)
-        return f"org reset to its delivery" + (f", {states} state(s) removed" if states else "")
+        return "org reset to its delivery" + (f", {states} state(s) removed" if states else "")
 
 
 class Handler(BaseHTTPRequestHandler):

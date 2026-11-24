@@ -45,7 +45,7 @@ import urllib.request
 
 import multi
 import personas
-import probes
+import probes  # noqa: F401  (imported for its side effects)
 import traffic
 from personas import Swarm
 

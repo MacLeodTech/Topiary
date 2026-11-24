@@ -58,3 +58,23 @@ jobs:
           echo "551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb  gl.tgz" | sha256sum -c -
           tar -xzf gl.tgz gitleaks
           ./gitleaks detect --source . --config .gitleaks.toml --redact --no-banner
+
+  python-lint:
+    # Syntax errors, undefined and unused names (ruff.toml). Gates the PR.
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - run: pip install ruff==0.16.6
+      - run: ruff check engine modules
+
+  python-types:
+    # mypy over the dojo CLI (the only package with type hints). Advisory until
+    # its 25 findings (2026-11-24) are fixed; then drop continue-on-error.
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - run: pip install mypy==1.20.0 types-PyYAML
+      - run: cd engine && PYTHONPATH=. mypy --ignore-missing-imports -p dojo

@@ -17,7 +17,6 @@ from rich.markup import escape
 from rich.table import Table
 
 from . import checks, paths, sizing, state
-from . import config
 from .envfiles import EnvError, operator_env, resolve, split_profiles
 from .runtime import Runtime, on_wsl, project_name
 from .stack import extra_files, mem_limits, read_state, services

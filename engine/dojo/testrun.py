@@ -11,10 +11,10 @@ from __future__ import annotations
 import os
 import time
 from dataclasses import dataclass, field
-from typing import Callable, Dict, List, Optional, Tuple
+from typing import Callable, List, Optional, Tuple
 
 from .runtime import Runtime
-from .stackapi import StackError, find_container, project
+from .stackapi import StackError, find_container
 
 MARKERS = 'ls /home/testuser*/.dojo-bot-done 2>/dev/null | wc -l'
 # "testuser2: # FAST: step_x failed 3 times -- skipping it", colour codes stripped.

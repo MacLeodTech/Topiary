@@ -1,0 +1,9 @@
+# CI lint (.github/workflows/ci.yml): syntax errors and undefined/unused names only; widen later.
+[lint]
+select = ["E9", "F"]
+
+[lint.per-file-ignores]
+# Tests import modules for their side effects and keep throwaway locals.
+"**/test_*.py" = ["F401", "F841"]
+"**/tests/*" = ["F401", "F841"]
+"**/e2e_*.py" = ["F401"]
