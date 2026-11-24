@@ -15,7 +15,7 @@ here to see what you're actually working with.
 ## Picking a field
 
 ```text
-echo '{"id": 1, "name": "alice", "role": "user"}' | jq '.name'
+echo '{"id": 1, "name": "alice", "team": "blue"}' | jq '.name'
 "alice"
 ```
 Chain fields with more dots: `.user.address.city`.
@@ -31,7 +31,7 @@ echo '[{"id":1,"name":"alice"},{"id":2,"name":"bob"}]' | jq 'length'     # how m
 ## Filtering with `select`
 
 ```text
-echo '[{"id":1,"role":"user"},{"id":2,"role":"admin"}]' | jq '.[] | select(.role == "admin")'
+echo '[{"id":1,"team":"blue"},{"id":2,"team":"red"}]' | jq '.[] | select(.team == "red")'
 ```
 Keeps only the elements matching the condition — the JSON equivalent of
 `grep`.
@@ -48,7 +48,7 @@ to drop straight into a shell variable or another command.
 ## Building a quick pipeline
 
 ```text
-curl -s http://$TARGET/users | jq -r '.[] | select(.role == "admin") | .id'
+curl -s http://$TARGET/users | jq -r '.[] | select(.team == "red") | .id'
 ```
 Fetch a list, keep only admins, print just their ids, one per line — the
 same "small pieces chained with pipes" idea from the Linux primer, just

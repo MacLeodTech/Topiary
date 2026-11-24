@@ -2,7 +2,7 @@
 # netlab start.d hook (root, after every account exists).
 #
 # 1. The per-uid firewall (netlab_fw.py): student N, and demo bot K (pod STUDENT_COUNT+K), can open connections only to
-#    their own pod's management addresses on netlab_mgmt. This container's network namespace is shared by every
+#    their own pod's management network (netlab_mgmt_NN). This container's network namespace is shared by every
 #    student, so a source address never says who is asking; the owner uid does.
 #    It FAILS CLOSED: if the rules cannot be applied and read back, this exits 1, the engine stops the container
 #    (start.d: "a failing hook stops the container") and ./dojo reports it unhealthy. The alternative, starting with

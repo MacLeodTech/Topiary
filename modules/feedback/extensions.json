@@ -11,6 +11,10 @@
     { "id": "feedback", "path": "/feedback", "upstream": "feedback:8080", "gate": "identity", "strip_prefix": true },
     { "id": "feedback-admin", "path": "/feedback-admin", "upstream": "feedback:8080", "gate": "facilitator" }
   ],
+  "exports": [
+    { "id": "feedback-json", "label": "Feedback answers", "upstream": "feedback:8080", "path": "/feedback-admin/api/export?format=json", "file": "feedback.json", "count": "answers" },
+    { "id": "feedback-csv", "label": "Feedback answers (CSV)", "upstream": "feedback:8080", "path": "/feedback-admin/api/export?format=csv", "file": "feedback.csv" }
+  ],
   "status_checks": [
     { "label": "Feedback", "url": "http://feedback:8080/healthz" }
   ]

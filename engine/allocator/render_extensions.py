@@ -29,6 +29,10 @@ X-Dojo-Reset-Token. That token is derived the same way under its own context
 service holds only its own; compose passes it in as
 RESET_TOKEN=${RESET_TOKEN_<SERVICE>:-}.
 
+Result exports (`exports`, roadmap 3.6): a service that keeps something worth saving declares a facilitator-only
+GET endpoint and the file name to save it as; `./dojo stop` fetches each one (as the facilitator, from inside the
+service's own container) into results/<run>/ before it deletes the volumes. The engine never names a module.
+
 It runs once per `./dojo <workshop>`, before anything starts, in a
 throwaway allocator container (the host needs no Python). Any error stops
 the start. Manifests are repo content, not student input, but they are the
@@ -105,6 +109,12 @@ RESET_TOKEN_CONTEXT = "dojo-reset-token/v1/"  # must match reset.py hook_token()
 RESET_PATH_RE = re.compile(r"^/(?!/)[A-Za-z0-9._~/-]*\{user\}[A-Za-z0-9._~/-]*$")
 RESET_TIMEOUT = (1, 120)
 
+# An export's path is a plain GET path on the service (a query string is fine: ?format=csv); the file it is saved as
+# is one flat name with a known extension, so it can never leave the results folder.
+EXPORT_PATH_RE = re.compile(r"^/(?!/)[A-Za-z0-9._~/-]+(\?[A-Za-z0-9._~=&-]+)?$")
+EXPORT_FILE_RE = re.compile(r"^[a-z0-9][a-z0-9._-]{0,60}\.(json|csv|txt)$")
+EXPORT_COUNT_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]{0,40}$")
+
 KINDS = {
     "cards": {"required": ("id", "label", "href", "icon"), "optional": ("desc",)},
     "admin_tabs": {"required": ("id", "label", "src"), "optional": ()},
@@ -113,6 +123,7 @@ KINDS = {
     "routes": {"required": ("id", "path", "upstream", "gate"), "optional": ("strip_prefix", "host")},
     "status_checks": {"required": ("label", "url"), "optional": ()},
     "resets": {"required": ("id", "label", "upstream", "path"), "optional": ("timeout", "optional")},
+    "exports": {"required": ("id", "label", "upstream", "path", "file"), "optional": ("timeout", "count")},
 }
 
 
@@ -298,6 +309,31 @@ def merge(manifests, services):
                     if not isinstance(optional, bool):
                         raise ManifestError(f"{where}: optional must be true or false, got {optional!r}")
                     entry.update(path=path, timeout=timeout, optional=optional)
+
+                elif kind == "exports":
+                    entry["label"] = check_text(item["label"], "label", where)
+                    entry["upstream"] = check_upstream(item["upstream"], services, where)
+                    path = item["path"]
+                    if not isinstance(path, str) or not EXPORT_PATH_RE.match(path) or ".." in path:
+                        raise ManifestError(f"{where}: path must be a plain GET path, got {path!r}")
+                    fname = item["file"]
+                    if not isinstance(fname, str) or not EXPORT_FILE_RE.match(fname):
+                        raise ManifestError(f"{where}: file must match {EXPORT_FILE_RE.pattern}, got {fname!r}")
+                    for other in out["exports"]:
+                        if other["file"] == fname:
+                            raise ManifestError(f"{where}: file {fname!r} is already saved by export {other['id']!r}")
+                    timeout = item.get("timeout", 30)
+                    lo, hi = RESET_TIMEOUT
+                    if isinstance(timeout, bool) or not isinstance(timeout, int) or not lo <= timeout <= hi:
+                        raise ManifestError(f"{where}: timeout must be whole seconds, {lo}-{hi}, got {timeout!r}")
+                    entry.update(path=path, file=fname, timeout=timeout)
+                    # count: a top-level key of a JSON answer whose size says "someone used this" (an unused stack
+                    # saves nothing); the stop shows it in manifest.json.
+                    if "count" in item:
+                        count = item["count"]
+                        if not isinstance(count, str) or not EXPORT_COUNT_RE.match(count) or not fname.endswith(".json"):
+                            raise ManifestError(f"{where}: count must be a top-level key name of a .json export, got {count!r}")
+                        entry["count"] = count
 
                 out[kind].append(entry)
 
