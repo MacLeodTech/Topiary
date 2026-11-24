@@ -208,7 +208,7 @@ while [ "$counter" -le "$student_count" ]; do
   counter=$((counter + 1))
 done
 
-# Each student's Forgejo git token (remediation T2.1c; see
+# Each student's Forgejo git token (see
 # forgejo-token.py). In the background: Forgejo and its bootstrap may still
 # be starting, and the workspaces shouldn't wait for them. The summary line
 # ("N created, N kept, N failed") lands in this container's log.
@@ -267,7 +267,7 @@ iptables -A DOJO_ISOLATION -p tcp -m multiport --sports 9000:9099,9500:9599,9600
 iptables -A DOJO_ISOLATION -p tcp --dport 7682 -j DROP
 
 # -- Ingress: IDE/terminal ports only through the gateway --------------------
-# (remediation T2.2a, D4, FIND-04.) DOJO_ISOLATION above covers traffic from
+# DOJO_ISOLATION above covers traffic from
 # inside this container. code-server and ttyd have no auth of their own, so
 # anything else on workshop_lab (a CI job, a runner, a module service) could
 # also dial web-terminal:9001 and skip Caddy's auth-check. The gateway

@@ -24,7 +24,7 @@ Content-Type: application/json
 {
     "id": 1,
     "name": "alice",
-    "role": "user"
+    "team": "blue"
 }
 ```
 Status line, headers, then a body that's pretty-printed and
@@ -37,9 +37,9 @@ you want to *filter* or *extract* a field — see `jq.md`).
 A `key=value` after the URL becomes a JSON body automatically (httpie sets
 `Content-Type: application/json` for you):
 ```text
-http POST http://$TARGET/users name=bob role=user
+http POST http://$TARGET/users name=bob team=blue
 ```
-Sends `{"name": "bob", "role": "user"}`. Use `key:=value` for a non-string
+Sends `{"name": "bob", "team": "blue"}`. Use `key:=value` for a non-string
 value (number, bool, nested JSON):
 ```text
 http POST http://$TARGET/users age:=30 active:=true

@@ -10,7 +10,7 @@ processes that back it, so no docker.sock or cross-container privilege is
 ever needed (see workshops/dns-as-code/compose/runner/Dockerfile for why
 that's a hard constraint in this stack).
 
-Uses ThreadingHTTPServer deliberately (unlike the allocator): the only
+Uses ThreadingHTTPServer deliberately (as the allocator does): the only
 shared mutable state here is `running`, guarded by a lock, and each
 handler's real work is a short-lived subprocess/pgrep call -- serializing
 those on one thread would make Release feel laggy for no benefit.
@@ -57,7 +57,7 @@ BOT_TERM_PORT_BASE = 9750
 
 # tmux session name every `term` ttyd process runs inside. Fixed and shared
 # across accounts on purpose: tmux sessions are namespaced per-uid (each
-# account gets its own socket under /tmp/tmux-<uid>/), so this never
+# account gets its own socket under <runtime dir>/tmux-<uid>/), so this never
 # collides between students.
 TMUX_SESSION = "main"
 
@@ -223,7 +223,7 @@ def _seconds_env(name, default, floor=None):
 # that's what CODE_SERVER_MAX_HEAP_MB and the container limit are for.
 # code-server itself refuses --idle-timeout-seconds of 60 or less and would exit at once, with its output discarded
 # (start_workspace below), so a too-small value is rejected here at startup instead of failing every /ide.
-CODE_SERVER_IDLE_TIMEOUT_SECONDS = _seconds_env("CODE_SERVER_IDLE_TIMEOUT_SECONDS", "900", floor=60)
+CODE_SERVER_IDLE_TIMEOUT_SECONDS = _seconds_env("CODE_SERVER_IDLE_TIMEOUT_SECONDS", "600", floor=60)
 CODE_SERVER_RECONNECTION_GRACE_SECONDS = _seconds_env("CODE_SERVER_RECONNECTION_GRACE_SECONDS", "300")
 
 

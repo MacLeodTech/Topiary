@@ -169,21 +169,23 @@ def restart(services: Tuple[str, ...], clean: bool) -> None:
 @cli.command(context_settings=SETTINGS)
 @click.option("--dry-run", is_flag=True, help="List what would be removed; remove nothing.")
 @click.option("--no-archive", is_flag=True, help="Skip saving feedback, scores and the roster to results/ first.")
-def stop(dry_run: bool, no_archive: bool) -> None:
+@click.option("--with-repos", is_flag=True, help="Also copy every Forgejo repository (the org's and each student's, with history) into results/<run>/repos/. Can be large.")
+def stop(dry_run: bool, no_archive: bool, with_repos: bool) -> None:
     """Stop the stack and delete ALL its volumes (student homes, Forgejo data). No undo.
 
     First saves the class's feedback, scores and roster to results/<date>_<time>_<workshop>/."""
     from .stop import run_stop
-    sys.exit(run_stop(dry_run, archive=not no_archive))
+    sys.exit(run_stop(dry_run, archive=not no_archive, with_repos=with_repos))
 
 
 @cli.command("down", context_settings=SETTINGS)
 @click.option("--dry-run", is_flag=True, help="List what would be removed; remove nothing.")
 @click.option("--no-archive", is_flag=True, help="Skip saving feedback, scores and the roster to results/ first.")
-def down(dry_run: bool, no_archive: bool) -> None:
+@click.option("--with-repos", is_flag=True, help="Also copy every Forgejo repository (the org's and each student's, with history) into results/<run>/repos/. Can be large.")
+def down(dry_run: bool, no_archive: bool, with_repos: bool) -> None:
     """Same as stop: save results/, then stop the stack and delete ALL its volumes. No undo."""
     from .stop import run_stop
-    sys.exit(run_stop(dry_run, archive=not no_archive))
+    sys.exit(run_stop(dry_run, archive=not no_archive, with_repos=with_repos))
 
 
 @cli.command("teardown", context_settings=SETTINGS, hidden=True)
@@ -359,17 +361,27 @@ def ps(as_json: bool) -> None:
               help="First apply the safe fixes: remove a stale run lock, create a missing .env with 'setup --default', "
                    "chmod 600 .env. Never touches containers, images or volumes.")
 @click.option("--json", "as_json", is_flag=True, help="Print the checks as JSON (for scripts).")
-def doctor(workshop: Optional[str], env_name: Optional[str], fix: bool, as_json: bool) -> None:
+@click.option("--live", is_flag=True,
+              help="Also apply the rules for a class other people join: real passwords and seed, sizing for --students, "
+                   "HTTPS, enforced cgroup limits, built images. Changes nothing.")
+@click.option("--students", type=click.IntRange(1, 200), default=None, metavar="N",
+              help="With --live: the class size to check the terminal's pids and memory against (default: STUDENT_COUNT).")
+@click.option("--pass", "--cookie", "--code", "gate_pass", default=None, metavar="CODE",
+              help="With --live: the access code you plan to start with, checked for length.")
+def doctor(workshop: Optional[str], env_name: Optional[str], fix: bool, as_json: bool, live: bool,
+           students: Optional[int], gate_pass: Optional[str]) -> None:
     """Check this machine (and optionally one WORKSHOP) before a class.
 
     Exits 1 if anything would stop a start."""
+    if (students is not None or gate_pass is not None) and not live:
+        raise click.UsageError("--students and --pass only apply with --live")
     from .maintain import apply_fixes
     fixed = apply_fixes() if fix else []
     if fixed and not as_json:
         for line in fixed:
             console.print(f"[green]fixed:[/] {escape(line)}")
         console.print()
-    results = doctor_mod.run_checks(Runtime(), workshop, env_name)
+    results = doctor_mod.run_checks(Runtime(), workshop, env_name, live=live, students=students, gate_pass=gate_pass)
     if as_json:
         from dataclasses import asdict
         click.echo(json.dumps({"fixed": fixed, "checks": [asdict(c) for c in results],
@@ -618,9 +630,9 @@ def export_results(fmt: str, out_file: Optional[str]) -> None:
 def export_feedback(fmt: str, out_file: Optional[str]) -> None:
     """The feedback module's answers (no usernames). `stop` saves them to results/ on its own."""
     import json as _json
-    from . import archive
+    from . import results
     rt = Runtime()
-    text = archive.fetch_feedback_csv(rt) if fmt == "csv" else _json.dumps(archive.fetch_feedback(rt), indent=2) + "\n"
+    text = results.fetch_feedback_csv(rt) if fmt == "csv" else _json.dumps(results.fetch_feedback(rt), indent=2) + "\n"
     if out_file:
         with open(out_file, "w") as fh:
             fh.write(text)

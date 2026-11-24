@@ -1,6 +1,6 @@
 # Workshop bot steps for git-fundamentals (see engine/web-terminal/bot-runner.sh's BOT_STEPS_FILE).
-# Keeps the engine's default steps, which already walk Labs 1-5, and adds two things the engine's
-# shared steps don't cover:
+# Walks Labs 1-5 (step_lab1_* .. step_lab5_*, below), using the engine's shared steps (step_ensure_clone,
+# step_sync_main, step_wrap_round), and adds two things on top:
 #   * Lab 1 step 9's wrong-branch drill (step_gf_wrong_branch), right after the Lab 1 PR step. It is
 #     the only step that earns `l1-rescue`, so without it a --test run leaves every bot one core
 #     milestone short and `l1-rescue` never gets a class-clear bonus.
@@ -10,6 +10,259 @@
 # Each challenge step ends with `dojo check ID`, so the result is in the bot's log (~/.dojo-bot.log)
 # and in `dojo check status` for that account.
 
+# -- Labs 1-5 -------------------------------------------------------------------------------------
+step_lab1_branch_and_edit() {
+  cd "$REPO_DIR" || return 1
+  local branch; branch="$(branch_name "add-${BOT_USER}")"
+  narrate "Lab 1, steps 2-5 -- branch, edit the roster, review, commit"
+  run_cmd "git checkout -B '$branch' main"
+
+  local roster="roster/team.yaml"
+  if [ ! -f "$roster" ]; then
+    # A workshop other than git-fundamentals won't have this file --
+    # fall back to something generic so the bot still has real content
+    # to commit instead of failing outright.
+    roster="NOTES-${BOT_USER}.md"
+    narrate "roster/team.yaml not found (not the git-fundamentals content) -- using $roster instead"
+  fi
+
+  printf -- '- name: %s (demo bot, round %s)\n  role: QA\n' "$BOT_USER" "$ROUND" >> "$roster"
+  orient
+  run_cmd "git status"
+  run_cmd "git diff"
+
+  if [ $(( ROUND % MISTAKE_MOD )) -eq "$MISTAKE_REM" ]; then
+    narrate "(demo) committing before staging, on purpose, to show what that looks like"
+    run_cmd "git commit -m 'Add $BOT_USER to team roster'"
+    narrate "right -- nothing was staged. Fixing that."
+  fi
+
+  orient
+  run_cmd "git add '$roster'"
+  run_cmd "git commit -m 'Add $BOT_USER to team roster (round $ROUND)'"
+  run_cmd "git log -1"
+}
+
+step_lab1_push_and_pr() {
+  cd "$REPO_DIR" || return 1
+  local branch; branch="$(branch_name "add-${BOT_USER}")"
+  narrate "Lab 1, step 6 -- push (try the bare form first, like the lab shows)"
+  run_cmd "git push"
+  narrate "no upstream yet, as expected -- setting one"
+  run_cmd "git push -u origin '$branch'"
+
+  narrate "Lab 1, step 7 -- open a pull request"
+  local pr_json pr_number head="$branch"
+  # From a fork, the PR's head names the fork's owner: "<owner>:<branch>".
+  [ "$FORGEJO_FORK_WORKFLOW" = 1 ] && head="$BOT_USER:$branch"
+  pr_json="$(api_curl -X POST "$API/repos/$FORGEJO_ORG/$FORGEJO_REPO/pulls" \
+    -H 'Content-Type: application/json' \
+    -d "{\"head\":\"$head\",\"base\":\"main\",\"title\":\"[$BOT_USER] Add to roster (round $ROUND)\",\"body\":\"Demo bot activity -- safe to review and merge live, or close.\"}")"
+  pr_number="$(printf '%s' "$pr_json" | grep -o '"number":[0-9]*' | head -1 | cut -d: -f2)"
+  if [ -n "$pr_number" ]; then
+    narrate "opened PR #$pr_number for $branch"
+    PENDING_PR_BRANCH="$branch"
+    PENDING_PR_NUMBER="$pr_number"
+  else
+    narrate "PR open failed or already exists for $branch -- will re-check next round"
+  fi
+}
+
+step_lab2_review_and_undo() {
+  cd "$REPO_DIR" || return 1
+  narrate "Lab 2 -- reviewing and undoing before a commit"
+  orient
+  run_cmd "echo '- name: Test Entry' >> roster/team.yaml"
+  run_cmd "git status"
+  run_cmd "git restore roster/team.yaml"
+  run_cmd "git status"
+
+  run_cmd "echo '- name: Another Test' >> roster/team.yaml"
+  run_cmd "git add roster/team.yaml"
+  run_cmd "git status"
+  run_cmd "git restore --staged roster/team.yaml"
+  run_cmd "git status"
+  run_cmd "git restore roster/team.yaml"
+
+  run_cmd "touch scratch.log"
+  run_cmd "git status"
+  run_cmd "echo '*.log' >> .gitignore"
+  run_cmd "git status"
+  run_cmd "rm -f scratch.log .gitignore"
+  run_cmd "git status"
+}
+
+step_lab3_stash() {
+  # Follows lab3.md: a fresh practice branch with a commit of its own, an
+  # unfinished edit on it, a stash to visit main, then apply, pop and clean up.
+  # (It used to stash on main and pop onto the lab 1 branch, whose roster had
+  # its own line at the same end of the file: a conflict every time.)
+  cd "$REPO_DIR" || return 1
+  narrate "Lab 3 -- stashing"
+  local branch; branch="$(branch_name "stash-demo")"
+  # A retry restarts the step from the top: drop what the failed attempt left.
+  git restore --staged --worktree roster/team.yaml 2>/dev/null
+  git stash clear 2>/dev/null
+  orient
+  run_cmd "git checkout main" || return 1
+  run_cmd "git checkout -B '$branch'" || return 1
+  run_cmd "git branch --show-current"
+  run_cmd "echo '- name: ${BOT_USER} (stash demo)' >> roster/team.yaml"
+  run_cmd "git add roster/team.yaml"
+  run_cmd "git commit -m 'Add my entry'" || return 1
+  run_cmd "echo '- name: Work In Progress' >> roster/team.yaml"
+  run_cmd "git status"
+  run_cmd "git checkout main" || narrate "refused, as the lab says: switching would overwrite the unsaved edit"
+  run_cmd "git branch --show-current"
+  run_cmd "git stash" || return 1
+  run_cmd "git status"
+  run_cmd "git stash list"
+  run_cmd "git checkout main" || return 1
+  run_cmd "git status"
+  run_cmd "git log --oneline -3"
+  run_cmd "git checkout '$branch'" || return 1
+  run_cmd "git stash apply" || return 1
+  run_cmd "git status"
+  run_cmd "git stash list"
+  run_cmd "git restore roster/team.yaml"
+  run_cmd "git stash pop" || return 1
+  run_cmd "git diff"
+  run_cmd "git stash list"
+  run_cmd "git restore roster/team.yaml"
+  run_cmd "git checkout main" || return 1
+  run_cmd "git branch -D '$branch'"
+}
+
+gf_sample_repo_lab4_history() {
+  cd "$REPO_DIR" || return 1
+  narrate "Lab 4 -- investigating history"
+  run_cmd "git log --oneline -5"
+  run_cmd "git log --oneline --graph --all -10"
+  local last_hash; last_hash="$(git log -1 --format=%H 2>/dev/null)"
+  [ -n "$last_hash" ] && run_cmd "git show --stat $last_hash"
+  run_cmd "git blame roster/team.yaml | tail -5"
+
+  local branch; branch="$(branch_name "lab4-explore")"
+  orient
+  run_cmd "git checkout -B '$branch'"
+  run_cmd "echo '- name: Branch Explorer' >> roster/team.yaml"
+  run_cmd "git add roster/team.yaml"
+  run_cmd "git commit -m 'Lab 4: branch comparison example'"
+  run_cmd "git diff main..$branch"
+
+  if [ $(( (ROUND + 1) % MISTAKE_MOD )) -eq "$MISTAKE_REM" ]; then
+    narrate "(demo) trying to clean up without switching off the branch first"
+    run_cmd "git branch -D '$branch'"
+    narrate "right -- can't delete the branch you're currently on. Switching first."
+  fi
+  run_cmd "git checkout main"
+  run_cmd "git branch -D '$branch'"
+}
+
+step_lab5_conflict() {
+  cd "$REPO_DIR" || return 1
+  narrate "Lab 5, part A -- causing and resolving a merge conflict"
+  orient
+  local a b
+  a="$(branch_name "conflict-a")"
+  b="$(branch_name "conflict-b")"
+
+  run_cmd "git checkout main"
+  run_cmd "git checkout -B '$a'"
+  run_cmd "sed -i 's/role: .*Engineer/role: Senior Engineer/' roster/team.yaml 2>/dev/null || echo '  role: Senior Engineer' >> roster/team.yaml"
+  run_cmd "git add roster/team.yaml"
+  run_cmd "git commit -m 'conflict-a: update role'"
+
+  run_cmd "git checkout main"
+  run_cmd "git checkout -B '$b'"
+  run_cmd "sed -i 's/role: .*Engineer/role: Principal Engineer/' roster/team.yaml 2>/dev/null || echo '  role: Principal Engineer' >> roster/team.yaml"
+  run_cmd "git add roster/team.yaml"
+  run_cmd "git commit -m 'conflict-b: update role'"
+
+  run_cmd "git merge '$a'"
+  narrate "conflict, as expected -- resolving by keeping the incoming version"
+  run_cmd "grep -v -E '^(<<<<<<<|=======|>>>>>>>)' roster/team.yaml > roster/team.yaml.resolved && mv roster/team.yaml.resolved roster/team.yaml"
+  run_cmd "git add roster/team.yaml"
+  run_cmd "git commit --no-edit"
+
+  run_cmd "git checkout main"
+  run_cmd "git branch -D '$a' '$b'"
+}
+
+step_lab5_undo() {
+  cd "$REPO_DIR" || return 1
+  narrate "Lab 5, part B -- safely undoing a change"
+  local branch; branch="$(branch_name "undo-demo")"
+  run_cmd "git checkout -B '$branch'"
+  run_cmd "echo '- name: Oops Entry' >> roster/team.yaml"
+  run_cmd "git add roster/team.yaml"
+  run_cmd "git commit -m 'Oops, wrong entry'"
+  run_cmd "git reset --soft HEAD~1"
+  run_cmd "git status"
+  # --soft kept the change staged: commit it again, then drop it for good (one commit back again, as Lab 5 does).
+  run_cmd "git commit -m 'Oops, wrong entry'"
+  run_cmd "git reset --hard HEAD~1"
+  run_cmd "git status"
+
+  run_cmd "echo '- name: Reverted Later' >> roster/team.yaml"
+  run_cmd "git add roster/team.yaml"
+  run_cmd "git commit -m 'Example commit to revert'"
+  run_cmd "git log --oneline -1"
+  run_cmd "git revert HEAD --no-edit"
+  run_cmd "git log --oneline -2"
+
+  run_cmd "git checkout main"
+  run_cmd "git branch -D '$branch'"
+}
+
+# How far into the curriculum each persona gets per round -- this, plus the
+# delay ranges set above, is what makes the expert visibly "further along"
+# than the novice over the course of a demo: the novice's round never even
+# includes the Lab 3-5 steps, no matter how long it runs. Sized so that in
+# roughly a 10-minute demo window (see engine/README.md) the expert cycles
+# through the whole list a couple of times, the intermediate bot gets
+# through Lab 4 once or twice, and the novice is still visibly working
+# through Lab 1/Lab 2 material by the time you'd wrap up a live walkthrough.
+case "$PERSONA" in
+  expert)
+    STEPS=(
+      step_ensure_clone
+      step_sync_main
+      step_lab1_branch_and_edit
+      step_lab1_push_and_pr
+      step_lab2_review_and_undo
+      step_lab3_stash
+      step_lab4_history
+      step_lab5_conflict
+      step_lab5_undo
+      step_wrap_round
+    )
+    ;;
+  intermediate)
+    STEPS=(
+      step_ensure_clone
+      step_sync_main
+      step_lab1_branch_and_edit
+      step_lab1_push_and_pr
+      step_lab2_review_and_undo
+      step_lab3_stash
+      step_lab4_history
+      step_wrap_round
+    )
+    ;;
+  novice)
+    STEPS=(
+      step_ensure_clone
+      step_sync_main
+      step_lab1_branch_and_edit
+      step_lab1_push_and_pr
+      step_lab2_review_and_undo
+      step_wrap_round
+    )
+    ;;
+esac
+
+# -- Challenges and the wrong-branch drill ---------------------------------------------------------
 GF_REPO="$BOT_USER/challenge-repo"
 GF_DIR="$HOME/lab/challenge-repo"
 
@@ -116,14 +369,12 @@ step_gf_capstone() {
   run_cmd "dojo check capstone"
 }
 
-# Lab 4 runs in the practice repo `lab-history` builds (~/lab/history-repo), not the sample repo, so
-# this replaces the engine's step_lab4_history (it is sourced before this file, so the redefinition wins).
+# Lab 4 runs in the practice repo `lab-history` builds (~/lab/history-repo), not the sample repo.
 # It follows lab4.md: browse, filter, show, blame/log -p, the pickaxe hunt for the leaked key, then the
-# throwaway-branch diff. Without `lab-history` (an image built before it existed) it falls back to the
-# engine's sample-repo walk.
-eval "$(declare -f step_lab4_history | sed '1s/step_lab4_history/gf_engine_lab4_history/')"
+# throwaway-branch diff. Without `lab-history` (an image built before it existed) it falls back to
+# gf_sample_repo_lab4_history, the walk over the sample repo defined with the other labs above.
 step_lab4_history() {
-  if ! command -v lab-history >/dev/null 2>&1; then gf_engine_lab4_history; return; fi
+  if ! command -v lab-history >/dev/null 2>&1; then gf_sample_repo_lab4_history; return; fi
   narrate "Lab 4 -- investigating a longer history (lab-history practice repo)"
   run_cmd "lab-history"
   cd "$HOME/lab/history-repo" || return 1
