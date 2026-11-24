@@ -359,17 +359,27 @@ def ps(as_json: bool) -> None:
               help="First apply the safe fixes: remove a stale run lock, create a missing .env with 'setup --default', "
                    "chmod 600 .env. Never touches containers, images or volumes.")
 @click.option("--json", "as_json", is_flag=True, help="Print the checks as JSON (for scripts).")
-def doctor(workshop: Optional[str], env_name: Optional[str], fix: bool, as_json: bool) -> None:
+@click.option("--live", is_flag=True,
+              help="Also apply the rules for a class other people join: real passwords and seed, sizing for --students, "
+                   "HTTPS, enforced cgroup limits, built images. Changes nothing.")
+@click.option("--students", type=click.IntRange(1, 200), default=None, metavar="N",
+              help="With --live: the class size to check the terminal's pids and memory against (default: STUDENT_COUNT).")
+@click.option("--pass", "--cookie", "--code", "gate_pass", default=None, metavar="CODE",
+              help="With --live: the access code you plan to start with, checked for length.")
+def doctor(workshop: Optional[str], env_name: Optional[str], fix: bool, as_json: bool, live: bool,
+           students: Optional[int], gate_pass: Optional[str]) -> None:
     """Check this machine (and optionally one WORKSHOP) before a class.
 
     Exits 1 if anything would stop a start."""
+    if (students is not None or gate_pass is not None) and not live:
+        raise click.UsageError("--students and --pass only apply with --live")
     from .maintain import apply_fixes
     fixed = apply_fixes() if fix else []
     if fixed and not as_json:
         for line in fixed:
             console.print(f"[green]fixed:[/] {escape(line)}")
         console.print()
-    results = doctor_mod.run_checks(Runtime(), workshop, env_name)
+    results = doctor_mod.run_checks(Runtime(), workshop, env_name, live=live, students=students, gate_pass=gate_pass)
     if as_json:
         from dataclasses import asdict
         click.echo(json.dumps({"fixed": fixed, "checks": [asdict(c) for c in results],
