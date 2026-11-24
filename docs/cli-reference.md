@@ -34,6 +34,7 @@ that forwards to `./dojo`. Run from the repo root or from `engine/` (same result
 | `./dojo backup [PATH]` / `restore PATH [-y]` | Tar of every volume via `podman volume export/import`; restore only into a stopped stack of the same workshop |
 | `./dojo prune [--dry-run]` | Remove dangling `topiary/` images; never volumes or containers |
 | `./dojo validate [<workshop>...]` | Static checks of every pack (workshop.env, MODULES, extensions.json, catalog); exit 1 on failure |
+| `./dojo doctor <workshop> --live [--students N] [--pass CODE]` | Readiness for a class others join: empty or short passwords, seed, CTF tokens, pids and memory for N students, a workshop file lowering your sizing, built images; no-limit cgroups and plain HTTP become failures. Changes nothing |
 | `./dojo doctor --fix` | Safe fixes first: stale run lock, missing `.env` (`setup --default`), `.env` mode 600 |
 | `./dojo version` | Git revision, engine versions, pinned wheels |
 | `--json` | Also on `list`, `modules` and `doctor` |

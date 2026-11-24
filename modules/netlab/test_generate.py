@@ -103,8 +103,9 @@ class Isolation(unittest.TestCase):
 
     def test_every_node_is_labelled_and_on_mgmt(self):
         n = len(services(self.text))
-        self.assertEqual(self.text.count("topiary.module: netlab"), n + 4 * 6)
-        self.assertEqual(len(re.findall(r"^      netlab_mgmt:\n        ipv4_address: 10\.80\.1\.\d+$", self.text, re.M)), n)
+        # n nodes, plus one management network per pod (4 pods) labelled for the module
+        self.assertEqual(self.text.count("topiary.module: netlab"), n + 4 * 6 + 4)
+        self.assertEqual(len(re.findall(r"^      netlab_mgmt_\d\d:\n        ipv4_address: 10\.80\.\d+\.\d+$", self.text, re.M)), n)
 
     def test_branches_never_share_a_data_network(self):
         for pod in range(4):
@@ -115,9 +116,55 @@ class Isolation(unittest.TestCase):
     def test_a_node_is_only_on_its_own_pods_networks(self):
         for name, body in re.findall(r"^  (\w+-[ma]-\d\d):\n((?:    .*\n)+)", self.text, re.M):
             _, b, pod = name.split("-")
-            for net in re.findall(r"- (netlab_\d\d_\w+)", body):
-                if net != "netlab_mgmt":
+            nets = re.findall(r"^\s+(netlab_\d\d_\w+):", body, re.M)
+            self.assertTrue(nets, name)
+            for net in nets:
+                if not net.startswith("netlab_mgmt_"):
                     self.assertTrue(net.startswith(f"netlab_{pod}_{b}_"), (name, net))
+
+
+class PerPodManagement(unittest.TestCase):
+    """Roadmap 3.3: root on a node shares a management segment with its own pod only."""
+
+    def setUp(self):
+        self.text = generate.render(ENV)
+
+    def test_a_node_is_on_exactly_its_own_pods_management_network(self):
+        for name, body in re.findall(r"^  (\w+-[ma]-\d\d):\n((?:    .*\n)+)", self.text, re.M):
+            pod = name.split("-")[2]
+            self.assertEqual(re.findall(r"^\s+(netlab_mgmt_\d\d):", body, re.M), [f"netlab_mgmt_{pod}"], name)
+
+    def test_each_pod_network_is_internal_and_disjoint_and_inside_the_supernet(self):
+        blocks = re.findall(r"^  (netlab_mgmt_\d\d):\n    internal: true\n    ipam: \{config: \[\{subnet: ([\d./]+), ip_range: ([\d./]+)\}\]\}",
+                            self.text, re.M)
+        self.assertEqual(len(blocks), 4)
+        nets = [ipaddress.ip_network(c) for _, c, _ in blocks]
+        supernet = ipaddress.ip_network(generate.MGMT_CIDR)
+        for (_, c, r), n in zip(blocks, nets):
+            self.assertTrue(n.subnet_of(supernet))
+            self.assertTrue(ipaddress.ip_network(r).subnet_of(n))
+        for i, a in enumerate(nets):
+            for b in nets[i + 1:]:
+                self.assertFalse(a.overlaps(b))
+
+    def test_node_addresses_are_unique_inside_their_pod_and_outside_the_service_range(self):
+        seen = set()
+        for name, ip in re.findall(r"^  (\w+-[ma]-\d\d):\n(?:    .*\n)*?        ipv4_address: (\S+)", self.text, re.M):
+            pod = int(name.split("-")[2])
+            addr = ipaddress.ip_address(ip)
+            self.assertIn(addr, ipaddress.ip_network(generate.mgmt_cidr(pod)), name)
+            self.assertNotIn(addr, ipaddress.ip_network(f"10.80.{pod + 1}.128/25"), name)
+            self.assertNotIn(ip, seen)
+            seen.add(ip)
+
+    def test_the_three_services_join_every_pod_and_know_every_node(self):
+        nodes = len(services(self.text))
+        for svc in generate.SERVICES:
+            m = re.search(rf"^  {svc}:\n    networks:\n((?:      netlab_mgmt_\d\d: \{{\}}\n)+)    extra_hosts:\n((?:      - .*\n)+)", self.text, re.M)
+            self.assertIsNotNone(m, svc)
+            self.assertEqual(len(m.group(1).splitlines()), 4)
+            self.assertEqual(len(m.group(2).splitlines()), nodes)
+        self.assertIn('- "pc-m-00:10.80.1.10"', self.text)
 
 
 class Passwords(unittest.TestCase):

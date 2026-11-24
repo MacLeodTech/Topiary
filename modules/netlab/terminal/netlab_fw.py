@@ -1,15 +1,16 @@
 #!/usr/bin/env python3
 """netlab per-uid firewall for the shared terminal (run by start.d/50-netlab.sh as root).
 
-All students share this container's network namespace, and every pod's nodes sit on netlab_mgmt, so without this
+All students share this container's network namespace, and this container has an interface on every pod's management
+network (netlab_mgmt_NN), so without this
 student N's shell could open TCP to pod M's nodes. The rules go on the OUTPUT chain, matched by the sending uid:
 
   uid 0                      -> RETURN (the facilitator and the container's own services)
   uid of pod N's account     -> RETURN for pod N's management block only
-  anyone else, to netlab_mgmt -> DROP (the connection never opens; the sender sees a timeout)
+  anyone else, to any pod network -> DROP (the connection never opens; the sender sees a timeout)
 
-The INPUT side (NETLAB_INPUT): a student is root on their own nodes, and web-terminal sits on netlab_mgmt too, so
-without it a node could open web-terminal's control port (7682) and the rest. On the netlab_mgmt interface it
+The INPUT side (NETLAB_INPUT): a student is root on their own nodes, and web-terminal sits on its pod's network too, so
+without it a node could open web-terminal's control port (7682) and the rest. On each pod-network interface it
 accepts only replies to what this container opened (established/related) and drops new inbound connections.
 
 Traffic to anywhere else (the gateway, DNS, Forgejo, the checker on workshop_lab) never matches `-d MGMT_CIDR`.
@@ -23,17 +24,16 @@ import subprocess
 import sys
 
 CHAIN = "NETLAB_ISOLATION"
-MGMT_CIDR = "10.80.0.0/22"          # generate.py MGMT_CIDR
-POD_BASE = (10, 80, 1, 0)           # generate.py MGMT_POD_BASE
-POD_SIZE = 8                        # addresses per pod: two branches of pc, sw, fw, web
+MGMT_CIDR = "10.80.0.0/16"          # generate.py MGMT_CIDR: every pod's management network lies inside it
+MGMT_NET_BASE = (10, 80)            # generate.py MGMT_NET_BASE
 
 
 def pod_block(pod):
-    """CIDR of pod N's management addresses (generate.py mgmt_ip puts every node of the pod inside it)."""
+    """CIDR of pod N's management network (generate.py mgmt_cidr)."""
     if not 0 <= pod < 32:
         raise ValueError(f"pod {pod} is outside the management layout")
-    a, b, c, d = POD_BASE
-    return f"{a}.{b}.{c}.{d + pod * POD_SIZE}/29"
+    a, b = MGMT_NET_BASE
+    return f"{a}.{b}.{pod + 1}.0/24"
 
 
 def roster(env):
@@ -61,20 +61,23 @@ def build_rules(uid_pods, mgmt=MGMT_CIDR, chain=CHAIN):
 IN_CHAIN = "NETLAB_INPUT"
 
 
-def build_input_rules(iface, chain=IN_CHAIN):
-    """iptables-restore text: on IFACE (the netlab_mgmt interface) accept replies, drop everything new."""
-    return "\n".join(["*filter", f":{chain} - [0:0]",
-                      f"-A {chain} -i {iface} -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT",
-                      f"-A {chain} -i {iface} -j DROP", "COMMIT", ""])
+def build_input_rules(ifaces, chain=IN_CHAIN):
+    """iptables-restore text: on each of IFACES (the pod networks' interfaces) accept replies, drop everything new."""
+    lines = ["*filter", f":{chain} - [0:0]"]
+    for iface in ifaces:
+        lines += [f"-A {chain} -i {iface} -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT",
+                  f"-A {chain} -i {iface} -j DROP"]
+    return "\n".join(lines + ["COMMIT", ""])
 
 
-def mgmt_iface(mgmt=MGMT_CIDR):
-    """Name of this container's interface whose IPv4 address lies in MGMT, or None."""
+def mgmt_ifaces(mgmt=MGMT_CIDR):
+    """Names of this container's interfaces whose IPv4 address lies in MGMT (one per pod network)."""
     import fcntl
     import ipaddress
     import socket
     import struct
     net = ipaddress.ip_network(mgmt)
+    found = []
     # The terminal image has no `ip`; ask the kernel (SIOCGIFADDR) for each interface's IPv4 address.
     with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
         for ifname in sorted(os.listdir("/sys/class/net")):
@@ -83,17 +86,17 @@ def mgmt_iface(mgmt=MGMT_CIDR):
             except OSError:
                 continue
             if ipaddress.ip_address(socket.inet_ntoa(packed[20:24])) in net:
-                return ifname
-    return None
+                found.append(ifname)
+    return found
 
 
 def apply_input():
     """Load NETLAB_INPUT, jump to it first in INPUT, read it back. 0 on success."""
-    iface = mgmt_iface()
-    if not iface:
-        print("netlab firewall: no interface on netlab_mgmt; cannot protect web-terminal's own ports", file=sys.stderr)
+    ifaces = mgmt_ifaces()
+    if not ifaces:
+        print("netlab firewall: no interface on a pod management network; cannot protect web-terminal's own ports", file=sys.stderr)
         return 1
-    r = run(["iptables-restore", "--noflush"], input=build_input_rules(iface))
+    r = run(["iptables-restore", "--noflush"], input=build_input_rules(ifaces))
     if r.returncode != 0:
         print(f"netlab firewall: iptables-restore (input) failed: {r.stderr.strip()}", file=sys.stderr)
         return 1
@@ -103,10 +106,11 @@ def apply_input():
             print(f"netlab firewall: cannot jump to {IN_CHAIN}: {r.stderr.strip()}", file=sys.stderr)
             return 1
     shown = run(["iptables", "-S", IN_CHAIN]).stdout
-    if shown.count("-j ACCEPT") != 1 or shown.count("-j DROP") != 1 or f"-i {iface}" not in shown:
+    if (shown.count("-j ACCEPT") != len(ifaces) or shown.count("-j DROP") != len(ifaces)
+            or any(f"-i {i} " not in shown for i in ifaces)):
         print(f"netlab firewall: {IN_CHAIN} does not hold the rules just written:\n{shown}", file=sys.stderr)
         return 1
-    print(f"netlab firewall: new inbound connections on {iface} (netlab_mgmt) dropped", file=sys.stderr)
+    print(f"netlab firewall: new inbound connections on {len(ifaces)} pod network interface(s) dropped", file=sys.stderr)
     return 0
 
 
@@ -142,7 +146,7 @@ def main(env=os.environ):
     if shown.count("-j RETURN") != want or shown.count("-j DROP") != 1:
         print(f"netlab firewall: {CHAIN} does not hold the rules just written:\n{shown}", file=sys.stderr)
         return 1
-    print(f"netlab firewall: {len(uid_pods)} account(s) limited to their own pod on netlab_mgmt", file=sys.stderr)
+    print(f"netlab firewall: {len(uid_pods)} account(s) limited to their own pod network", file=sys.stderr)
     return apply_input()
 
 

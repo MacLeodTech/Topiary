@@ -1,0 +1,832 @@
+# Releases before 2026-10-19
+
+Moved out of [`RELEASES.md`](../../RELEASES.md) on 2026-11-24 to keep that file short. Frozen: kept for the why, not updated.
+
+## OpenTofu 1.12.8, OpenBao CLI 2.7.1, node 26 for the slides (2026-10-19, PR #59 and this tidy-up)
+
+OpenTofu 1.12.6 → 1.12.8 (CVE-2026-56855, CVE-2026-78662) and the OpenBao CLI 2.7.0 → 2.7.1 (matches the server):
+live, locally, tofu-basics and vault-fundamentals `--test 2 --fast` built with the new checksums, report the new
+versions, and every bot finished. Dependabot's node 22 → 26 for Marp (#54) left the slides container exiting at start
+(node 26 needs `libatomic.so.1`); the runtime stage now installs it, and live the container runs v26.12.0 and both
+git-fundamentals decks render styled. The 2026-10-18 review moved from an untracked `REVIEW.md` to
+`docs/reviews/2026-10-18.md`.
+
+## CTF student CI gets per-user tokens; facilitator reads students' Notes (2026-10-19, `fix/ctf-per-user-tokens`)
+
+Two decisions from the 2026-10-18 review. Student repos in ctf-defend held the class-wide `CTF_BUILD_TOKEN` and
+`CTF_CONTROL_TOKEN` as Actions secrets, so a workflow edit could print them and rebuild, gate or redeploy a classmate's
+slot. Each repo now gets HMAC(class token, `ctf-user:<user>`), which ctf-builder, ctf-checker `/gate` and
+ctf-controller `/redeploy` accept only for that same user; `/slots`, `/schedule` and `/reconcile` still need the class
+token. The facilitator's Notes tab gets a student picker: a student's `notes.md` opens read-only, and reading creates
+nothing in their home. Live, locally (`ctf-defend --test 2 --fast`): a student PR's gate ran with the per-user token
+(verdict `exploitable`, no 403) and the merge's build and redeploy succeeded; student01's tokens got 403 for
+student02 on `/gate`, `/build` and `/redeploy`, and 403 on `/slots`; the facilitator listed and read students' notes,
+a student got 403 on both. Unit tests in all four services; `pre-pr.sh` passes.
+
+## Terminal pids cap sized for the class (2026-10-19, PR #57)
+
+20 students filled the terminal container's 1024 pids, and a `workshop.env` value overrode the operator's sizing.
+Measured locally with 20 `--fast` bots: ~34 threads per student on dns-as-code, ~58 mid-apply on cloud-policy-as-code.
+A start now raises the cap to (students + bots + 1) × `pids_per_student` + 200 and says so (`doctor` and `capacity` use
+the same sum); a workshop or module can raise the terminal's limits but never lower them; cloud-policy-as-code states
+70 per student. Also `.github/scripts/pre-pr.sh`: every CI job locally, with CI's shellcheck and gitleaks versions.
+
+## Whole-repo review fixes (2026-10-19, PRs #55 and #56)
+
+`feat/ctf-randomized-ports` (#55) and about 20 fixes from the 2026-10-18 review (#56): per-account source-port rule
+against port squatting, an orphan-only reaper, per-account locks, gateway cookie strip and a login limiter that blocks
+before the password check, single-flight `/start`, reserved manifest paths, a refused real run without
+`STUDENT_PASSWORD_SEED`, per-account CTF keys, CTF tokens derived from `GATEWAY_TOKEN`, and a CI `lint` job
+(shellcheck, gitleaks 8.30.1, Caddy lint). Live-tested locally over three runs; details in the PR descriptions.
+
+## Geo database path live-checked, and two start-up regressions fixed (2026-10-18, `feat/ctf-pilot-and-geo`)
+
+Ran `ctf-defend --env live --pass dojo` locally and loaded the SOC page from a phone in Calgary, through Cloudflare and the home Caddy. `fetch_geoip.sh` fetched the DB-IP database; the phone's student was placed at Calgary, AB (`src: geoip`). Two proxy settings were needed, neither in the repo: `10.89.0.0/16` (rootless podman's bridge, which is what the gateway sees as its peer) added to the profile's `network.trusted_proxies`, and `header_up X-Forwarded-For {http.request.header.Cf-Connecting-Ip}` in the home Caddy's `dojo.` block, because the tunnel otherwise leaves only a private address in `X-Forwarded-For`. Without them every student falls back to `CTF_HOME_REGION`. Only the coarse region is stored, never the address. Found on the way, both from the unprivileged allocator image (782330f), and both stopped every start: `./dojo`'s extensions render ran as uid 10001 and could not write `engine/.generated` under rootless podman (now `--user 0`), and `runner-controller` could not `chmod` the root-owned `/spool` (now `user: "0:0"` on it and its token one-shot, plus `cap_drop ALL` and `no-new-privileges` on the controller). Added `docs/CTF-PILOT.md` and `workshops/ctf-defend/tools/pilot-report.py` for the stagger and dwell pilot; the report ran on made-up data only. WSL had also drifted to NAT networking, which broke the home proxy; mirrored mode fixed it. The pilot itself is still open.
+
+## Dependency pins checked repo-wide, seed-repo sync checked, CI back on (2026-10-17, `fix/dep-pin-checks`)
+
+- **`engine/scripts/check-dep-pins.sh`** (new, run by every `--dry-run` beside `check-pins.sh` and
+  `check-tool-pins.sh`): fails when the same Python package is pinned to two versions in two places. It reads every
+  `requirements*.txt` and the `name==version` tokens on a Dockerfile's `pip install` line (following `\`
+  continuations), and compares names the way pip does (PEP 503). Only `check-tool-pins.sh`'s `ARG <TOOL>_VERSION`
+  lines were covered before, which saw none of this. `engine/dojo/requirements.lock` is deliberately excluded: it
+  pins the CLI's own host-side wheels and already disagrees on `click` (8.1.8 vs the targets' 8.5.0), correctly.
+- **Flask's whole tree is pinned**, not just Flask. `Flask==3.0.3` carried the comment "pinned so the image rebuilds
+  identically for years", but `blinker`, `click`, `itsdangerous`, `Jinja2`, `MarkupSafe` and `Werkzeug` all arrived
+  unpinned and were resolved at image build time. All six are now pinned in the 13 targets and the 4 synced seed
+  repos; 7 shared pins agree.
+- **`ctf-checker` no longer repeats the pins**: it installed `Flask==3.0.3` inline, an 18th copy. It now installs
+  from `targets/customer-portal/requirements.txt`, so that copy is gone rather than kept in step.
+- **`workshops/ctf-defend/check-pins-sync.sh`** (new, picked up by `dry-runs.sh`'s existing
+  `workshops/*/check-pins-sync.sh` loop): the three seed repos a student clones are copies of
+  `modules/ctf-range/targets/`, made by a hand-run `sync-sample-repos.sh`. Nothing verified it had been run, so a
+  student could have patched code the lab was not running. Checks every file the sync copies, plus the
+  `README.defend.md` to `README.md` rename and the `content/sample-repo/` master seed.
+- **CI re-enabled** (`.github/workflows/ci.yml`, disabled 2026-10-14 in `a74d33a` "for now"). Unchanged config:
+  pull requests into `main` and `workflow_dispatch` only. Both scripts now pass on a runner with no Flask, since the
+  three suites that need it skip themselves.
+- Verified: both new checkers pass, and each was confirmed to **fail** on deliberately introduced drift (a bumped
+  pin in one of 18 files; a changed inline pin; an edited seed file). `ctf-checker` built with podman twice and
+  `pip list` in the image shows all seven pinned versions on the image's own Python 3.12. The three target suites
+  pass against a venv built from the pinned `requirements.txt`. `unit-tests.sh` and `dry-runs.sh` both exit 0;
+  `./dojo validate` clean.
+
+## `CTF_WALL_OF_SHAME=off` now serves no wall (2026-10-17, `fix/achievements-wall-toggle`)
+
+- The toggle reached only `ctf-controller`, which uses it to decide whether its projector page draws. Achievements
+  served its own copy of the wall regardless, so `/achievements/wall` and `/achievements/api/wall` stayed reachable
+  by URL in a pack that had switched the wall off (the caveat recorded in `modules/ctf-range/README.md` and the
+  plan's open decision (c)).
+- `modules/achievements/compose.yml` now passes `CTF_WALL_OF_SHAME` too, parsed exactly as `ctf-controller`'s
+  `Config` parses it, and off makes `/wall`, `/wall.js` and `/api/wall` 404 rather than merely undrawn. Off is the
+  default, so a pack that never mentions the wall serves none of it; `ctf-defend` sets it on and is unchanged.
+  The controller's own page loses nothing, since it already draws nothing when the toggle is off.
+- Unit-tested at the route level, both ways (`test_server.py`, 515 achievements tests pass); the test was confirmed
+  to fail without the gate. Not live-checked on a stack.
+
+## Challenge briefs and an open-ended git-fundamentals capstone (2026-10-16, `feat/lab-teach-first-structure`)
+
+- `dojo challenge start|reset` writes the brief to `~/capstone.md` or `~/challenge-cN.md` and shows it with glow (Goal, End result, Where to work, When you're done, Start over); plain text if glow can't run.
+- Every workshop lab with challenges (git-fundamentals, dns-as-code, tofu-basics, vault-fundamentals, cert-autorenewal, cloud-policy-as-code) has a "(bonus)" section (start, brief file, check, reset) and a section named for the challenge with a story and an end-result list. Catalog goals are stories with end-result `constraints`. Wording only outside git-fundamentals; tested with the unit suites, not live.
+- git-fundamentals capstone "The Great Merge" is now outcome-checked: conflicting changelog, a bad commit and a stray `debug.log`; any method passes if `main` ends right and its history is intact (new `file_absent` and `history_preserved` verbs; the seed records each branch's commits). Solved live once (student02, +300); the force-push failure is unit-tested only.
+
+## `./dojo stop` saves the class's results first (2026-10-16, `feat/lab-teach-first-structure`)
+
+- Before the volumes are deleted, `stop` (and `down`, `restart --clean`) writes `results/<date>_<time>_<workshop>/`:
+  `manifest.json` (workshop, start command, started/stopped, duration, students, demo bots, services, what was saved or
+  skipped), `feedback.csv/json`, `achievements.csv/json`, `roster.csv` (no addresses). Each part is best effort and a failure
+  is recorded in the manifest, never blocking the teardown; a stack with no sign-ins, feedback or scores saves nothing.
+  `--no-archive` skips it. New `./dojo export-feedback [--format csv|json] [--out FILE]`. `results/` is git-ignored.
+- Unit-tested (`engine/dojo/tests/test_archive.py`, 134 engine tests pass); `export-feedback` run against the live
+  stack. Not yet run: a real `stop` with feedback submitted.
+
+## The student `dojo` command (2026-10-16, `feat/lab-teach-first-structure`)
+
+- One command for every lab: `engine/web-terminal/dojo` (base image) runs plug-ins from `/usr/local/share/dojo/cmd.d/`;
+  `dojo help` lists only what the workshop has, `dojo help NAME` shows one command's options, a typo gets a suggestion,
+  zsh completes the names. A command describes itself with a `# dojo-summary:` line and sees `DOJO_SUBCOMMAND`.
+- Subcommands: `fix-terminal` (base image, every workshop; moved out of the Zellij image), `challenge start|reset` and
+  `check` (achievements, one file so the service's client hash still matches), `sensei` (consolidated:
+  `dojo sensei ask|why|hand|...`), `prep N` (lab-prep module links each workshop's script), `flag` and `reset` (ctf-range),
+  `env` (dojo-cloud). The old names (`dojo-check`, `dojo-challenge`, `lab-prep`, `sensei`, `dojo-fix-terminal`) stay as shims.
+- Lab pages no longer have Start/Reset buttons (a browser can't clone into the terminal): the markers are gone from every
+  lab, the reader drops an old one, and each section leads with `dojo challenge start cN` and `dojo check cN`.
+  About 140 labs, slides, hints, READMEs and bot scripts now say `dojo ...`; student guide has a "The `dojo` command" table.
+- Tested locally on git-fundamentals, `--test 2 --fast`: `dojo help`, `challenge start c1`, `check`, `check c1`, `sensei help`,
+  `prep 2`, `fix-terminal` (tmux flavor message) and every old name as a student; no cheat-client strike through the
+  symlinks; both bots finished with no command-not-found. Unit tests: engine 122 (+8 for the dispatcher), allocator 175,
+  achievements 514, sensei 77, catalog 60. Not covered: the Zellij flavor, `flag`/`reset`/`env` live, tab completion by hand.
+
+## Platform review: RV26, RV32, RV33 (2026-10-15, `feat/platform-review-tier3-4`)
+
+- **RV26**: a `lab-prep` module installs `/usr/local/lib/dojo/lab-prep-lib.sh`; the five workshop `lab-prep` scripts source it
+  (helpers and the lab-number check) and keep only their own steps. Seven packs dropped their 873 KB logo copy for
+  `assets/GitOps_Dojo_Dark.png`. Tested locally on git-fundamentals: `lab-prep 1/2/9` as a student account.
+- **RV32**: `GET /achievements-admin/api/export?format=csv|json` plus links on the Achievements admin tab (rank, score, completion,
+  unlocks, moments, cheats; CSV cells starting `= + - @` are quoted). Unit-tested; fetched locally with `--test 2 --fast` bots.
+  Not covered: clicking the links in a browser.
+- **RV33**: new `feedback` module: a Feedback card (four 1-5 ratings and a comment, resubmit replaces), a facilitator tab with means,
+  counts, comments and a CSV/JSON export without usernames. Opt-in: list `feedback` in `MODULES=`. Tested locally on
+  git-fundamentals through the service (student submit, facilitator-only summary and export). Not covered: the card and tab in a browser.
+- `feedback` is listed in the seven teaching packs (not the CTF series); `--dry-run` passes for each.
+- Dropped by decision 2026-10-15: RV34 terminal recording, RV37 several classes at once; RV36 and RV38 held (a full reset
+  means taking the workshop down and rebuilding).
+
+## Live checks: ctf-defend at real-time dwell, student SOC feed, slide overflow trims (2026-10-15, `chore/live-checks-slides`)
+
+**ctf-defend, `CTF_TIME_SCALE=1`, `--test 3 --fast`, locally.** The swarm started from the facilitator's Start Attack Swarm
+call and ran the real clock: green to yellow at about 7.5 min (dwell 8 min), red at about 18 min, and the first `dump_success`
+per target at 14:15:50 (`customer-portal`), 14:17:20 (`leaky-config`) and 14:20:20 (`policy-bypass`), in the staggered order.
+By 14:24 all 9 (3 students x 3 targets) had breached on the unfixed apps and the wall held 9 rows. Times are the
+watcher's 90 s polls. A student session (class login, then `/assign`) saw `/achievements/api/soc` with only its own rows
+and the room clock, not the room feed. Not covered: the Target Viewer card in a browser and the pilot with people.
+
+**ctf-defend fix-then-age-off (`--test 2 --fast`, scale 0.1, locally).** `student02` cloned its `customer-portal`, applied the
+parameterised-query fix, pushed a branch, opened a PR and merged with its own token: `dojo-check` went from "still exploitable"
+to "contained" about 2 min later, and the wall row went LIVE to DISCONNECTED about 3 min after the merge (90 s LIVE window).
+The `/achievements/api/wall` rows keep a DISCONNECTED row (still there 14 min on); the age-off is the wall page's own filter
+(`wall.js`: `now - last_seen > age_off`, config `age_off` 300), so a browser look is still the only proof it disappears.
+Test note: a PR opened and merged through the admin API makes the pipeline's actor `admin` and ctf-builder answers 403, so the
+fix has to be pushed and merged as the student; the `testuser*` bot accounts have no defend repos.
+
+**Slides.** The 7 overflowing slides (dns-as-code cheat sheet 6 and presentation 11; vault-fundamentals presentation 8, 10,
+21, 31, 49) were trimmed; `slide-overflow.sh` is clean on both decks (all pages).
+
+**Vault, defaults.** `vault-fundamentals --test 2 --fast` with `RUNNER_POOL_SECURITY_OPT_1/2` unset ran to both done
+markers on this WSL2 host (podman, not Docker), no skips. That is not the Ubuntu/Docker host the roadmap asked for. A reset
+of testuser1 on that stack ran twice (13 steps, all done each time) and `lab_11.sh` and `lab_12.sh` passed afterwards, locally.
+
+## CTF wrapup: bots seeded like students, two real build/startup bugs fixed, `INCIDENT.md` gate dropped (2026-10-15, `feat/ctf-wrapup`)
+
+**Demo bots now get everything a student gets.** The per-uid firewall hook, the `ctf-controller`/`ctf-checker`
+roster, `ctf-host`'s IP aliases, the attacker-bot's own roster and the three Forgejo-seeding hooks
+(`git-secrets`, `tfstate-treasure`, `runner-escape`) all used to key off `studentNN` only, so a demo bot
+(`testuserN`) had no firewall rule to its own slot and no seeded repo to read -- every attack pack's `--test` bots
+could start a target but almost never solve it. Fixed everywhere, module-only, no `engine/` edit: bots are now
+appended to each roster after the students. New demo-bot steps for the three labs this unblocks mirror each
+target's own `exploit/solve.py`. Two more pre-existing bot-script bugs found along the way: `ctf-access`'s
+`idor-pcap` step piped a binary pcap body through `grep -o` with no `-a`, and separately left a literal trailing
+`\r` in the extracted password. All four attack packs live-verified 4/4 targets correct (3/3 for the
+`intermediate` persona, by design); `ctf-defend` confirmed to give bots real always-on slots too.
+
+**`ctf-builder`'s offline rebuild always failed.** `ctf-host`'s inner dockerd uses the classic (non-BuildKit)
+Engine API builder, which builds every `FROM` stage physically present in a Dockerfile, in file order, regardless
+of which one the final stage resolves to -- `targets/customer-portal/Dockerfile` kept a `deps` stage
+(`pip install`) for a dev-only compose service's benefit, on the wrong assumption that an offline rebuild would
+never touch it. It ran, and failed (no PyPI route), on every real student/bot rebuild. Moved that stage into a new
+`Dockerfile.dev`, used only by the dev-path service; the in-lab Dockerfile is single-stage now. Live-verified: a
+real build+push through `ctf-builder`'s own listener succeeded end to end.
+
+**`ctf-secrets-config`'s `openbao-server` startup audit race, fixed, with a caveat.** The file audit device is
+declared statically and comes up before this single-node raft cluster finishes electing itself leader, so the
+first authenticated request (every cold start) logged 5 "failed to audit response... cannot write to readonly
+storage" lines. Fixed with a `sys/health` poll (exempt from the audit device) before the first authenticated
+call -- confirmed gone on two reruns. A/B testing found this reliably trades it for a different, single, equally
+benign OpenBao startup message (`failed to unlock initialization lock: error="cannot find peer"`), present with
+either a poll-based or a plain fixed-sleep wait, so it's triggered by delaying the first request at all, not by
+this fix's mechanism. Not chased further -- both are cosmetic single-node-raft bootstrap noise, and setup still
+reaches healthy either way.
+
+**`INCIDENT.md` gate dropped**, decided against with the user: the presence-only check hard-failed a CI job the
+rest of the gate treats as advisory, and added nothing a reviewer couldn't already tell from the diff. Removed
+from both `defend-pr.yml` copies and every mention across the lab, cheat sheet, slides, `FACILITATOR.md`, the
+`_fallback` READMEs and both `lab-info/defend-loop.md` copies.
+
+**Scorecard/leaderboard "arithmetic mismatch" (previous session's open item): closed, not a bug.** The 3/2/1
+weight only ever exists for `ctf-defend`'s three targets; no other pack's achievements catalog has a `weight`
+field. The flat milestone ledger is deliberate, already documented in `ctf-defend`'s own `ACHIEVEMENTS.md`. No code
+change. The student-side `GET /achievements/api/scorecard` route is separately verified live (real class login,
+real `/assign` claim, correct shape for a real per-student identity).
+
+Tested locally: unit suites throughout (122 engine, 77 `ctf-controller`, 13 `ctf-checker`, 91 `attacker-bot`, 30
+`ctf-builder`); `--test N --fast` live runs of all five CTF packs, one at a time, `./dojo stop` between each.
+
+## `ctf-defend`: three simultaneous targets, seeded attack order, incident-triage gate (2026-10-14, `feat/ctf-defend-three-targets`)
+
+Each student gets `customer-portal` (high), `policy-bypass` (medium) and `leaky-config` (low) live at once. The
+controller deals one of six attack orders per student from a seed and the bot attacks each target on a staggered
+timer, each with a different SIEM signal. Students fix in three repos; `dojo-check` shows
+exploitable/contained/broke-normal-use/unreachable per target through a server-side checker, and the PR gate uses the
+same checks (advisory: it never blocks a merge). `dojo-reset <target>` puts a broken box back to the starting app.
+Scoring is green/yellow/red x weight per target. Bonus second flaw dropped. *Amended 2026-10-15: the `INCIDENT.md`
+gate mentioned here was removed (see below) -- the presence-only check added nothing a reviewer couldn't tell from
+the diff, and it hard-failed a job meant to be advisory.*
+Tested locally: unit suites; `./dojo ctf-defend --dry-run`; live `--test` runs with fast bots covering slots and
+schedule, the defend loop (fix, gate, merge, build, redeploy, contained), SIEM rows and breaches on all three targets,
+`dojo-check`, and `dojo-reset` (success, bad target, overlap refusal). Not tested: student-side SOC feed in a browser,
+pilot tuning of stagger/dwell, 20 students, real-time dwell.
+
+## CTF packs: every required fact discoverable, core-command cheat sheets (2026-10-14, `feat/ctf-discoverability`, PR #30)
+
+Rule: a student must be able to learn every path, field, header, port, identity and technique from the scan, the
+target's own pages and errors, the lab text, Lab Info or the cheat sheet; a hint may nudge but never be the only
+source. Targets: `weak-auth-portal` links a `/reset` form that loads a legacy helper script, `cert-trust-bypass`
+names the expected CN, `ssrf-fetcher` distinguishes refused loopback ports and its internal service has a landing
+page, `api-mass-assignment`/`api-bfla`/`policy-bypass` serve `GET /spec`, `policy-bypass`'s 400 names every required
+field. Labs: required facts moved out of hints in `ctf-access` 1-4, `ctf-server-trust` 2-4, `ctf-secrets-config` 1-3
+and `ctf-trust-chain` 2-3 (the `runner-escape` lab names the job token, the API base and log masking). Each CTF cheat
+sheet has three core-command slides; Lab Info gained `curl.md`. Flaws, flags and `solve.py` unchanged. Checked
+locally on live `--test 1 --fast` stacks and with each target's `solve.py`. The attack packs have no demo-bot
+steps, so their bots never solve a lab (not a regression).
+
+## `leaky-config` is discoverable with `ffuf` (2026-10-14, `feat/leaky-config-discovery`, PR #29)
+
+`/admin` and `/internal` were 404s, so `ffuf` found only `/status`. They are now 200 landing pages linking `logs` and
+`metrics`; lab 1 shows the `ffuf` and `curl -u` shapes. Live-checked locally: `ffuf -fc 404` finds `admin`,
+`internal`, `status`, then `logs` under `/admin/FUZZ`.
+
+## CTF debriefs and `ctf-defend` hint ladder (2026-10-13, `feat/ctf-debriefs`, PR #28)
+
+Every attack lab has a debrief (12 added; `tfstate-treasure` and `runner-escape` already had one). `ctf-defend` lab 1
+gains a two-step hint ladder and a debrief. `git-secrets` cites CWE-798 instead of an OWASP category. Lab content only.
+
+## vault-fundamentals: late-joiner note instead of a lab-prep (2026-10-12, `docs/vault-lab12-standalone`)
+
+The audit flagged the pack for having no `lab-prep` like the other packs. Reading the labs showed it does not need one:
+Labs 6, 9, 10, 11 and 13 open with a catch-up block that makes what they need, and Labs 0-5, 7, 8 make their own
+state. The one real gap was Lab 12 step 5, which uses the app deployed in Lab 11 and did not say so; it now has a
+"Starting here?" note, and the lab README says which parts depend on a lab you really did.
+
+## git-fundamentals bots solve the challenges (2026-10-12, `feat/git-fundamentals-bots`)
+
+`workshops/git-fundamentals/content/bots/steps.sh` keeps the engine's default Labs 1-5 steps and adds `c1`, `c2` and the
+capstone before the round ends, each as the lab page says (`dojo-challenge reset`, work in `~/lab/challenge-repo`,
+`dojo-check`). Run locally with `./dojo git-fundamentals --test 2 --fast`: both bots finished and `dojo-check` passed
+`c1` (+100), `c2` (+100) and `capstone` (+300) for each. The run found a real student bug, now fixed in
+`modules/achievements/terminal/dojo-check.py`: `dojo-challenge reset` run from inside `~/lab/challenge-repo` removed the
+folder it was standing in, so `git clone` failed with "Unable to read current working directory"; it now starts in `$HOME`.
+
+## Lab challenge sections start with the terminal command (2026-10-12, `docs/challenge-lab-start`)
+
+All 16 challenge and capstone sections in `git-fundamentals`, `dns-as-code`, `cert-autorenewal`, `tofu-basics` and
+`vault-fundamentals` now lead with `dojo-challenge start <id>` and `cd ~/lab/<folder>`, then `dojo-check <id>`, then
+hint and reset, in one shape. The lab's Start box only built the repo on Forgejo and the student still had to run the
+command to clone it, so the text no longer offers the two as alternatives. Pack READMEs and the student guide match.
+`cloud-policy-as-code` had `c1`, `c2` and the capstone in its catalog but no lab section or box, so students were never
+told about them; `lab5.md`, `lab8.md` and `capstone.md` now carry them, with a table in the lab README. The four CTF lab
+READMEs linked a `cheat-sheet.md` the lab reader cannot serve; they point at `/slides/cheat-sheet.md`. `vault-fundamentals`
+`lab12.md` gains its missing pointer to Lab 13. Dry runs pass for the packs touched; not yet run on a live stack.
+
+## CTF-5 defend: wall, bonus flaw, scoring, one-page SOC and student SIEM (merged 2026-10-10, PR #23)
+
+**`ctf-defend` gains the pieces that make the swarm worth defending against.** All of it is in
+`modules/ctf-range`, `modules/achievements` and `workshops/ctf-defend`; none of it touches `engine/`.
+
+- **Wall of shame:** `/ctf-wall` on `ctf-controller`, behind `CTF_WALL_OF_SHAME` (module default off, `ctf-defend`
+  on), with its own identity-gated route and a facilitator tab.
+- **Bonus second flaw (`customer-portal` only):** cleartext password storage, behind `CTF_BONUS_FLAWS` (default on).
+  Off gives a clean seed repo, no bonus CI step, no `c1` challenge, and bots skip data-at-rest probes. A "Gate
+  premise" CI step stops a hashing-only fix passing the main gate.
+- **Scoring:** green 10 / yellow 5 / red 0 (x`CTF_SCORE_FACTOR`), plus 5 for the bonus only after the main gate is
+  green. First-blood and class-clear are off for `ctf-defend` so the arithmetic is exact.
+- **One-page SOC** (`/achievements/soc`): map, alerts and incident summary on one screen, with an offline Natural
+  Earth map and a Canada inset; `/map` and `/incident` redirect. Attacker origins are country codes; student regions
+  come from the forwarded client IP through an optional offline DB-IP database (`fetch_geoip.sh`), falling back to
+  `CTF_HOME_REGION`. Raw IPs are never stored.
+- **Student SIEM request log:** each student sees only their own target's log lines (time, country, method,
+  path?query, status, bytes, detection tag), expandable to JSON, with `CTF_SIEM_DETAIL=full|paths|off`. Payload, size
+  and JSON stay locked until that student's own target is red, enforced server-side.
+- **Test clock:** `--test` sets `CTF_TIME_SCALE=0.1`; override with `CTF_TIME_SCALE=1`.
+- **Attack Range tab** moved from the `ctf-range` module into the four attack packs' manifests, so `ctf-defend` has no
+  dead tab (it has a "Range Controller" status check instead).
+- **New `./dojo` commands:** `test`, `exec`/`shell`, `urls`, `open`, `wait`, `version`, `roster`, `reset-student`,
+  `export-results`, `backup`/`restore`, `prune`, `validate`, `doctor --fix`, `status --watch`, `logs --all/--since/
+  --grep/--errors`, and `--json` on list/modules/doctor (see `docs/cli-reference.md`).
+
+Verified locally on 2026-10-12 with `./dojo ctf-defend --test 3 --fast`, Start Attack Swarm clicked as facilitator:
+the clock ran green, yellow, red and produced about 130 alerts; the facilitator SOC listed every student's rows at full
+detail; a student saw only their own persona's rows (`unlocked` true at red). `CTF_SIEM_DETAIL=paths` dropped query,
+user-agent and byte counts from the student rows, `off` kept only time, event, severity and origin, and the
+facilitator kept full detail in both. `CTF_BONUS_FLAWS=off` gave student repos the hashed-password code (no overlay),
+`./dojo logs --errors` was clean and `./dojo stop` removed everything. Not exercised: a real student opening a fix PR
+under this run (checked by hand earlier), the geo database path, `CTF_TIME_SCALE=1`, and a class-sized run.
+
+## Stable image tags with input reuse (2026-10-11)
+
+Compose keeps its stable workshop tags, e.g. `gitopsdojo/web-terminal:git-fundamentals`. `dojo` fingerprints each
+resolved local build's context and options and places the fingerprint in the image's `dojo.src-hash` label. If an
+image with that label already exists under another workshop's stable tag, `dojo` retags the same image for this
+workshop instead of rebuilding. If the inputs changed, Compose builds the new image under the existing stable tag;
+the replaced image becomes dangling and the superseded-image reaper removes it after the new containers are up.
+If an old container still uses it, removal is retried on a later run.
+
+The terminal chain uses the same input identity, including each parent layer, so downstream `runner-pool` images
+share only when their terminal image and `JOB_TOOLS` match. Service aliases such as `ctf-view` continue to point at
+the stable tag of the image they reuse. The configs for all 12 packs were compared: `sensei`, DNS/cloud images and
+common CTF services share matching inputs; `ctf-host` has five target variants and `runner-pool` has four
+terminal/tool variants. Engine allocator, gateway and presentation images retain their existing shared tags.
+
+Live validation caught an unsupported `podman tag --force` flag in cross-workshop reuse; retagging now uses the
+portable command, with Docker and Podman regression coverage. The unit-test gate also exposed existing macOS
+lock/path issues, a nondeterministic cookie-tampering test, and missing CTF achievements documents. Those are
+fixed, capstone-free catalogs render correctly, and CTF catalog JSON follows the editor's round-trip format.
+
+## On `fix/ctf-pack-content-gaps` (2026-10-09, merged in PR #22)
+
+**Content-depth audit of all 5 CTF packs (ROADMAP item 1), two fixes, then a line-by-line verification pass.**
+First pass checked each pack's structure (briefing, hint ladder, debrief, attack boxes, achievement-to-lab counts)
+and found two gaps: (1) `sync_lab_docs()` (`engine/dojo/start.py`) only globbed `content/lab/*.md`, so every pack's
+`exploit-guide/` spoiler walkthroughs never reached the browser lab reader (`exploit-guide/` was reachable only via
+a terminal `cat`/`glow`) -- fixed by making the sync and `lab-reader.js`'s link-rewriting both recurse one
+subdirectory level, verified live (curl against a logged-in session hitting `exploit-guide/*.md.txt`); (2)
+`ctf-defend`'s `README.md`, `FACILITATOR.md` (missing entirely), `presentation.md` and `cheat-sheet.md` were still
+the `./dojo new-workshop` TODO scaffold -- written from scratch, following the other 4 packs' structure and style.
+`ctf-access`/`ctf-server-trust`/`ctf-secrets-config`/`ctf-trust-chain`'s READMEs updated to drop the now-stale claim
+that exploit guides were deliberately unreachable from the browser. `workshops/ctf-defend/workshop.env`'s stale
+`WORKSHOP_ORDER=7` fixed to `104` (found auditing `workshop.env` consistency); `workshops/README.md` gained rows
+100-104 for the series.
+
+Second pass: five parallel sub-agents, one per pack, cross-checked every `lab*.md` and `exploit-guide/*.md`
+against the real target implementation (`modules/ctf-range/targets/<id>/`), achievement catalogs, and (for
+`ctf-defend`) the Forgejo workflow YAMLs and provisioning hook -- every command, route, port, flag mechanic, file
+path and achievement event name, pack by pack. All 14 targets plus `ctf-defend`'s `customer-portal` came back
+clean: no stale commands, wrong paths, broken exploit-guide links, or achievement/event-name mismatches found
+anywhere. `ctf-defend`'s capstone check regexes were verified character-for-character against `app.py`'s two
+SQL-injection sinks.
+
+## On `feat/ctf-pack-completion` (2026-10-09, merged in PR #20)
+
+**`ctf-secrets-config`/`ctf-trust-chain` complete their ladders; `ctf-defend-test` deleted.** The two packs each
+shipped only 2 of their 3 planned targets, because `tfstate-treasure` and `runner-escape` existed only inside the
+old shared facilitator harness, `workshops/ctf-defend-test`. Moved both hooks and their module wiring into the real
+packs instead (`openbao` into `ctf-secrets-config`'s `MODULES`, `runner-pool` into `ctf-trust-chain`'s), added a
+third lab, exploit guide and achievements milestone to each, and deleted the harness along with every reference to
+it across `docs/` and `modules/ctf-range/`. `ctf-trust-chain`'s Lab 3 (`runner-escape`) is written at a mechanics
+level rather than a literal exfiltration walkthrough, matching this repo's existing pattern of keeping the full
+technical detail in the spoiler-only exploit guide. **Live-verified** on a cold start of each pack (first build of
+the zellij terminal flavor's `ctf-range` layer, ~88 apt packages, took a while — not a bug): `ctf-secrets-config`'s
+moved `60-tfstate-treasure.sh`/`95-tfstate-treasure.sh` hooks seeded cleanly, both students solved independently via
+`exploit/solve.py` run inside their own terminal accounts, `dojo-flag submit` accepted each student's own flag and
+rejected student01's flag submitted as student02, and a student's own OpenBao login got `403` on the flag path with
+no token. `ctf-trust-chain`'s moved `96-runner-escape.sh` hook seeded both students' `ci-pipeline` repos, both
+solved independently with distinct flags, and the escalation probe confirmed the designed dead end live (own uid
+only, another runner's home `drwx------`/unreadable, no other job's process visible). Both stacks `./dojo stop`'d
+clean. 70 unit tests pass; found along the way: `tfstate-treasure`'s lab framing should be clearer that a
+classmate's Forgejo repo isn't actually private (any student can read it over the unauthenticated API) — the real
+protection is server-side flag verification, not repo privacy -- lab3.md now says so explicitly, in the
+briefing and the debrief.
+
+## On `feat/config-consolidation` (2026-10-08)
+
+**One settings layout instead of `engine/.env` plus `.env.home`, `.env.live` and the profiles.** Three files at the repo root:
+`dojo.toml` (committed, every non-secret default in sections, `[terminal] flavor = "code-server"|"zellij"`),
+`dojo.local.toml` (git-ignored: this machine's sizing and flavor, and the profiles) and `.env` (git-ignored secrets, with a
+`[home]`-style section per profile). `--env NAME` now selects a profile and takes a comma list (`--env mac-podman,home`), so the
+terminal flavor no longer needs its own overlay and cannot clash with `--env home`. TOML typos (unknown section or key, wrong
+type) stop the start with the file named. The first CLI command in an old checkout migrates `engine/.env*` automatically
+(secrets to `.env`, the rest to `dojo.local.toml`, originals kept as `*.migrated`). `env-profiles/` is gone: `mac-podman` is
+now `[profiles.mac-podman.env]` in `dojo.toml`; `setup` never touches it or the `.env` profile sections. `tomli` (pinned
+wheel) covers Python below 3.11.
+**`./dojo` replaces `./run.sh` and `engine/run.sh`.** The root `dojo` is a ten-line Python launcher for `engine/dojo/`; the
+`python3` check is boot.py's, the one-time completion offer moved into the CLI, and the old `--setup`/`--capacity` spellings are
+gone. The `dojo` command that `alias-setup` installs runs it (old shims and the old marker blocks are still recognised and
+replaced). Completion files are `engine/completions/dojo.{bash,zsh}`. A three-line `run.sh` stub remains only so an installed
+old `dojo` shim or shell function keeps working; delete it when nothing calls it. Docs, messages and scripts say `./dojo`
+(older entries below keep the commands as they were then). Checked locally: 70 unit tests, `./dojo` from another directory,
+the installed shim in a scratch HOME, a real git-fundamentals start, login and stop.
+`--terminal code-server|zellij` picks the flavor for one run over every file (recorded, so `restart` repeats it).
+Checked locally: 70 unit tests (13 new: layering, sections, profiles, set/round-trip, migration); the migration run on this
+machine's real files (`config` shows the same flavor, URL and logins for plain and `--env home`); `git-fundamentals`
+dry-runs and `doctor`; a real start in both flavors (Zellij: `/ide/` 404, code-server: `/ide/` 200) with login and slot
+assignment, and `--terminal code-server` over a `zellij` local file (`/ide/` 200); `setup --default`, `setup` with every default accepted, and `--rotate-class` in a scratch tree (a `[home]`
+section survives both). Not checked: a live `--env home` start, the other workshops' live runs, the shell test helpers
+(`test-lib.sh` `load_env`, `e2e.sh`) that now read settings through `_operator-env`, and the `tomli` path itself (this machine's
+Python has `tomllib`).
+
+## CTF range build log (2026-10-04 to 2026-10-07, moved here from the CTF plan on 2026-10-09)
+
+What the `ctf-range` build delivered, condensed from the plan's old checkpoint and the ROADMAP's closed rows. All of it
+merged to `main` in PR #17 or is on the branches above; "locally" means a cold `./dojo` start on the WSL2 desktop, driven
+through the real gateway, with `exploit/solve.py` run from inside each student's own terminal. Design and decisions:
+[`docs/plans/CTF-WORKSHOP-PLAN.md`](docs/plans/CTF-WORKSHOP-PLAN.md), [`docs/plans/CTF-SPIKES.md`](docs/plans/CTF-SPIKES.md).
+
+**Control plane and defend loop.** `ctf-host` (privileged DinD, boxed) plus `ctf-controller` (the only client of its
+socket), `ctf-builder` and an in-lab `registry:2`. A real merge rebuilds and redeploys a student's `customer-portal` in
+place: **83s push to redeployed** (spike S6; the base-image load was cut from ~3 min to 6-17s with a hand-merged OCI
+layout, and `depends_on: service_healthy` closed the start-order race). `check-pins.sh` flags one `name:tag` resolving to
+two digests across files. `customer-portal` has an informational CWE-89 SAST stage; only the exploit re-check gates.
+**Flags and isolation.** `ctf-flags` verifies per-student HMAC flags and credits the `ctf`/`flag_solved` achievements
+source; `dojo-flag submit` is the CLI. Per-uid firewall rules limit each student to their own slot (checked both ways:
+the blocked uid times out). The hook retries up to 180s because `ctf-host` is slow to come up.
+**Start/stop/reset (CTF-D20).** `AttackManager`: a FIFO queue capped at `CTF_ATTACK_MAX_CONCURRENT`, a per-student state
+machine, idle auto-stop, and an "Attack Range" card per slot, generic over `CTF_ATTACK_TARGETS`. Each slot gets a
+three-port block (real app plus decoy banner listeners that fingerprint under `nmap -sV`).
+**Per-pack scoping (CTF-D26).** `ctf-host` has a shared `range-base` stage and named finals `ctf-host` (full catalog,
+1.89GB), `ctf-host-ctf1` to `ctf-host-ctf4` (about 900MB each); `module.env` carries the build target, tag and healthcheck list.
+**The 14 targets** (rows 0-14 of the plan's ladder, each with README and `exploit/solve.py`, each solved live by two
+students with distinct flags, cross-student submissions rejected):
+`sqli-login`, `idor-pcap`, `weak-auth-portal`, `cert-trust-bypass`, `ping-tool`, `ssrf-fetcher`, `api-mass-assignment`,
+`api-bfla`, `leaky-config`, `git-secrets`, `tfstate-treasure`, `policy-bypass`, `runner-escape`, `dns-resolver-cve`, and
+the defend-only `customer-portal`. Findings worth keeping:
+- Standalone `podman run` hid two bugs the real gateway to firewall to `ctf-host` path exposed: the firewall hook racing
+  `ctf-host`'s ~4-5 min start, and `ping-tool` hanging with no resolver (fixed with a wildcard `dnsmasq` stub, still offline).
+- `git-secrets` and `tfstate-treasure` have no image: the foothold is a per-student Forgejo repo (history, or a committed
+  `terraform.tfstate` leaking an AppRole). `ctf-controller` renders a second per-slot secret, `CTF_TARGET_TOKEN`; OpenBao's
+  setup hook derives the flag by hand with `sha256sum` (no python or openssl in that image), checked against RFC 4231.
+  A student's own OpenBao login gets 403 on the flag path, and the audit device records the AppRole login and read.
+  Vault ACL globs: `+` is a whole path segment, so the policy name uses `*`.
+- `policy-bypass` vendors `modules/dojo-cloud`'s `policy_engine.py` verbatim; the rule trusts a tag the requester sets.
+- `runner-escape` settled the old T0.3 spike: plain `pull_request` with same-repo secrets fires reliably, so
+  `pull_request_target` is never needed. The auto-issued Actions token cannot push (pre-receive hook), so the exploit
+  exfiltrates through a PR comment. The escalation fails by design (per-job user, unreadable runner homes, own PID namespace).
+- `dns-resolver-cve` cross-compiles a check-in agent against uClibc-ng 1.0.39 (pinned Bootlin toolchain, sha256 pinned);
+  20 lookups gave TXIDs 2..21. Only the TXID is predictable, the source port is kernel-ephemeral, and the inner
+  `--icc=false` forbids a cross-slot attack, so the spoof runs on loopback inside one slot.
+- Decoy services are scoped per lab, not uniform (`idor-pcap` also gets an FTP decoy for its leaked-creds story).
+**CTF-5 pressure layer.** One `attacker-bot` for the whole room (not a container per student), one thread per student, on
+one shared clock: green/recon, then yellow/escalating (delay ramps down, exploit probability climbs), then red/detonated
+(jittered 0-60s per student). The facilitator starts the swarm. A `soc` achievements source drives a "SOC Alerts" card, a
+room-wide admin tab with the countdown, the cyber map (`/map`, "Top 10 under siege"), per-target status lights
+(one-way green to red to yellow), mean-time-to-patch, per-student incident pages, and facilitator inject and hint-probe
+controls. The wall of shame ships as a minimal slice (`ctf`/`dump_success`, `GET /achievements/wall`). 103 achievements and
+43 attacker-bot tests pass; the bot to achievements to card chain was live-verified once `workshops/ctf-defend` gave
+achievements a real catalog.
+**Terminal and content.** Offensive tools (pinned, sha256 per architecture), the Lab Info library (a Linux primer plus one
+mechanics-only primer per tool, baked into `/etc/skel/lab-info`, also a browser reader at `/lab-info/`), `w3m`, and the
+Target Viewer (see PR #17 above).
+**Session packs.** `ctf-defend` (CTF-5) with its achievements catalog; `ctf-access` (CTF-1) in PR #17; `ctf-server-trust`
+(CTF-2), `ctf-secrets-config` (CTF-3) and `ctf-trust-chain` (CTF-4) in `7a819e9`. CTF-3 and CTF-4 each ship two of their
+three targets for now (see the ROADMAP).
+
+## On `feat/ctf-refinement` (2026-10-07)
+
+**Themed attack boxes, the rest.** Nine more targets got scenario themes (CSS at `/assets/theme.css`, own fictional brand):
+`customer-portal`, `dns-resolver-cve`, `git-secrets`, `leaky-config`, `ping-tool`, `policy-bypass`, `ssrf-fetcher`, plus
+a landing page for the JSON-only `api-bfla` and `api-mass-assignment`. Flags and bug behaviour unchanged (Flask test
+client per exploit path). Checked locally in headless Chromium through the gateway: eight of them load CSS with no
+4xx/5xx and no horizontal overflow. The Target Viewer card was browsed as a real student and as the facilitator
+(only the running box is a link; `/ctf-view/<student>/<target>/` works for the facilitator).
+
+## Merged to `main` in PR #17 (2026-10-07)
+
+**ctf-range Target Viewer, themed attack boxes and the `ctf-access` pack (locally, headless Chromium through the real
+gateway, 64 `ctf-controller` unit tests).** `ctf-view` is a gateway-gated reverse proxy so a student opens their own
+live attack box in a browser tab (`/ctf-view/<target>/`; the facilitator uses `/ctf-view/<student>/<target>/`), with a
+card picker where only the running box is selectable and `w3m` in the terminal image. The four `ctf-access` targets
+wear scenario-specific pages; a CSP `sandbox` was dropped because it made the browser withhold the login cookie. The PR
+also carried the whole `feat/zellij-terminal` branch: the CTF range and its 14 targets, the Zellij flavor, RV25/RV27/RV30,
+the ctf-range digest pins, per-target IP attack cards, the lab-info reader, the `ctf-access` pack, and `dojo status`
+flagging a start in flight. Detail for the earlier items is in the entries below.
+
+## `feat/zellij-terminal`
+
+**`no_push_since_step`'s sub-second hole fixed, and the purge line now names policy objects and tofu states
+(2026-10-05, committed on the branch, unit tests, no stack needed).** Found 2026-10-04 while running the vault
+capstone and cloud-reset live checks (see the old Now section). `no_push_since_step` compared a whole-second
+Forgejo commit timestamp against a fractional `step_at`, so a push landing inside `step_at`'s own second read
+as "before step 1" and a two-step challenge passed anyway (pinned deterministically: `step_at` 1791156367.75
+against a commit at epoch 1791156367 still gave "Passed!"); fixed by comparing `at + 1 > step_at`. Separately,
+`student_reset`'s return message and `_purge`'s activity-log line only ever named `containerGroups`/
+`resourceGroups`, even though `removed` already carries `policyObjects`/`tfStates` when non-zero — confirmed
+live on cloud-policy-as-code, where a reset correctly purged a policy assignment, a definition and a saved
+state but both messages said "removed 0 container group(s), 0 resource group(s)". Both now append the
+non-zero counts to the same message.
+
+**The allocator answers a POST only after reading its body (2026-10-04, committed on the branch, unit tests,
+locally).** `test_reset`'s `test_reset_needs_header_facilitator_and_typed_id` failed at random under load
+(`ConnectionResetError [Errno 54]` while handling an expected 403; 3 of 6 runs on a busy machine, and at `00f6c99`
+too, so it predates this branch). Cause: every reply closes the connection (HTTP/1.0), and the early rejections
+(`do_POST`'s gateway-token 403, its three `X-Requested-With` 403s and its 404; `handle_reset`'s 403 and 404;
+`handle_release_unused`, which never read its body) replied without reading the body, and closing a socket over
+unread bytes sends RST instead of FIN, which can beat the reply to the client. Fixed in one place rather than per
+path: `do_POST` now reads the capped body first (`read_body`), and `read_form_body` parses that. The new
+`PostBody` test in `test_handlers.py` holds the body back on a raw socket and fails if any of five rejection
+paths replies first — all five did before the fix, none after; the original test then passed 40 of 40 runs in
+four parallel loops. A body over the 4 KB cap still leaves bytes behind; no real form comes near it. The same
+class as the `cloud-api` `Connection: close` fix below.
+
+**The CTF range's three Python bases are pinned by digest (2026-10-04, committed on the branch, every
+pack's `--dry-run`, locally).** The `ctf-range` module (spike S14 / CTF-D21, commits 72feff2, 20efb6e,
+00f6c99) built three images `FROM python:3.12-slim`, a bare tag, which `check-pins.sh` rejects — and because
+that check runs inside `./run.sh <workshop> --dry-run`, it failed the dry run of *every* workshop, not just
+the CTF one, so `.github/scripts/dry-runs.sh` was red on the whole branch. All three now use
+`docker.io/library/python:3.12-slim@sha256:02108f...9155d`, the registry's `Docker-Content-Digest` for the
+tag: a multi-arch OCI index (amd64 and arm64/v8 both present, body verified to hash to the digest), which is
+what the check's remediation text asks for and what keeps the build working on Apple Silicon and on x86 CI.
+`targets/customer-portal/Dockerfile`'s comment, which had said a bare tag was fine for a scaffold, now says
+instead that `ctf-host`'s `portal` stage mirrors that file and the two digests must be bumped together --
+nothing enforces that pairing, since `check-pins.sh` only requires *a* digest and RV25's
+`check-tool-pins.sh` deliberately covers `ARG <TOOL>_VERSION` rather than `FROM` lines. Only the three `FROM`
+lines and that comment changed; the module's own code, compose and docs are the CTF work's own.
+
+**RV25: one shared tool pin can no longer drift (2026-10-04, committed on the branch, unit tests plus every
+pack's `--dry-run`, locally).** Three packs install OpenTofu and two install dnscontrol, each with the version
+and the per-arch tarball checksums written out again in its own terminal Dockerfile, so a bump in one copy and
+not the others was silent: every pack still builds, and the labs quietly stop matching. New
+`engine/scripts/check-tool-pins.sh` reads every Dockerfile under `engine/`, `modules/` and `workshops/`, treats
+each `ARG <TOOL>_VERSION=` as a tool whose install block runs to the next such `ARG`, and fails when a tool two
+or more Dockerfiles install disagrees on the version or on the checksums under it. A tool only one Dockerfile
+installs is never reported, and image digests stay `check-pins.sh`'s job. It is data-free — no workshop or tool
+is named in it — and currently reports 3 shared pins agreeing (`TOFU_VERSION` ×3, `DNSCONTROL_VERSION` ×2,
+`OPENTOFU_VSCODE_VERSION` ×3). `dojo/start.py` runs it as a "Checking tool pins" step in every `--dry-run`
+(so CI runs it too), and the closing line now names which of the two pin problems it found. Verified against
+synthetic drift in all three shapes: a version bumped in one copy, a checksum changed under an agreeing
+version, and three copies with one adrift (it names the odd one out and the two that agree). Alongside it,
+`workshops/dojo-introduction/check-pins-sync.sh` — which existed but was wired into nothing, so it had never
+run in CI — lost its version/checksum logic to the generic check and keeps only what that cannot see, the
+files copied byte-for-byte from tofu-basics; `cloud-policy-as-code` gained the same check (minus `mirror.tf`,
+which it deliberately differs on), having had none; and `.github/scripts/dry-runs.sh` now runs every
+`workshops/*/check-pins-sync.sh`.
+
+**RV27: the `forgejo-runner` module is gone (2026-10-04, committed on the branch, unit tests plus
+`--dry-run`, locally).** No pack had listed it in `MODULES` since dns-as-code moved to the single-use
+`runner-pool` (remediation T3.1), and its own README already said to prefer `runner-pool` for anything running
+student code — so it was a second runner module that could only ever be listed by mistake (both define
+`runner_net` and turn on Actions). Deleted `modules/forgejo-runner/` (README, compose fragment, runner
+Dockerfile and `register.sh`); recover it from git history if the long-lived-runner pattern is ever wanted
+again. `./run.sh modules` reads the directory, so it dropped out with no code change; the stale references
+did need fixing, in `dojo/build.py`'s docstring, `engine/README.md`'s rebuild-detection note,
+`modules/runner-pool/{README.md,compose.yml}` (both told the reader not to list the two together),
+`workshops/README.md` (the `MODULES=` example, the `build.context` pointer — now `runner-pool`'s README and
+dns-as-code's override, a live example — and the module list, which now points at `./run.sh modules` for the
+live one), the root README's layout tree, dns-as-code's override comment and ROADMAP's R3.3 row. References in
+`modules/runner-pool/` to the `forgejo-runner` *binary* (which the pool still runs as `one-job`) are untouched,
+as are `docs/archive/` and this file's history.
+
+**RV30: docs drift, and a workshop's length is now data (2026-10-04, committed on the branch, unit tests plus
+`./run.sh list`/`config`, locally).** New `WORKSHOP_DURATION` in every `workshop.env`, read by
+`dojo/workshops.py` and shown by `./run.sh list` beside the name (dim, aligned; a pack without one still
+lists). Each value comes from that pack's own `FACILITATOR.md` "session at a glance" line, so one source
+stays authoritative — which caught three stale figures in the root README: dns-as-code is ~2 h, not 45-60
+min; cert-autorenewal ~1¾ h, not ~75 min; dojo-introduction ~35 min. `new-workshop` takes `--duration` and
+writes a TODO without it (the scaffold's `Scaffold` is built by keyword, and `duration` is checked for shell
+metacharacters like the title and description). Docs: `workshops/README.md` dropped the "(in progress)" on
+vault-fundamentals, gained the missing `cloud-policy-as-code` row in both its tables (the learning path now
+runs 0-6) and documents `WORKSHOP_DURATION`; the root README lost its "Status and roadmap" table (ten rows
+restating ROADMAP/RELEASES, already missing cloud-policy-as-code — now a pointer to both files) and the
+stale per-module "used by" lists in the layout tree (`./run.sh modules` prints them), and gained
+`cloud-policy-as-code` in the summary, reachability and `/admin` tab lists plus its own "what it adds"
+section. Also corrected: the macOS host row said "Not yet tested on a Mac" (C5 tested it), and the `/admin`
+tab bullet, rebuilt from the real `extensions.json` manifests. Docs and the CLI only; no stack change.
+Unrelated pre-existing failure on this box: `tests/lib.sh` needs bash 5 (macOS has 3.2), so run the
+suites with `PATH="/opt/homebrew/bin:$PATH"`. (`modules/ctf-range/`'s unpinned `python:3.12-slim`, also
+noted here when this was written, is fixed in the entry below.)
+
+**RV29: pack consistency (2026-10-04, committed on the branch, docs only).** Every workshop pack now has the
+same baseline file set. Added `FACILITATOR.md` to the four packs that lacked one (git-fundamentals,
+dns-as-code, cert-autorenewal, vault-fundamentals), each modeled on the cloud-policy-as-code guide
+(honest status, before/during/after, a per-pack troubleshooting table drawn from that pack's modules and
+real failure modes). Added the missing `workshops/cert-autorenewal/README.md` — the only pack without one.
+Added a "What a pack contains" required/optional file matrix to `workshops/README.md`. Removed
+`workshops/vault-fundamentals/spike/` (the throwaway P0 `t09-sops.sh`, already became Lab 6). Docs only,
+no stack change; the guides were written from each pack's real `workshop.env`/compose/labs, not yet walked
+with a room.
+
+**Zellij terminal flavor (2026-10-04 recorded; built earlier on the branch, `fb4d399`, by a parallel session —
+allocator and workspace unit tests, per its commit).** A selectable alternative to the VS Code + tmux terminal,
+chosen with `TERMINAL_FLAVOR=zellij` in `engine/.env` or a `workshop.env` (the workshop wins): each student gets a
+Zellij session (shell, a read-only directory listing, a `micro` editor) and **no code-server**, which is the
+largest per-student cost — about 260 MB, measured down to about 112 MB RSS for a Zellij student. New
+`engine/zellij-terminal/` image layered on `web-terminal:base` (zellij and starship pinned by sha256, plus micro,
+less, file, the config, layouts, `dojo-sidebar` listing and quick-start/micro guides); `dojo/start.py` splices that
+layer into the terminal image chain so module and workshop `terminal/` links need no change; one shared
+`workspace-control.py` runs Zellij instead of tmux behind a flavor flag, uses `zellij watch` for the facilitator
+tile and `su --pty` so browser resizes reach it, and answers `/start/ide` 404; the allocator hides the VS Code tab,
+landing card and `/ide` route when the flavor has no IDE (tests added); demo bots run in Zellij
+(`bot-supervisor.sh`, `layouts/bot.kdl`); git-fundamentals' labs were reworded to work in either flavor and gained
+a Zellij guide. Known-not-done, from the commit: the tmux flavor still keeps its first window size; labs for the
+other five packs; Zellij memory growth over hours; browser key conflicts. **Open:** the same work is committed on
+`feat/zellij-terminal-flavor` as `cc189e3` (identical patch-id) — the two branches must be reconciled and one
+deleted; see the ROADMAP housekeeping row.
+
+## `feat/rv22-allocator-split`
+
+**RV22: allocator split into modules (2026-10-03, unit tests plus an image check, locally).** `engine/allocator/server.py` (2,751 lines) is now `config`, `accounts`, `allocation`, `probes`, `pages`, `handler`, `views` (mixin) and `api` (mixin), with `server.py` (wiring plus the locking rules) at about 80 lines and the page CSS/JS in `static/` (read once at start-up, like `login/`). Tests patch the module that owns a name (`allocation.control_request`, `config.BOT_IDS`). Checks: all allocator tests pass (169, including a new `/login` test that found a missed import), the engine tests pass, and both images (old and new) were built and served the same bytes on every page and asset; only `/admin/api/status` differed, by its timestamps. Then started on a full stack (git-fundamentals, locally): an admin sign-in, every page and asset, a student sign-in, a slot claimed and VS Code opened, no tracebacks.
+
+## `feat/cloud-policy-as-code` (merged to `main` in PR #8, 2026-10-03; `feat/rv19-bot-smoke-tests` merged into it)
+
+**RV35: clean smoke run, achievements live (2026-10-03, locally, `smoke.sh cloud-policy-as-code --bots 1`, fresh image build).** Every lab 0-12 runs, no step skipped, and every core milestone fires in one run of about 30 min, including the CI milestones (pc8, pc11, pc12: run fields from the student's own fork) and pc7-tagged (the modify tag on the app's container group). Also on the branch, not run yet: `smoke.sh --split` with `retest.sh --to` (a slow pack's labs side by side; check in ROADMAP Now), the pack's `WEB_TERMINAL_MEM_LIMIT=6g` (one apply is ~275 MB in the terminal), `workshops/assets/slide-overflow.sh`, and dojo-introduction bot steps that check their results.
+
+**RV35: lab-prep recovers from an interrupted apply; scratch gets its own state; real 403 text (2026-10-03, locally, `retest.sh cloud-policy-as-code N --only` for every lab 1-12).** `lab-prep` waits on a lock (`-lock-timeout=60s`), breaks a stale lock only when it is the student's own and no tofu of theirs runs, imports a resource the cloud has but state lacks ("already exists"), and when going back to an earlier lab applies the later policy first; if all that fails it prints the unlock/import commands. The per-lab loop found a student-facing bug: `~/lab/scratch` copied the app's backend, so a scratch apply shared `tfstate/infra` and destroyed the app and legacy resource groups; Labs 1-3, 5, 6, the capstone and the bot now switch scratch to a `scratch` state. Every printed 403/400 now uses azurerm's real header (resource group and container group formats); Lab 6 names the definition that refused (`Require a costCenter tag`), and Lab 9's invented policy line is the real one. The 400 bodies were checked against cloud-api source only. The terminal image needs a rebuild to carry the new `lab-prep`.
+
+**Bot portal login reaches the class site (2026-10-03, locally).** The gateway's site answers only PUBLIC_BASE_URL's host, so a bot's login at `http://gateway:8080` got an empty 200 and Lab 12 fell back to ARM. `portal_login` now retries at PUBLIC_BASE_URL with `--connect-to` the gateway and leaves the working base in `$GATEWAY_URL`; the bot env file carries PUBLIC_BASE_URL (bots start under `su -`). Lab 12 retest: the Policy blade button is used and pc12-drift, pc12-caught, pc12-fixed fire.
+
+**RV35: clean smoke run fixes (2026-10-03, locally, `smoke.sh cloud-policy-as-code --bots 1`).** Policy assignments no longer echo a default `displayName` or empty `parameters`, which azurerm saw as drift on every plan, so Lab 12's drift job can go green (unit test added). The Lab 10 bot no longer adds `""` to the near-miss test (the rule skips empty locations on purpose), which had turned every later PR check red. The bot runs `conftest` and `opa test` as bare commands so the shell hook sees their exit: pc9-green, pc10-red and pc10-green fire. Pack README gains Testing and Known limits; root README lists the pack. Re-run: all labs pass, all core milestones fire except Lab 12's three (bot portal login, open in the roadmap).
+
+**RV35: Cloud-Policy-as-Code, first live run and its fixes (2026-10-03, locally, `--test 1 --fast`).** The pack runs end to end on a real stack: OpenTofu with azurerm 5.6.0 against Dojo Cloud, the shared http state backend, CI on runner-pool reaching cloud-api (runner_net aliases, CA, provider mirror), and the branch-protection check `Policy check / check (pull_request)` (confirmed live). Fixed: cloud-api answered 200 to a PUT that updates a policy definition, set or assignment, and azurerm 5.6.0 accepts only 201 for those (exemptions and remediations stay 200, as the real API does); Lab 10's `regions.rego` flagged policy objects, which have no region (`location` is `""`); the lab 3-7 solutions dropped the seed's later commented sections, so `lab-prep` broke the next lab; `tofu-mirror-init` inherited the terminal image's HEALTHCHECK and held the start for its whole timeout (start now 1.5-4 minutes, was about 10). Bots: Forgejo sign-in from their own netrc, every "uncomment" step safe to retry, Lab 9 runs in the lab folder, Lab 12's drift is made through the ARM API (bots have no portal session), and the state backend credentials are set even when the bot starts before the broker. New: `workshops/assets/retest.sh <workshop> <lab> [--only]` reruns one lab's bot steps on a running stack (`lab-prep N` first), instead of a full hour-long run. Achievements (34 core, PC-P5/P6) committed; not yet confirmed live.
+
+**marp-cli 4.5.1 (PR #5, merged to `main` 2026-10-03).** Every pack's Marp pages checked under v4 with a scripted render and clip measure: only two lab index pages clipped (vault-fundamentals, cloud-policy-as-code); both fixed.
+
+### From `feat/rv19-bot-smoke-tests`
+
+**Achievements Phase 10 sweep and leftovers (2026-10-02, locally).** Slide overflow: git-fundamentals (presentation 29 slides, cheat sheet 12, labs index 7) has no slide past 16:9 or into the footer (Playwright, a scripted check of every element against the slide box). Phase 3: the shell hook works under oh-my-zsh + powerlevel10k, with and without the instant-prompt cache (exit codes, branch before and after, the echo; `_dojo_precmd` stays ahead of p10k's own hook), checked in a throwaway container of the terminal image. Quirks: the bot round-1 `git reset --hard HEAD~1` no longer fails (gone in a live run); a refused signed event (the facilitator's name) no longer burns its nonce (the nonce is recorded only once the event is accepted); the lab reader's pager reads the labs from the README's links instead of probing each neighbour (no more `lab0.md.txt` 404s; checked live, lab 1 shows only "Lab 2 →"); the widget's frame is asked to re-report its height once `toast.js` listens (browser look still open). Looser checks tightened: challenges may have a second step (`then`, checked only after `verify` passes; `dojo-check` says "Halfway" and what's next; a `restart` assertion sends the student back to step 1); tofu-basics' capstone step 2 is "nothing tagged `challenge=capstone` left in any state" after `tofu destroy`; vault's capstone step 2 is "`capstone/app` written since step 1 and no commit on `main` since" (new verbs `kv_version since_step`, `no_push_since_step`); tofu-basics c1's `output "url"` must hold a URL (`http(s)://` or `/site/`), not a bare host. Unit tests: achievements service 311, catalog 59.
+
+**RV19: bot smoke tests for git-fundamentals, dns-as-code and cert-autorenewal (2026-10-02, locally, `--test 3 --fast`, achievements on).** `workshops/assets/smoke.sh <workshop> [--bots N] [--timeout MIN] [--reuse]` starts the pack, waits for every `~/.dojo-bot-done`, lists steps the bots gave up on, and fails when a core milestone never fired (`fired.py`); a few minutes per pack. All three pass. git-fundamentals passed first time (it needs no `content/bots`: the engine's default steps are its labs). dns-as-code failed on `d5-rollback`/`d5-gone`: a classmate's record merged next to the bot's own made `dnsctl rollback` hit a revert conflict, so no revert PR opened, and the bot then left the revert in progress for Lab 6. Students hit this too in a class, so Lab 5 now says how to finish a conflicted rollback (`git add`, `preview`, `submit`); `d5-rollback` now fires when a `dns/revert-*` PR is opened (it needed `rollback` to exit 0, so a resolved conflict never earned it); the bot resolves the conflict as a student would, or aborts the revert. The conflict path is tested on a copy of the conflicted repo, not live (the rerun didn't conflict). cert-autorenewal failed on `c4-installs`/`c4-watch`: the bots skipped Lab 4 step 4 ("Watch it happen") and removed the cron entry within seconds, so the sweep never saw the served certificate change after its first look. The bots now watch for two renewals (up to 5 minutes); fast bots put the script three times on one cron line, 20 s apart (cron can't go below a minute), so the watch takes about a minute. Achievements unit tests: dns pack 16.
+
+**RV19 finished: the RV18 live scripts' first live run, dns-as-code lint (2026-10-02, locally, `--test 3 --fast`).** vault-fundamentals: `tenancy.sh`, `lab_2.sh` and `lab_5.sh`-`lab_13.sh`, `e2e.sh --only audit,bots`, openbao's `cli_login.sh` and `setup_tokens.sh`, runner-pool's `pool.sh` all pass on the shared `test-lib.sh` with no changes (browser scripts not run). tofu-basics: `e2e.sh --purge-first` 284 pass, 0 fail; `selftest` 66/66. One bot fix: tofu-basics' Lab 8 lock demo ended in a bare `wait`, which in bash 5.2 also waits for the runner's `exec > >(tee ...)` and never returned (testuser1 hung 20 min); it now waits for the apply only (`wait $!`). dns-as-code: `dnsctl.py lint` makes a leftover conflict marker in `dnsconfig.js` an error (it parsed as a non-record line and only warned), so the pre-commit hook refuses it: checked live in `~/lab/dns-as-code`; the smoke test passes again.
+
+## PR #7: Phase 9 live checks and fast bots (merged 2026-10-02)
+
+**N3 9.x: git-fundamentals challenges, and the box with achievements off (2026-10-02, locally, `--test 3 --fast`).** Every core item fired from the bots (only the funny ones bots never act out, the cheats and the hand-solved challenges stayed at 0). Solved once as `student02` in an interactive zsh: c1 (a `hotfix:` PR fixing the role typo, +100), c2 (`git log -S` finds `08da02c Chuck Cowboy`, +100), the capstone (feature-a and feature-b merged through one PR, CHANGELOG conflict resolved, "Make deploys faster" reverted, +300). `reset c1` re-clones; `sensei ask "capstone"` shows no challenge text. Headless Chromium: the Lab 1 reader shows the c1 box with achievements on, and none with `ACHIEVEMENTS_ENABLED=0` (no achievements container either). Fixed in the default bot steps: Lab 5's `reset --hard HEAD~1` reached one commit past the branch and always failed (`l5-reset`); Lab 1's cleanup only ever used `-D` (`l1-cleanup`), now `-d` first as the lab does; the novice's wrong-directory `git status` ran inside the repo, so it was never a mistake (`f-wrongdir`; exit code checked, not rerun).
+
+**N3 9.3: vault-fundamentals live, `bao` adapter and challenges (2026-10-02, locally, `--test 3 --fast`, achievements on).** Every item a bot can earn fired; never fired only `v0-ui` (browser OIDC), `f-root`/`f-seal`/`f-paste`, the cheats and the hand-solved challenges. The capstone slot: `student02-capstone` showed locked, then empty within 4 s of `dojo-challenge start capstone`; the first push of the capstone repo deployed there (Actions needed no enabling) and the app logged in as `slot:student02-capstone`. Solved once as `student02`: c1 (+100), c2 (+100), the capstone (+300, a rotation with no new deploy); `sensei ask "capstone"` shows no challenge text. Fixed: **refused JWT logins counted as successes** (`v9-branch`, `v10-branch` never fired for anyone): OpenBao logs a claim refusal with only `response.data.error`, and the audit adapter looked at the top-level `error` alone; with that read too, live, both fired from the logs. c1's `seed.sh` failed under `sh` (`$RANDOM`), without `$USER`, and on the new KV mount's first write; it now uses `{user}`, `date` and a retry. Lab 9 left a local `try-a-branch` behind, so Lab 10's `git switch -c try-a-branch` failed; both labs now `git branch -D` it. The capstone README now says the repo starts with only `agent.hcl`, what gets deployed and how. Bots now do Lab 1's pre-commit hook, Lab 9's own blocks (AppRole with stored secrets, the branch refusal, retiring AppRole), Lab 10's branch refusal, wait for `database: connected` in Lab 12 and for the welcome secret before round 1, and share and unshare the `pass` folder in two commands. Logged, not fixed: the capstone check doesn't prove "without deploying" (Achievements).
+
+**Bots: `--fast` for checks (2026-10-02, locally; engine change approved).** `./run.sh <workshop> --test [N] --fast` (`BOT_FAST=1`): no thinking pauses, typing or round breaks; the intermediate and novice bots make their mistakes in round 1; a step that fails 3 times is skipped with a `FAST:` line; after one round each bot writes `~/.dojo-bot-done` and stops. Without `--fast` demos are unchanged; `restart` keeps the flag; `--fast` without `--test` is refused. On vault-fundamentals all three bots finished in 7.5 minutes from `./run.sh` (stack up at 3.5), against about 11 minutes after start-up for the expert's first round before. `./run.sh` releases the bots once every container is up (`/run/dojo-bots-go`), and each bot then waits for its Forgejo account and each module's `bot_ready` (achievements: its token and the service): before that, a git-fundamentals round ended while Forgejo was still making accounts. The achievements bot hook retries its token on every command, not every 30 s, and paces its reports at 0.3 s, under the service's 40 shell events per 10 s (it silently dropped the rest). git-fundamentals: bots done 30 s after the stack is up. CLI tests pass (3 new).
+
+**C6: `capacity` and `doctor` count a workshop's own services (2026-10-02, locally; engine change approved).** Found in N3 9.2: the calculator hard-coded the engine's four services (3,072 MB), so on tofu-basics it left out cloud-host (3 GB), cloud-api, achievements and sensei, and said 15.8 GB for 15 students when the stack needs 19.4 GB. `./run.sh capacity WORKSHOP --students N` now reads every service's `mem_limit` from that workshop's merged Compose config (one-shot jobs left out, a service with no limit named in a warning) and passes the total to the script, whose report lists what it counted; without a workshop it keeps the old figure and says so. `./run.sh doctor WORKSHOP` adds the same per-workshop memory line. Sensei had no `mem_limit` at all (about 16 MB at rest): now `SENSEI_MEM_LIMIT`, default 128m. Live: tofu-basics for 15 students reads 6,656 MB of other services and 19,397 MB in all (warning on this 14 GB machine). CLI tests pass (2 new).
+
+**N3 9.2: tofu-basics live, `cloud` adapter and challenges (2026-10-02, locally, `--test 3`, achievements on).** First run of the rewritten bot steps (Lab 6's three policy refusals, Lab 8's image bump and forced replace, Lab 9's `for_each` and quota, the funny mistakes): no unexpected errors in any bot log, and every pack item fired from the bots except the portal ones and `t0-fork`/`f-nolock` (below). As `student01` through the gateway: fork, clone, apply, then the portal's overview, a tag edit and a delete (`t4-portal`, `t7-tag`, `t7-delete`), and an apply that restores it (`t7-restored`). As `student02`: c1 (a second site that passes every policy, +100), c2 (5 sites declared, trimmed to what the quota holds, +100) and the capstone (two sites from one `for_each` with tags and a URL map, +300), each in its own repo; `reset c1` re-clones; `sensei ask "capstone"` shows no challenge text. Fixed: **fork events never matched** (`t0-fork`): Forgejo's delivery names the original as `forkee` and the new fork as `repository`, the reverse of GitHub's, and the matcher read `forkee`; it now keeps `repository`, the tests use Forgejo's real shape, and live a fork by `student03` fired `t0-fork` within seconds of an achievements restart. The bots' lock-clash demo raced a 2-second in-place apply that finished first; it now runs on the ~25-second replace, and the same command in a real tmux pane fired `f-nolock`. The capstone README said names are `{user}-<key>` (Dojo Cloud refuses a name without `ci-`), told students to `dojo-check` before pushing (the check reads `main`) and didn't say c1/c2 sites eat the 2-group quota; all three corrected. Logged, not fixed: `./run.sh capacity` leaves out module services (C6), and two loose checks (Achievements).
+
+**N3 9.1: cert-autorenewal leftovers and challenges (2026-10-02, locally, `--test 3`, achievements on).** Every pack item fired except `f-ratelimit` (no bot step bursts issuance; students only, as the catalog warning says). `f-untrusted` fired for the two bots that reached their curl-without-`--cacert` mistake round, `f-selfsigned` from round 2. `c2` live: with Lab 4's every-minute cron and `renew.cron` pushed, one `dojo-check c2` started the 20-minute watch and the state sweep passed it on its own about 21 minutes later. All four challenges solved once as a student, each with its own repo and starter vhosts that pass `nginx -t`: c1 (`shop` with its own certbot certificate, +100), c3 (mutual TLS: no client certificate gets nginx's 400, the lab CA's gets the page, +100), the capstone (a wildcard through dns-01 with a hand-written `dns-hook.sh` against dns-api, `www` and `api` with a 301, HSTS, `nosniff` and a CSP on `api`, cron renewal that ran unattended, +300). `sensei ask "capstone"` returns no challenge text; no tracebacks in any service log. Fixed: `cert-shop`'s README now says to start from a first site that serves HTTPS (`dojo-check c1` failed with a hostname mismatch otherwise, since nginx answered the first site's name with `shop`), and `www.conf` says the capstone wants HSTS there too.
+
+**N3 9.0: dns-as-code leftovers and challenges (2026-10-02, locally, `--test 3`, achievements on).** The bots fired every pack item; only the challenges, capstone and the shared cheats stayed at 0, which no bot attempts. `f-dot2` fired from the Lab 1 "opposite mistake" step; `dns_catch_up` ran before each push with no stray errors in any bot or service log. Sensei's criss-cross rule live: four bot PRs (#6, #8, #13, #16) carried merges of `main` and were still approved and merged, all 18 bot PRs merged (none left open with conflicts). As `student01`: `sensei help|status|review|approve` (refused before a review) and `approve --force`; `lab-prep 5` stops at "merge the pull request above first". As `student02`: `dojo-challenge start c1|c2|capstone` each cloned its own repo (`challenge-typo`, `-cutover`, `-badpush`), `dojo-check` says not yet, `reset c1` re-clones; c1 solved (trailing dot, `dnscontrol push`) gave `Passed! c1 +100`; `sensei ask` returns no challenge section. Headless Chromium: the lab 2 reader shows the c1 box (Start, Reset) for a signed-in student. Readback in a real tmux pane: `dig` NXDOMAIN after 20,000 lines of output still fired `f-nxdomain`, and after `clear` `sensei why` no longer sees it. Lab 3 has the fresh `git pull` and the DELETE-in-preview box. Fixed: the four `lab-prep` scripts failed with `USER: unbound variable` when run without `$USER` (a bare `podman exec`); they now fall back to `id -un` (checked by copying the script into the running terminal).
+
+## PR #6: achievements, the Python `run.sh` and platform review fixes (merged 2026-10-02)
+
+**N2: merge checks (2026-10-02, locally).** `.github/scripts/dry-runs.sh` passed for every pack with achievements off
+and on. Toggle-off regression, `ACHIEVEMENTS_ENABLED=0 ./run.sh git-fundamentals --test`: no achievements container
+(sensei up), `/achievements/*` 404, no widget frame or toast script on the portal, slides, VS Code or Forgejo,
+`/workspace` serves all five tabs once a seat is claimed, demo bots running. Trial merge clean; CI (unit tests, dry
+runs) green on the PR.
+
+**Platform review RV21: shared `adapter_client.py` (2026-10-02, locally).** dns-gate, cloud-api and openbao-audit tell the achievements service what a student did through one `modules/_shared/adapter_client.py` (listed in each `SHARED=`; dns-gate's image now copies `_shared/`) instead of three hand-written `Reporter` senders: one bounded queue (500) and one lazily started worker thread per service, so dns-gate and cloud-api no longer start a thread per event; a full queue drops, a post never raises or blocks. Each `events.py` keeps its own logic (zone summaries, refusals, replace detection, audit classification); `wait=` and openbao's `Reporter.start()` are gone (tests call `client.flush()`). Tests: 6 new for the client, every suite in `.github/scripts/unit-tests.sh` passes. Live: dns-as-code, tofu-basics and vault-fundamentals started healthy with the file in each service, no bad-signature lines; dns proven by a `dns`-only unlock (`d1-add`), cloud and bao by posting through the real reporter inside `workshop_cloud_api` (`t5-site`) and `workshop_openbao_audit` (`f-root`); reporter thread counts stayed flat over repeated actions.
+
+**`alias-setup` warns about a second completion hook (2026-10-02, locally, in scratch HOMEs).** From the Mac run: `~/.zshrc_aliases` there already loaded the completion from another clone, so it loaded twice. After installing, `alias-setup` now lists any other line in the shell's profiles (zsh: `~/.zshrc_aliases`, the rc file, `~/.zprofile`; bash: `~/.bash_aliases`, `~/.bashrc`, `~/.bash_profile`, `~/.profile`) that loads a `completions/run.sh.*` file outside its own block, with file and line, and leaves it alone. Tested: another clone's hook in `.zshrc_aliases` is named (also on a re-run, which still writes one block), the old first-run lines in `.zshrc` are still removed, a clean HOME prints no warning, and a hook in `.profile` is named under `bash --posix`.
+
+**C5, Docker part, and a Docker-only fix (2026-10-02, home server: Linux x86_64, Docker Engine 29.8.1, Compose v5.5.1, no podman).** Run from `C5-guide.md` by a separate session. Found: the presentation container never started under Docker ("create mountpoint for /home/marp/app/assets mount: ... read-only file system"), because `engine/docker-compose.yml` mounts `workshops/assets` inside the read-only `content/slides` mount and a fresh clone has no `slides/assets/` (git keeps no empty folder; podman creates the mount point, Docker can't). The start now makes it (`start.make_mountpoints`, unit-tested); locally, with every pack's empty folder deleted, a git-fundamentals start recreated it and served `/slides/assets/themes/hub.css`. Passed there with the folder made by hand: the first-run wheel download and CLI unit tests (46), `setup --default`, `doctor` (docker), a cold git-fundamentals build and start, `status`, `logs`, `restart gateway`, `restart`, `stop` (no containers or `engine_` volumes left); dns-as-code (16 services), where `restart dns-server` recreated only `workshop_powerdns` and the stack stayed healthy; logins by curl (student 303 then `/` and `/slides/` 200, facilitator `/admin` and `/admin/api/status` 200, a student on `/admin` 403). The user then checked by hand in a browser (over an SSH tunnel, git-fundamentals on Docker): student login, terminal, VS Code, slides and the facilitator's `/admin`, all working. With the fix pulled (`ab2cfc6`) and the hand-made folders deleted, the user's git-fundamentals start on Docker created `slides/assets` itself, presentation came up, every service was healthy and the decks loaded styled in the browser.
+
+**Platform review RV20: shared `dojo_http.py` (2026-10-02, locally).** The seven module web services (sensei, achievements, openbao-audit, runner-controller, zone-viewer, cloud-api's portal, dns-admin's WSGI wrapper) use one `modules/_shared/dojo_http.py` for the gateway-token check (`token_ok`, `gateway_user`, `is_facilitator`; fails closed on an unset token, and no longer raises on a non-ASCII token), one security-header set and `send`/`send_json`, instead of seven hand-written copies; each lists it in `SHARED=` (new `modules/dns-ui/module.env`), the three built images `COPY _shared/`, and each service puts `modules/_shared/` then its own `_shared/` on `sys.path`, so unit tests need no start. Header changes: sensei gains `X-Frame-Options`/`Referrer-Policy`, zone-viewer and the portal's JSON get the CSP and `X-Frame-Options`, every CSP allows `img-src 'self' data:`; dns-admin keeps its own CSP and `same-origin` referrer (PowerDNS-Admin's inline scripts). `./run.sh modules` no longer lists `_shared`. Tests: 9 new for `dojo_http`, every suite in `.github/scripts/unit-tests.sh` passes (two portal tests updated for the shared CSP). Live: dojo-introduction and vault-fundamentals started healthy (dns-admin's gunicorn loaded the wrapper); every module route answered the facilitator with all five headers and anyone not signed in with 401; dns-admin's dashboard loaded; from a student terminal a forged facilitator (no or wrong token) got 403 from sensei, runner-controller, openbao-audit and achievements and 401 from cloud-api (zone-viewer is a shared, identity-free view, 200 by design; dns-admin isn't reachable from the lab network).
+
+**C5, Mac part: the dojo CLI on macOS (2026-10-02, macOS 26.7.1, Apple Silicon, on podman 6.1.3 + podman-compose 1.6.0, not Docker).** Run from `C5-guide.md` by a separate session on the user's Mac. Passed: `/usr/bin/python3` 3.9.6 with the first-run wheel download; CLI unit tests 46/46 on 3.9 (allocator 160/161 once, a `ConnectionResetError`, then a clean rerun); `setup --default`, `doctor`, a cold git-fundamentals build and start (arm64 tool downloads and checksums), logins by curl (class 200, class on `/admin/` 403, facilitator 200, wrong password 401), `status`, `logs`, `restart gateway`, `restart`, `stop` (no containers or `engine_` volumes left); dns-as-code start and `restart dns-server` (dependents recreated, as expected on podman); `alias-setup` (the `dojo` command from `~`, completion registered for `dojo` and `./run.sh` in a fresh zsh, re-run gives one block, `--remove` none); `capacity --students 10` and an interactive `setup` under macOS's bash 3.2 and BSD tools. The Docker path and a browser passed later on the home server (next entry up); real Tab presses on the Mac then worked too (`dojo <Tab>`, checked by the user). `CORP_CA_BUNDLE` stays on the roadmap.
+
+**Platform review RV31: `./run.sh new-workshop` (2026-10-02, locally).** `new-workshop NAME` copies `workshops/assets/template/` into `workshops/NAME/`, filling in `{{name}}`, title, description, modules, order, Forgejo org and repo: `workshop.env`, a README of next steps, the slide hub, deck, labs index, lab overview and cheat sheet (on the shared themes, with the logo from one new shared copy in `workshops/assets/`), a first lab and a sample repo, with TODOs; `--terminal` adds a chained `compose/terminal/Dockerfile` skeleton, `--dry-run` lists the files. It refuses a bad or taken name, a command name (checked against the CLI's own commands; the unused, incomplete `RESERVED` set is gone), unknown modules, and title or description characters that would break the sourced `workshop.env` or the slides' HTML; the pack is written to a temporary folder and renamed, so a failure leaves nothing. `workshops/README.md` step 1 uses it. Tested: unit tests (CLI 53 pass); live, a scaffold with `--modules sensei --terminal` dry-ran clean and started (all healthy, 1:07): every slide page, the lab reader's copies and the logo answered 200, the login page showed the new title, the sample repo was in Forgejo and `~/lab` held the labs; Playwright screenshots of the hub, deck and labs index showed no overflow. The stack, the scratch pack and its images were removed afterwards.
+
+**Platform review RV28: `/mnt/*` PATH stripping only on WSL (2026-10-02, locally).** With podman, `scripts/lib.sh` and `dojo/runtime.py` dropped every `/mnt/*` folder from PATH on any host, which on a plain Linux machine could hide tools installed under a real `/mnt` mount. Both now do it only when `/proc/version` names Microsoft (WSL), through one `runtime.on_wsl()` that `doctor` uses too. Tested: unit tests for both cases (CLI 48 pass); `lib.sh` sourced here drops `/mnt/c/...`, and a copy reading a plain-Linux `/proc/version` keeps it; `doctor` still shows the WSL2 line and `status` still takes 0.4 s here.
+
+**`dojo` command (2026-10-02, locally, in a scratch HOME).** `./run.sh alias-setup` now installs `~/.local/bin/dojo`, a three-line script that runs this checkout's `run.sh` with `DOJO_PROG=dojo`, instead of a shell function, so it works in any shell and from scripts. The profile keeps one marked block: the completion, plus a guarded PATH line only when `~/.local/bin` isn't on PATH (macOS). Re-running it removes the old function block and the first-run offer's two completion lines, so nothing loads twice; `--check` and `--remove` are new, and it refuses to overwrite a `~/.local/bin/dojo` it didn't write. The first-run offer and interactive `./run.sh setup` both offer it through `alias-setup.sh` (`setup --default` only prints a hint). Help and the CLI's advice ("run '... setup'", "'... stop' first") use `paths.PROG`, so under `dojo` they say `dojo ...`. Tested: an upgrade from the old function block, a re-run, `--check`, `--remove`, the refusal, the first-run offer (yes, no, silent after), `setup --default` and an interactive `setup` in copies of `engine/`; `dojo --help`, `dojo status` and an error from another directory; in an interactive zsh, `whence -p dojo` and Tab completion of `dojo rest` and `--dr`. CLI 46 pass. Not tested: bash, and macOS (C5).
+
+**Platform review RV20, CLI part: shared module files (2026-10-02, locally).** A module lists files from `modules/_shared/` in its own `module.env` as `SHARED="<context>/<file> ..."` (read literally per module, since every `module.env` is sourced into one environment); before anything is hashed, `dojo/build.py` syncs each into `modules/<m>/<context>/_shared/` exactly (mode kept, dropped entries removed), so a change to the one copy rebuilds every user. The copies are git-ignored (`modules/*/**/_shared/`); a bad entry stops the start. Also fixes an RV24 race: a quiet build's old-log sweep could `stat` a log another build had just deleted on success (the concurrent-images test failed about 2 runs in 3). Live: a dns-as-code `--dry-run` with a temporary dns-gate entry made the copy and showed the overlay changed, a missing file stopped it, and reverting removed the copy and returned "unchanged". CLI 46 pass, the concurrent test 40/40. The services' move onto `dojo_http.py` stays on the roadmap.
+
+**Platform review RV24: concurrent image builds (2026-10-02, locally); CI on pull requests only.** `Builder.images()` builds the allocator, gateway and presentation images in a thread pool beside the terminal chain; the chain still streams its output, each engine image's goes to `$TMPDIR/dojo-build.*` (shown only when it fails, then kept a day), every build runs to the end before the first failure is raised, and dry runs stay sequential so their report keeps its order. `engine/allocator/.dockerignore` leaves `tests/` and `__pycache__/` out of the context (one allocator rebuild); the web-terminal context had nothing worth ignoring, so it gets none (that would rebuild every chain). Live: a git-fundamentals `--build-only` with all three engine images and two chain links stale took 106 s wall for 226 s of builds; the start after it was all "unchanged", allocator and gateway kept their HEALTHCHECK. CLI 42 pass. Separately, `.github/workflows/ci.yml` (f7c1b57) now runs on pull requests into `main` and by hand, no longer on every branch push.
+
+**Platform review RV23: `_build_and_up` split (2026-10-02, locally).** `engine/dojo/start.py` passes one `Plan` (options, runtime, resolved env, terminal chain, Compose files, overlay contexts, cached service list) instead of 11 positional arguments; the steps are their own functions (`_plan`, `_safety_gates`, `_check_running`, `_build_images`, `_render_extensions`, `_check_catalog`, `_dry_run_checks`, `_compose_up`, `_up_args`), behaviour unchanged. New tests for the running-stack gate and restart arguments (CLI 39 pass); dns-as-code and vault-fundamentals dry runs, a real git-fundamentals start, `restart gateway` and `stop` all ran clean.
+
+**Home demo dry run: the Sensei support desk live; RV2, RV6, RV7 live (2026-10-02, dns-as-code `--env home`, achievements on).** First live run of the support desk, as `student01`-`03` (tmux and `podman exec`) and the facilitator over https://dojo.macleodtech.ca. `sensei ask` answers "undo a push" with the ready answer and lab links, and never returns a challenge or capstone section; `sensei why` names a push to protected `main` and, after it, the missing trailing dot (with the lab section), picking the newest error on screen; `sensei hand` puts the real last screen on the facilitator's card, the 20 s and 3-open limits hold, a reply over https shows in `sensei inbox` and a close removes it (403 without `X-Requested-With`); `sensei check` and the facilitator's board agree (4 of 24, 16%); the Stuck radar shows `failing` within 5 s of five failed commands, `stalled` after a minute without a milestone, `quiet` after 15 idle minutes; from a student terminal every Sensei and achievements facilitator API answers 403; Lab 3 end to end (`sensei status`, plain `approve` refused before a review, `sensei review` then auto-approval within seconds, `approve --force`, merge, record in `dig` within 5 s, a conflicting PR brought up to date). Fixed on the way: Sensei's practice PR was opened while the first DNS Apply was still creating `dojo.test`, so its DNS Preview comment said the zone didn't exist and showed no `+ CREATE` (the seed now waits for a green status on `main`, `"after_ci": true` in `SENSEI_SEED`; live, the preview runs after the apply and shows `+ CREATE status.dojo.test`); an approved PR that started conflicting when `main` moved still read "Approved. Merge it" (now judged again, and conflicts come before the wait for a review); a start-up `tick failed` when the new repo's contents API answered with a list; the Sensei tab said "merges the good ones" in approve mode (now says it approves own-record changes and merging stays with the student). RV2 live: scores and unlocks identical across an achievements restart, including two unlocks from seconds before it; the dry run found that a command which unlocked nothing never marked the state dirty, so the SIGTERM flush lost the last of a fail streak (5 became 4, `failing` became `stalled`); it now marks it, and live a streak of 10 survives the restart. RV6 live: `/runners/api/state` in ~4 ms at the gateway through two DNS Apply runs, Max + and −, + at the max raises Max, every press audited, no controller errors. RV7 live: two students' `status`/`review`/`approve --force` at once while the Sensei tab polled every second (~20 ms each); neither waited on the other, no PR judged twice. Tests: Sensei 74, achievements 131. Home proxy: through https://dojo.macleodtech.ca, 30-80% of requests failed with the home-lab Caddy's own 503 "offline" page whenever two or more were in flight (none reached the Dojo gateway), so pages loaded without their CSS or score widget. Cause: `unhealthy_request_count 1` in that site's `reverse_proxy`, which in Caddy is a concurrency limit, not a failure count. It was removed (and Caddy restarted, since the single-file bind mount of the Caddyfile still served the old copy after an editor save); now 360/360 requests pass at 2, 10 and 30 in parallel, and headless Chromium over https shows `/admin`, the Achievements tab and the student page styled, with the widget and a toast a few seconds after a terminal unlock. The user's own browser pass then passed: pop-ups in VS Code's bottom-right corner for terminal unlocks (once the landing page tab, which claims a toast first when it is open, was closed), `$USER` set in the VS Code terminal, and the neighbour ladder's first two rungs ("Oops, you bumped into your neighbour", "Curiosity Killed the Cat") at 0 points in the facilitator's Cheats column. Also fixed, unit-checked only (next terminal image build): the VS Code toast extension didn't read the token once git percent-encodes the port in `~/.git-credentials` after a push (`dojo-check` and `sensei` already did). And, from the same pass: a landing page left open in a background tab claimed every toast first, so a student in split mode never saw one in VS Code; `toast.js` now skips polling while its tab is hidden and polls at once when it comes back (achievements tests pass; not yet seen in a browser).
+
+**Platform review tier 2: RV13 live, RV16-RV18 (2026-10-02, unit tests and GitHub CI).** RV13: the CI workflow's first GitHub runs (docker + `docker compose` on `ubuntu-24.04`) pass, unit tests and every pack's dry runs; one run failed once on the achievements test `test_sigterm_flushes_the_running_service` (`state.json` not yet written) and passed on the two runs after it. RV16: `engine/dojo/tests/test_build.py` (16 tests) pins `hash_dir` to a golden value and checks it against a `find`/`sha256sum` pipeline (any change to it rebuilds every image), and tests the terminal chain order, superseded-image tracking and reaping, and MODULES resolution against a fake runtime (`RunLock` stale reclaim was already covered by `test_state.py`); CLI 35 pass. RV17: `modules/runner-pool/tests/test_supervise.py` (14 tests) checks the spool handoff from both sides with the controller's own `Spool`, each runner's lifecycle, that stop never touches a busy runner, and the clean-up after one; runner-pool 43 pass. RV18: the ok/fail/as/api/job-log/lab-block helpers copied (and drifting) across six live scripts in vault-fundamentals, openbao and runner-pool are one POSIX `workshops/assets/test-lib.sh`; vault's `tests/lib.sh` keeps only its own helpers, tofu-basics keeps its bash framework and takes the shared lab-text helpers, and an offline self-test (fake container CLI) runs in CI. Not yet run: the moved live scripts against a real stack (with RV19).
+
+**Platform review tier 2: RV14, RV15; RV13 CI built (2026-10-02, locally, unit tests and dry runs).** RV15: new `engine/allocator/tests/test_handlers.py` (29 tests) drives the allocator over real HTTP with web-terminal's control API faked: the gateway token on every route; `/auth-check` (400 for an unknown tool, 303 without identity or with a released cookie, each student's own IDE/terminal port, the 2 s ready cache, 202 when not ready or unreachable, the facilitator's own workspace); `/assign` (empty name, cookie, 60-character cap, a returning browser and the facilitator never take a second slot, rate limit, full lab); `/admin/release/*` (the `X-Requested-With` guard, slot freed and workspace stopped, bots restarted, 404); `/admin/release-unused` (only old slots with nothing active or watchable; 503 and nothing freed when status is down); `/admin/api/sessions` (students then bots, one cached status call); `/session-check` (login redirect with `next`, 401 for polls and tampered cookies, the facilitator role). Five deliberate breakages in a scratch copy of `server.py` each failed a test. Allocator 161 pass. RV14: `engine/README.md` says the allocator tests run from `engine/allocator` and points at the CI scripts. RV13 (still on the roadmap until its first GitHub run): `.github/workflows/ci.yml` with `.github/scripts/unit-tests.sh` (all 14 suites, found by folder) and `.github/scripts/dry-runs.sh` (every pack with achievements off and on, so the catalogs are validated, failing if the manifests went unchecked); both passed in a clean worktree with no `engine/.env` or wheel cache, and a manifest with an unknown field failed the dry runs as it should.
+
+**Platform review, tier 1 engine fixes RV1, RV3-RV5, RV9-RV12 (2026-10-01, locally, git-fundamentals).** The allocator saves its slot table to a new `allocator_state` volume (0600, temp file + rename, a version number so an older snapshot never overwrites a newer one) and reloads it at start, so a crash or OOM restart no longer hands a live student's `studentNN` to the next person; `./run.sh stop` still wipes it (to clear assignments on a running stack, delete `slots.json` first, see `engine/README.md`). `/auth-check` trusts a ready workspace for 2 s (identity and the reset fence still checked every request; any `/stop` or `/reset` of that user forgets it), and the roster's status call is cached 3 s across `/admin` tabs. A failing reset no longer kills the only reset worker, and a reset runs exactly the steps it showed. One probe thread per status service. A crashing handler writes an `error` audit line; control calls log when web-terminal goes unreachable and comes back. CLI: an interrupted build still records the images it displaced, failed `start`/`stop` say what to do next, and a pid-less run lock older than 10 s is reclaimed. RV8 was mostly wrong: the allocator and gateway images already have health checks; no gateway `depends_on` (the boot-time 502 isn't worth a slower start). Tests: allocator 132, CLI 19. Live: a student kept `student01` across `./run.sh restart allocator` (`state-load restored=1`), IDE and terminal load, 30 IDE asset requests in 454 ms, roster and status strip green, no `error` lines, and `stop` left no `engine_` volumes.
+
+**cert-autorenewal phase 9 live check (2026-10-01, locally, `--test 3`, achievements on).** Start, services healthy, the achievements restart (scores identical before and after), and `dojo-challenge start c1|c2|c3|capstone` (each clones its own `~/lab/cert-*` repo; `dojo-check c1` answers; reset works) all passed, with no errors in the service or bot logs; the `served_*` sweep fired `c4-installs`, `c4-watch` and `f-expired`. There is no `ca` adapter in any catalog (nothing posts `order_issued`), so the roadmap's adapter check was stale. Five items never fired, all traced to content: `c3-read` (core) needs `acme.sh --list`, which Lab 3 never asked for, so nobody could reach 100% (Lab 3 step 2 now runs it); the bots predated Lab 2's HTTPS-only step and the funny items, so `steps.sh` now does step 6 (`c2-https-only`), `acme.sh --list`, a dry run in Lab 4 (expert) and two mistake demos (curl without `--cacert`, a self-signed cert). Plain `certbot renew --dry-run` fails here (it switches to Let's Encrypt staging); with `--server` pointing at step-ca it passes, and Lab 4 now has a tip saying so. A clean rerun fired `c2-https-only`, `c3-read` and `f-staging` in round 1; `f-untrusted` and `f-selfsigned` (round 2 on) weren't reached before the stack was stopped. Slides (phase 10): presentation 4 and 18 overflowed 16:9 and 23 plus labs 4 touched the footer, because Marp turns each source newline into a line break; joined the lines and trimmed, re-checked with Playwright.
+
+**Stale plan references fixed (2026-10-01, comments only).** Code comments and READMEs that cited `engine/MODULES-PLAN.md`, `engine/student-reset.md` and other moved plans now point at their `docs/archive/` names; every cited section exists there. The last five, in `engine/` (`docker-compose.yml`, `entrypoint.sh`, `provision-account.sh`, `server.py`, `render_extensions.py`), followed with the user's OK.
+
+**Caddy log redaction verified; lab times re-checked (2026-10-01, locally).** The pinned `caddy:2.11.4-alpine` writes `Authorization`, `Proxy-Authorization`, `Cookie` and `Set-Cookie` as `REDACTED` in the JSON access log (a throwaway container with the same `log` block, and the running dns-as-code gateway's log: no credential headers in clear; only code-server's `reconnectionToken` query string, behind the login). Lab estimates compared with each lab's size when its time was set (2026-09-29): dns-as-code lab 3 grew about 40% (25 → 30 min) and lab 4 is about 2,300 words of reading (15 → 20), cert-autorenewal lab 2 gained the HTTPS-only step (20 → 25); git-fundamentals is unchanged. Totals: 55, 102, 80 minutes, challenges not included (bonus). Estimates from text size, not timed with people.
+
+**Achievements toggle from the shell; pack dry runs (2026-10-01, unit tests + dry runs, no stack).** `ACHIEVEMENTS_ENABLED` set in the shell now beats `engine/.env` (`dojo/envfiles.py` `resolve()`); before, a value in the file silently won, so `ACHIEVEMENTS_ENABLED=0 ./run.sh ...` and a restart repeating an achievements-off start both loaded the module anyway. Two new engine CLI tests (16 pass). `--dry-run` of all six packs passes; only the known `f-ratelimit` and `f-paste` catalog warnings. The certificate variables were already in `engine/.env.example`; the roadmap leftover was stale.
+
+**Decisions: CLI naming and Compose (2026-10-01).** `dojo` is the facilitator's platform CLI (`./run.sh`, the `dojo` shell function); the planned student-side Dojo Cloud CLI will be `dcloud` (reads as Dojo Cloud, like `gcloud`/`az`; students already have `dojo-check`/`dojo-challenge`/`dojo-env` as small helpers). podman-compose stays: Compose v2 through the podman socket did everything (`up --wait`, `config --format json`) at the same speed (73 s vs 75 s for dns-as-code) but needs an extra binary and a running podman socket. `DOJO_COMPOSE` remains an opt-in to try it again; revisit if a podman-compose bug blocks a workshop.
+
+**`run.sh` becomes a Python CLI, ROADMAP C1-C4 (2026-10-01, locally).** `engine/run.sh` (about 1,450 lines of sh) is now a 40-line wrapper around `engine/dojo/` (Click + Rich; five pure-Python wheels pinned by sha256 and unpacked by a stdlib `boot.py` into `engine/.cache/`, no pip or venv; 0.18 s start-up). C1: `engine/.env` and `.env.NAME` are read literally (a typed password with `$` or a space used to be expanded or run), `workshop.env`/`module.env` stay shell; shared `engine/scripts/lib.sh` for the shell scripts left (`setup`, `capacity`, `alias-setup`); `alias-setup` adds bash completion. C2: `status` (workshop, flags, uptime, address, per-service health, students and bots signed in, the portal's checks; `--json`), `doctor [workshop]` (engine, cgroup v2 limits, service DNS, disk, `.env` mode and required keys, passwords versus exposure, port free, memory, images, stale lock; exits 1 on a problem), `config <workshop> [KEY]` (every setting with the file it came from, secrets masked), `logs <service>`. C3: the whole start in Python with the same hashes (58 build contexts identical, nothing rebuilt), a Rich live view fed by `podman events` with `logs -f` followers for busy containers, one-shot jobs (`restart: "no"`, no health check) counted ready only once they exit 0, failed starts explained with each problem container's logs and health checks, `.build-state/current.json` and `history.jsonl` in place of three state files, SIGTERM cleaned up like Ctrl-C, completion for bash and zsh generated from the CLI (commands, workshops, flags, `--env` names, running services). C4: docker-compose v5.5.1 through the podman socket works but is no faster; kept podman-compose (`DOJO_COMPOSE` stays as an opt-in). Tested: 12 unit tests; live git-fundamentals and dns-as-code (`--test 3`, 16 services) starts, single and full restarts, stop and the instant second stop, the switch guard, `build-all --dry-run`, an interrupted start (exit 130, no lock or follower left), the screen checked through a terminal emulator at 130 and 70 columns. Not tested: Docker, macOS, the CA bundle download.
+
+**Achievements leftovers (2026-10-01, unit tests only, nothing live).** Chained shell lines: each command gets its own exit code where the line's code proves it (`git commit; git push` rejected now earns `f-rejected`, not `f-nothing`), a command whose code is unknown still counts as a success when the line succeeded, and shlex's merged punctuation (`(a); b`) is split into operators. Sensei's stuck-radar activity is saved in `state.json` (at most every 30 s), so a restart of the achievements service keeps it. cert-autorenewal `c2` is checkable: new `served_renews` verb and the catalog's `"watch": true`, so the first `dojo-check c2` starts a 20-minute watch that the state sweep re-checks until it passes (2 renewals, never lapsed). Stale plan references outside `engine/` fixed (two were broken). Achievements 290 tests, catalog tests pass.
+
+**`restart SERVICE` recreates dependents; restart keeps achievements (2026-10-01, locally).** Under podman, `./run.sh restart step-ca` rebuilt the image but silently kept the old container, because `depends_on` is a hard podman link and podman won't remove a container others depend on. `restart SERVICE` now also recreates every service linked to it, from podman's own record (`Runtime.dependents`, transitive; Docker keeps no such link), and says which. A restart also repeats whether the running start had the achievements module (read from the recorded Compose files) unless the shell sets `ACHIEVEMENTS_ENABLED`, instead of being refused as a different stack; when the same workshop is refused for different Compose files, the message names the files added and dropped. Live: `restart step-ca` on cert-autorenewal recreated step-ca, `site-inspector` and `web-terminal`, left achievements alone, and needed no variable in the shell. Engine CLI tests 14 pass.
+
+**cert-autorenewal: Site Inspector, HTTPS-only Lab 2, mTLS challenge, harder capstone (2026-10-01, locally, live stack + unit tests).** The HTTP-only **Demo Site** card is replaced by the **Site Inspector** (`/inspect`, identity gate, new workshop service `site-inspector`, stdlib Python): a student types one of their own names and it visits it from inside the lab like a browser, starting at `http://`, following redirects, verifying each certificate against the lab CA (names, issuer, serial, time left, or why a browser would stop), remembering HSTS per viewer (so the second visit skips `http://`), grading the security headers from the slides' bonus wall, and showing the page with CSP `sandbox` (no scripts). It only ever connects to `demo-app` on 80/443 with GET; the facilitator's tab can visit any name. Lab 2 gains step 6: a new `vhost-https-only.conf.template` redirects port 80 (except `/.well-known/acme-challenge/`, which renewal needs) and sends `Strict-Transport-Security: max-age=300`, checked with `curl -I` and in the inspector; new milestone `c2-https-only`. New optional challenge **c3 Members Only** (end of Lab 3, repo `cert-members`): mutual TLS on `members.<user>`; new certs verb `served_mtls` presents a client certificate that step-ca issues itself at start into the `achievements_client_cert` volume (shared with the achievements module only). The capstone also wants `X-Content-Type-Options: nosniff` and a CSP on `api` (new verb `served_header`). "TLS 1.3 only" was dropped: nginx takes `ssl_protocols` from the listener's default server, so a student's vhost can't set it on the shared port 443 (tested; the inspector says so). **Fixed:** step-ca's name policy `*.certs.dojo.test` matches one label only, so `shop.`/`www.`/`api.`/`members.<user>` and the capstone wildcard were refused (`rejectedIdentifier`); the CA now allows `*.<account>.certs.dojo.test` per account plus `allowWildcardNames`. certbot's random 0-8 min delay in cron is called out in the capstone's `renew.cron`. Live, as student01: Lab 2 steps 1-6; the inspector in Chromium as student and facilitator (redirect, HSTS upgrade, 403 for another student's name, expired-certificate stop, phone width); c3 issued, solved and passed by `dojo-check`; `history_absent` on real Forgejo found a key on another branch and one deleted on `main`; `shop.student01` issued; the wildcard order accepted. Not live: solving c1, c2 or the capstone end to end. Achievements 296 tests, catalog 59, inspector 15 pass.
+
+**cert-autorenewal challenges get repos (2026-10-01, unit tests only, nothing live).** Like every other workshop's, each cert challenge now starts a seeded repo: `cert-shop` (c1: brief and a port-80 vhost for `shop`), `cert-fuse` (c2: Lab 4's renewal script with the student's name in it, and a comments-only `renew.cron`) and `cert-heist` (capstone: `www`/`api` vhosts, a certbot `--manual-auth-hook` skeleton for dns-01 through `dns-api`, `renew.cron`). The served certificate is still what passes; each challenge now also wants its config pushed to `main` (a `listen 443 ssl` block on an uncommented line, an active cron line) and **no private key anywhere in the repo's history**: new Forgejo verb `history_absent` reads every distinct file of every commit on every branch, so a key deleted in a later commit still fails (`dojo-challenge reset` rebuilds the repo). c2's repo checks run only once its 20-minute watch passes, so watching makes no Forgejo calls (tested). The fake Forgejo learned branches, trees and blobs. The lab sections use the repo wording. The capstone now also teaches HTTPS-only: plain HTTP must redirect permanently (301/308) to the same name over `https://`, and HTTPS must send HSTS with `max-age` of at least a day (new certs verbs `served_redirect` and `served_hsts`, tested against real local HTTP and TLS servers too); its starter vhosts keep the HTTPS block commented out with `TODO` certificate lines, so copying them in can't fail `nginx -t` and freeze the class's reloads, and the repo check wants the lines filled in. Achievements 294 tests, catalog 59, Sensei 62 pass.
+
+**Challenges in every workshop's labs (2026-10-01, unit tests only, nothing live).** The checks and seeds were built in phase 9a, but students had no way to find them outside git-fundamentals. Each workshop's labs now end the right lab with a short challenge or capstone section (teaser, start and check commands, no answers) and the lab-reader box: dns-as-code labs 2/5/6, cert-autorenewal 3/4/5, tofu-basics 5/10/10, vault-fundamentals 4/12/13; git-fundamentals' bare markers got the same sections. Each lab README has a "Challenges (bonus)" table. Fixes found on the way: dns-as-code's three challenges shared `{user}/challenge-zone`, so starting c2 after c1 handed back c1's zone (now `challenge-typo`, `challenge-cutover`, `challenge-badpush`, with fuller briefs); cert-autorenewal's challenges have no repo and `dojo-challenge start` refused them (501), so a student never saw the goal (now start answers with the goal, and Reset is refused and hidden in the box); the cert DNS seed now adds `*.<student>.certs.dojo.test`, which c1 and the capstone need and nothing created; the lab box's reset hint named `~/lab/challenge-repo` for every workshop (now the real repo). New `test_all_seeds.py` starts every challenge in all five workshops for two students against the fake Forgejo (own repo, one per plan, no unfilled placeholder in files, messages or goals). Sensei's search was checked to index none of the new sections. Achievements 291 tests, catalog 59, Sensei 62 pass.
+
+**Decisions (2026-10-01).** Student reset Q1 and Q3-Q7 answered (in the roadmap's reset section). `dojo-introduction` slimmed to Forgejo with CI runners, DNS as code and Dojo Cloud: no vault, no certificate lab, a lighter terminal image (dnscontrol, tofu); the workshop library still links every pack's slides (not run live yet). vault-fundamentals capstone (A24): `app-host` gives each student a second slot, `{user}-capstone`, locked until their `{user}/capstone` repo exists (the student's **My App** page looks, at most every 10 s) or a deploy from it arrives; that repo deploys there, so the lab app keeps running. app-host 24 tests pass; not run live.
+
+**`run.sh` start-up display, guards and speed-ups (2026-10-01, locally).** The start now shows a progress bar over a services table with an activity pane beside it (below it under 77 columns): state changes plus each busy container's latest log line (bootstrap creating teams, `forgejo-token: 3 created`, ...). One labelled `ps` a second feeds the display and the readiness wait (it was about three podman calls a second). `run.sh` refuses to start a different workshop over a running one (it left the old one's services and volumes behind) and holds a per-user lock (`/tmp/gitops-dojo-<uid>.lock`, stale ones reclaimed) so two builds or starts can't collide. `hash_dir` hashes in one `sha256sum` (about 0.5 s to 0.01 s) with byte-identical hashes, so nothing rebuilt. `compose config --services` runs once. One EXIT trap now cleans up temp files, the cursor and the lock on Ctrl-C, and a CA bundle path with spaces works. `stop` returns at once when there are no containers or volumes. New `./run.sh restart` re-runs the last start with its flags and `--force-recreate` (volumes kept), `restart <service>` replaces one service with `--no-deps`, and `restart --clean` is `stop` plus a fresh start; tab completion offers the running services. Tested: all three restart forms (new container IDs, a file in a student home survives a restart and is gone after `--clean`, the gateway resolves a replaced `web-terminal`), the error cases, and the bash completion. Also tested: a terminal start at 120 and 70 columns, plain-log mode, an interrupted start (exit 130, nothing left behind), the switch guard, the lock and a stale lock. Not tested: docker (only podman here), the CA bundle path.
+
+**Phase 9 live checks: git-fundamentals and dns-as-code (2026-10-01, locally).** git-fundamentals `--test` on the rebuilt images: 22 of 29 items fired, the same as 2026-09-30 (the other seven are never reached by the bots), no cheats or strikes, state sweep thread started, 23 verifier verbs validated in the container. dns-as-code `--test 3`: 28 of 29 from the bots, and `f-dot2` earned by hand as `student01` in the real zsh hook, which is also the first real check of the tmux pane readback. Bugs found and fixed: the bot steps used `dnsctl record add --no-proxy` (not a flag) and skipped Labs 2 and 4-5; `d5-gone` waited for a `rollback-*` branch but `dnsctl rollback` opens `dns/revert-*`; the bots' achievements hook never sent the pane output (so `f-nxdomain` could not fire for them; bash `${x: -4000}` is empty on short text); `f-dot2` could never fire as written (dnscontrol 5.0.4 only says "must end with a (.)" for a missing dot; the zone is doubled when a record name already holds the zone, so Lab 1 step 7 and the catalog now use that). New in the same pass: **Sensei approve mode** for dns-as-code (`SENSEI_MODE=approve`, `dnsrules.py`: one record named `<author>-...`, never merges; demo bots at once, a student once they have reviewed another PR or after `SENSEI_PATIENCE_SECONDS`, `conflicts` status for a branch that needs `main` merged in, criss-cross-safe), the `sensei` terminal command (`help|status|review|approve [--force]`, `modules/sensei/terminal/`), the bots now run Labs 1-6 end to end (Sensei approves, they merge, `dnsctl submit/merge/validate/rollback`), and Lab 3 now tells students to branch from a fresh `main` and what a `- DELETE` in a preview means. Unit tests: sensei 42, achievements 281. Not yet live: the `sensei` command typed by a student, and the final bot steps once more.
+
+**Achievements phases 0-2 and 5-8 (2026-09-29 to 2026-10-01, locally).** Design A0-A30 and five catalogs reviewed,
+converted to modular JSON (`workshops/<name>/achievements/`, `ACHIEVEMENTS.md` generated by `render_md.py`, validator
+run at start). Engine: `widgets` and `scripts` manifest keys, `/workspace`, the `ACHIEVEMENTS_ENABLED` toggle. Score
+service (points, hints, bonuses, cheats, Moments, anonymous names, leaderboard, facilitator tab with award, reset and
+reload), toasts on portal, workspace, slides and lab reader, terminal colour echo, `dojo-check` with Forgejo-token
+identity and client hash. Phase 5: poking-a-neighbour strikes from shell, Forgejo and 403 probes (1/3/8 tiers), run live
+with `student01` poking `student02` (no strikes on the bots). Phase 6: `/achievements/certificate` (two printed pages),
+canvas badge PNG, name dialog, facilitator Mark complete; certificate checked in Playwright. Phase 7: `modules/sensei`
+auto-merges good roster PRs and flags bad ones (`needs-review`); 25 bot PRs merged live; A26: Sensei only opens the
+dns-as-code review PR. Phase 8: VS Code extension and Forgejo `custom/header.tmpl` toasts, both shown live. Every lab is
+now mandatory in every workshop (tofu-basics Track A and B both count). Not looked at: a red negative score or toast,
+the badge download and capstone tier, a typed certificate name, a real student's stale-branch PR.
+
+**OpenBao network holder and start-up (2026-09-30, locally).** `openbao` is now a tiny holder that owns the network namespace and `openbao-server` is the real server, so restarting the server no longer strands the SSO shim (it kept `network_mode: service:openbao`). `performance_multiplier = 1` cuts a first-start election from about 8 s to 1.7 s, and `run.sh` drops `/mnt/*` from `PATH` for podman on WSL2 (each call 1.2 s down to 0.07 s; compose up about 1:30). On the holder topology, unit, tenancy, cli_login, setup_tokens, labs 2 and 5-13, audit and browser all pass, pool passed on the earlier stack, and a server-only restart left the shim healthy. Not run: bots, load, a holder restart.
+
+**vault-fundamentals setup and lab 12 (2026-09-30, locally).** `openbao-setup` hooks run per student in parallel (`par_each`, `enable_once`): a fresh start reaches `ready` in about 63 s and a restart in about 15 s (was about 24 s). The `lab_12` flake was real: `bao lease revoke` only queues the revoke, so the login still worked for a moment; the lab now says `-sync`. Full e2e (no pool, bots on) passes, and the three browser scripts log in through the class form.
+
+**Achievements phase 3 and 4 for git-fundamentals (2026-09-30, locally).** Shell hook and Forgejo system webhook feed a
+matcher; all 29 items have a `match`, and the hand-checked funny items fire. Challenges: `dojo-check ID`,
+`dojo-challenge start/reset`, verifier plug-ins and a per-student seed in `{user}/challenge-repo`; c1, c2 and the capstone
+run live with two students (isolation, hints, first blood, class-clear, reset). Lab-page Start/Reset buttons from a
+`<!-- dojo-challenge: ID -->` marker. Catalog editor (`modules/achievements/edit.sh`, `enabled` field). Landing page and
+workspace reordered, with a top bar (Home, Sign out).
+
+**Host setup and podman-first.** `setup.sh` (Linux, WSL, macOS) and `setup.ps1` (Windows, bootstraps WSL2 Ubuntu
+then runs `setup.sh`) check what the host lacks, show the install commands and run them only on a yes. `run.sh`,
+`teardown.sh` and `capacity-calc.sh` now prefer podman (rootless, safer) over docker when both are installed;
+docker remains the fallback. Checked locally on podman (`setup.sh --check`, syntax); macOS and the docker path untested.
+
+## PR #4: front door and threat-model remediation (merged 2026-09-29)
+
+`feat/front-door` carried the remediation work below it; both branches are deleted.
+
+**Front door.** The browser Basic Auth popup is replaced by a styled `/login` page (logo, dark/light, workshop name and
+description, show-password, error shake). Sign-in sets a signed 12-hour `dojo_login` cookie checked by Caddy through
+the allocator's `/session-check`; same class and facilitator accounts, same `X-Auth-User` trust model, `/admin` still
+facilitator-only, wrong guesses limited to 30 a minute per address. The `caddy-ratelimit` plugin is gone. New
+`WORKSHOP_DESCRIPTION` in each `workshop.env`. Tested locally (git-fundamentals): login, redirect with `#slide`
+fragment, student and facilitator flows, `/admin` 403 for students, IDE/terminal/Forgejo/slides, rate limit, browser
+screenshots dark/light/mobile. Not tested: `--env home` behind the proxy, other workshops' extension routes.
+
+### Remediation (merged with PR #4)
+
+**Threat-model remediation** (report: `threat-model-20260926-154208/`; plan: `docs/archive/REMEDIATION-PLAN.md`).
+15 of 19 findings fixed, 2 partial, 2 accepted; no Tier 1 or Critical/Important finding open. Rating Elevated to
+Moderate by a validation pass on 2026-09-29 (not a re-scored model). All built and live-tested locally.
+
+- **Home run and start-up (2026-09-29).** `./run.sh list` prints the learning path (`WORKSHOP_ORDER=` in each
+  `workshop.env`: 0 dojo-introduction, 1 git-fundamentals, 2 dns-as-code, 3 cert-autorenewal, 4 tofu-basics,
+  5 vault-fundamentals). `ALLOW_DEFAULT_PASSWORDS=1` in an env file does what `--allow-default-passwords` does.
+  Behind the home-lab proxy, `GATEWAY_TRUSTED_PROXIES` must include the gateway's own ingress subnet
+  (`172.30.9.0/24`), because podman NATs the source: checked with two devices, each logged under its own
+  address. The start table now waits until every container is ready (`STARTUP_WAIT`, default 300 s); start and stop
+  tables checked under a pty.
+- **Edge (P1, 2026-09-28).** Default passwords refused off loopback and wrong logins rate-limited (FIND-01);
+  `/slides` behind the class login (FIND-02); HTTP warning and HSTS (FIND-08); one JSON audit line per identity and
+  control-plane decision (FIND-13); external images pinned by digest (FIND-18).
+- **Student identity and isolation (P2, 2026-09-28).** Per-student Forgejo passwords and git tokens, locked Linux
+  passwords (FIND-03, the Critical one); IDE and terminal ports only through the gateway (FIND-04); each student's
+  IDE and terminal in a PID namespace of their own (FIND-10). `provision-account.sh` extracted (student reset R1.1).
+- **CI and shared-service trust (P3, 2026-09-28/29).** New `dns-gate` module: CI writes DNS only with a Forgejo ID
+  token from the class repo's `main` (FIND-05); per-account DNS keys (FIND-11, partial); locked-down step-ca
+  (FIND-09); threaded allocator with locks, assignment rate limit and Release unused (FIND-07).
+- **Container and UI hardening (P4, 2026-09-29).** Capabilities dropped and `no-new-privileges` on runner-pool and
+  app-host (FIND-06); strict CSP on allocator pages (FIND-14); per-student process limit, OpenBao per-namespace rate
+  quota, app-db connection limits, dns-gate and CloudAPI rate limits (FIND-12). All limits are env knobs, 0 = off.
+- **Defence in depth (P5, 2026-09-29).** Dojo Cloud docker socket `0660 root:cloud` (FIND-15, accepted risk);
+  per-upstream gateway tokens and owner-only `engine/.env`, runner controller on a scoped Forgejo token (FIND-16); no
+  live OpenBao token on the setup volume (FIND-17, partial); plaintext to OpenBao/Postgres documented (FIND-19).
+- **Validation (P6, 2026-09-29).** Method: a commit per finding, an `rg` check of each fix and the P3/P4 live
+  passes. Write-up: `threat-model-20260926-154208/4-verification.md`.
+
+**Other changes on the branch**
+
+- `./run.sh` shows one in-place status table while the stack starts, and `stop` shows one while it comes down
+  (terminal only; plain lines when piped or with `NO_COLOR`). Drawing tested against live containers only.
+- Fixed a hang on `./run.sh vault-fundamentals`: the runner controller waited for the one-shot `runner-token-init`
+  to be running; it now uses `service_completed_successfully` (8387736). Next fresh start came up 16 of 16 healthy.
+- The landing page shows the student's own Forgejo password again (efda7c4).
+- `dojo-introduction` workshop: the whole platform running at once, with a run-of-show, demo bots and live DNS
+  pushes (39900b8, 6bf0208).
+- `cert-autorenewal`: lab 4's every-minute cron no longer collides with lab 5 on certbot's lock.
+- vault-fundamentals: one test script per lab (3f9a0f0); lab 10's delivery flow drawn as Mermaid (7c44a3b); labs
+  keep secrets off the command line (9074e7f).
+- `setup` reuses values from an old `.env` and offers 8080/8443 (9f36484, 7bac4a8).
+
+## PR #3: `vault-fundamentals` (merged 2026-09-28)
+
+The OpenBao workshop: labs 0-13 over 2-3 hours, a talk slide comparing OpenBao with Azure Key Vault, and the
+facilitator's Vault, Audit, Runners and Apps tabs. Design and decisions: `docs/archive/VAULT-FUNDAMENTALS-PLAN.md`.
+
+- `openbao` module (OpenBao 2.7.0): initialised and unsealed at start, root revoked, re-unseals after a restart,
+  single sign-on through Forgejo, per-student namespaces with one shared templated policy, `openbao-audit`.
+- `runner-pool` module: single-use autoscaled Forgejo runners, a controller, and the `/admin` Runners panel.
+- Workshop services `app-host` (per-student deploy slots) and `app-db`; labs 9-11 deploy to them.
+- Labs: secrets in code and git (4-6), pipelines with OIDC (7-8), deployments (9-11), the `pass` lab (2) and the
+  deliverer lab (10). Slides, `labs.md` and the lab index within 16:9.
+- Tests under `workshops/vault-fundamentals/tests/` and `modules/*/tests/`; the long live pass (T5.6) ran locally
+  with `--test 10` and `e2e.sh --load 15`, all pass (7684f07). Sizing: about 2 GiB and under one core for 10 bots.
+- `engine/`: `run.sh --env` fix for workshops with modules (a24d0e7); `/forgejo-login?next=` (ca89792).
+- HCL highlighting in VS Code.
+
+## PR #2: workshop extensions and modules (merged 2026-09-24)
+
+Design and decisions M1-M11: `docs/archive/MODULES-PLAN.md`.
+
+- **Extensions.** A workshop or module adds cards, `/admin` tabs, routes and status checks through
+  `extensions.json`; gates are fixed engine templates (`shared`, `identity`, `facilitator`) and the renderer
+  rejects anything unsafe. `render_extensions.py` with tests. A card without an `/admin` tab prints a warning.
+- **Modules.** Reusable pieces under `modules/<name>/` listed in `workshop.env` as `MODULES="a b"`: compose
+  fragment, terminal Dockerfile, manifest. First modules: `forgejo-runner`, `dojo-cloud`, `dns-ui`.
+- **Terminal image chain** `:base` to each module to the workshop, with `/etc/dojo/start.d/NN-name.sh` start-up hooks.
+- Workshop-specific behaviour now lives in workshop and module folders, not in `engine/` (the base engine stays workshop-agnostic).
+
+## PR #1: `tofu-basics` (merged 2026-09-23)
+
+OpenTofu on "Dojo Cloud", an Azure-inspired control plane (no Microsoft names or marks). Design and decisions:
+`docs/archive/TOFU-BASICS-PLAN.md`.
+
+- Track A (offline sandbox, labs 0-3) and Track B (labs 4-10 against Dojo Cloud with the real `azurerm` provider).
+- Dojo Cloud control plane (`modules/dojo-cloud`): ARM facade, policy catalogue, quota, activity log, Docker-in-Docker
+  host; Dojo Portal SPA; facilitator class progress board.
+- Lock narrowing so no Docker call is made under the state lock (T9.7); fuzz tests and a security suite (42 checks).
+- Slides, facilitator guide and capacity notes; e2e 281 checks, 0 failed (2026-09-21); load test at 5/10/15
+  students all pass (apply p95 76 s at 15). 15 students is this machine's ceiling and stands as the number.
+- Base-engine follow-ups found on the way: shared `web-terminal-healthcheck` (230a9ba), demo bots follow
+  `$FORGEJO_REPO` (231cd5d), step-ca healthcheck (a5953ec), code-server memory cut (f977209), Forgejo deletes a PR's
+  branch on merge, `run.sh` mode `100755`, and a set of low findings from a sub-agent review.
+
+## Initial mirror (2026-09-17)
+
+The platform and the first three workshops: the engine (Caddy `gateway`, `allocator`, `web-terminal`, Forgejo, Marp
+slides, `run.sh`), `git-fundamentals`, `dns-as-code` and `cert-autorenewal`.
