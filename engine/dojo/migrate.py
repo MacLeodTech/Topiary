@@ -8,7 +8,7 @@ starts in a checkout that has an engine/.env and no root .env.
 from __future__ import annotations
 
 import os
-from typing import Dict, List
+from typing import Dict, List, Optional
 
 from . import config, paths
 from .envfiles import SECRET_RE, parse_literal
@@ -53,7 +53,8 @@ def migrate() -> List[str]:
                 config.set_value(key, value, profile=profile)
 
     move(parse_literal(paths.LEGACY_ENV), None)
-    sources = {None: paths.LEGACY_ENV, **variants()}
+    sources: Dict[Optional[str], paths.Path] = {None: paths.LEGACY_ENV}
+    sources.update(variants())
     for name, path in variants().items():
         move(parse_literal(path), name)
 

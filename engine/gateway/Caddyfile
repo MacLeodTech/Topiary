@@ -151,6 +151,19 @@
 	}
 }
 
+# Access-code matchers (--pass CODE), imported inside the @needgate, @gateprobe_* and
+# @gatebad matchers below. GATEWAY_GATE_TOKEN is empty when no code is set, so
+# nothing matches then.
+(gate_needs_code) {
+	not expression `"{$GATEWAY_GATE_TOKEN}" == ""`
+	not header_regexp gate Cookie (^|;\s*)dojo_gate={$GATEWAY_GATE_TOKEN}(;|$)
+}
+# ...and a dojo_gate cookie is present but is not the code: a guess.
+(gate_wrong_code) {
+	import gate_needs_code
+	header_regexp seen Cookie (^|;\s*)dojo_gate=.
+}
+
 {$GATEWAY_LISTEN} {
 	# Access log on stdout, JSON (remediation T1.4, FIND-13). user_id is the
 	# account that signed in. Caddy redacts the Authorization and
@@ -174,8 +187,7 @@
 	# code page (static/_gate/); gate.js sets the cookie. Anything to do with
 	# the code is checked by Caddy itself; only wrong guesses reach the allocator.
 	@needgate {
-		not expression `"{$GATEWAY_GATE_TOKEN}" == ""`
-		not header_regexp gate Cookie (^|;\s*)dojo_gate={$GATEWAY_GATE_TOKEN}(;|$)
+		import gate_needs_code
 	}
 	# A wrong cookie (one that is present but not the code) is a guess: the
 	# allocator counts it, 10 a minute per address (accounts.py GATE_GUARD),
@@ -183,9 +195,7 @@
 	# path shows the code page again (an old cookie after the code changed).
 	@gateprobe_bad {
 		path /_gate/probe
-		not expression `"{$GATEWAY_GATE_TOKEN}" == ""`
-		header_regexp seen Cookie (^|;\s*)dojo_gate=.
-		not header_regexp gate Cookie (^|;\s*)dojo_gate={$GATEWAY_GATE_TOKEN}(;|$)
+		import gate_wrong_code
 	}
 	handle @gateprobe_bad {
 		rewrite * /gate-fail
@@ -197,17 +207,14 @@
 	}
 	@gateprobe_no {
 		path /_gate/probe
-		not expression `"{$GATEWAY_GATE_TOKEN}" == ""`
-		not header_regexp gate Cookie (^|;\s*)dojo_gate={$GATEWAY_GATE_TOKEN}(;|$)
+		import gate_needs_code
 	}
 	handle @gateprobe_no {
 		header Cache-Control "no-store"
 		respond 401
 	}
 	@gatebad {
-		not expression `"{$GATEWAY_GATE_TOKEN}" == ""`
-		header_regexp seen Cookie (^|;\s*)dojo_gate=.
-		not header_regexp gate Cookie (^|;\s*)dojo_gate={$GATEWAY_GATE_TOKEN}(;|$)
+		import gate_wrong_code
 		not path /_gate/*
 	}
 	handle @gatebad {

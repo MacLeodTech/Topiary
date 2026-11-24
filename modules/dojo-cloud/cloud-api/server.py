@@ -550,23 +550,6 @@ class Handler(BaseHTTPRequestHandler):
             return self._send(500, {"ok": False, "detail": str(exc)[:200]})
         return self._send(200, {"ok": True, "detail": detail})
 
-    def student_reset(self, path):
-        """POST /_dojo/reset/<user>?phase=teardown|provision from the engine's student reset, with the
-        service's own X-Dojo-Reset-Token (students can reach this port, so nothing works without it)."""
-        want = ENV.get("RESET_TOKEN", "")
-        given = self.headers.get("X-Dojo-Reset-Token", "")
-        if self.command != "POST" or not want or not hmac.compare_digest(given.encode(), want.encode()):
-            return self._send(403, {"error": "reset token required"})
-        user = unquote(path[len("/_dojo/reset/"):])
-        phase = (parse_qs(urlparse(self.path).query).get("phase") or [""])[0]
-        if not re.fullmatch(r"[a-z_][a-z0-9_-]{0,31}", user) or phase not in ("teardown", "provision"):
-            return self._send(404, {"error": "not found"})
-        try:
-            detail = APP.portal.student_reset(user, phase)
-        except (RuntimeError, docker_api.DockerError) as exc:
-            return self._send(500, {"ok": False, "detail": str(exc)[:200]})
-        return self._send(200, {"ok": True, "detail": detail})
-
     # ---- discovery + auth -------------------------------------------------
     def metadata(self):
         return {
@@ -836,7 +819,7 @@ class Handler(BaseHTTPRequestHandler):
                 return busy_reply()
         if method == "PATCH":  # tags-only update
             return self.patch_container_group(sub, user, rg, cg, body)
-        st, key = APP.state, App.cg_key(sub, rg, cg)
+        key = App.cg_key(sub, rg, cg)
         rid = f"/subscriptions/{sub}/resourceGroups/{rg}/providers/{ARM_TYPE_CG}/{cg}"
         if method == "GET":
             return self.get_container_group(sub, user, rg, cg, rid, key)

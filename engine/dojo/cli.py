@@ -11,7 +11,7 @@ import json
 import os
 import subprocess
 import sys
-from typing import List, Optional, Tuple
+from typing import Optional, Tuple
 
 import click
 from click.shell_completion import CompletionItem

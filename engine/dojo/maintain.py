@@ -33,7 +33,8 @@ def prune(rt: Runtime, dry_run: bool) -> Dict[str, Any]:
     Volumes and containers are never touched. Docker has no per-image history: nothing is done."""
     if rt.cli != "podman":
         return {"supported": False, "removed": [], "skipped": [], "bytes": 0}
-    removed, skipped = [], []
+    removed: list = []
+    skipped: list = []
     for img in dangling_dojo_images(rt):
         if dry_run:
             removed.append(img)

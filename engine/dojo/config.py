@@ -24,7 +24,7 @@ from . import paths
 try:                      # 3.11+; older Pythons use the pinned wheel boot.py unpacks
     import tomllib
 except ModuleNotFoundError:  # pragma: no cover
-    import tomli as tomllib
+    import tomli as tomllib  # type: ignore[no-redef]
 
 KEY_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 
@@ -34,6 +34,7 @@ SCHEMA: Dict[Tuple[str, str], Tuple[str, str]] = {
     ("general", "student_prefix"): ("STUDENT_PREFIX", "str"),
     ("general", "class_username"): ("TTYD_USERNAME", "str"),
     ("general", "facilitator_username"): ("FACILITATOR_USERNAME", "str"),
+    ("general", "facilitator_session_hours"): ("FACILITATOR_SESSION_HOURS", "str"),
     ("general", "forgejo_admin_user"): ("FORGEJO_ADMIN_USER", "str"),
     ("general", "forgejo_admin_email"): ("FORGEJO_ADMIN_EMAIL", "str"),
     ("general", "achievements"): ("ACHIEVEMENTS_ENABLED", "bool"),

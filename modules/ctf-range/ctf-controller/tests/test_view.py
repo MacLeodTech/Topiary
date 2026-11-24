@@ -104,7 +104,7 @@ class PortTest(unittest.TestCase):
             self.assertIsNone(view.resolve(cfg(), "student01", False, bad)[0], bad)
 
 
-class IndexTest(unittest.TestCase):
+class IndexCspTest(unittest.TestCase):
     def test_index_csp_allows_its_own_form_only(self):
         self.assertIn("form-action 'self'", view.INDEX_CSP["Content-Security-Policy"])
         self.assertNotIn("form-action 'none'", view.INDEX_CSP["Content-Security-Policy"])

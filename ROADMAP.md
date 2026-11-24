@@ -23,10 +23,9 @@ CLI and the base compose file. None of them has been reproduced on a stack yet.
 **Next, in order:**
 1. **0.1 [you]:** the browser check of the watch tile and `pbcopy` (everything else in Phase 0 passed).
 2. **2.6 [stack, ask first]:** the class-sized run (about 20 bots, 2.1's script) that closes Phase 2. It also settles two open measurements: E6's 502-after-death trade-off (kill a code-server and time the recovery; the first try with `pkill` showed no 502, so check the kill landed) and a real page's assets for the `/ide` call count.
-3. **3.2 (E8) [engine]:** a revocable, shorter facilitator session. No decision needed; start here while 3.1 waits.
-4. **3.1 (E7) [you: decision]:** pick the admin hostnames for `--env home`/`--env prod` and whether local runs get a second port; then build it.
-5. **2.4/2.5:** netlab start and stop time (need a big netlab stack; slow on 13 GB).
-6. Then 3.3-3.6, Phase 4 refactors, and Phase 5/6 as time allows.
+3. **3.1 (E7) [you: decision]:** pick the admin hostnames for `--env home`/`--env prod` and whether local runs get a second port; then build it.
+4. **2.4/2.5:** netlab start and stop time (need a big netlab stack; slow on 13 GB).
+5. Then 3.3-3.6, Phase 4 refactors, and Phase 5/6 as time allows.
 
 ## The flow at a glance
 
@@ -110,7 +109,6 @@ Finish before the next `--env prod` class. Settle 3.1's decision first: it decid
 | # | Work | Effort | Description |
 |---|---|---|---|
 | 3.1 | **E7** Facilitator tools on their own origin **[engine] [you: decision]** | M | [Brief](#e7-facilitator-on-its-own-origin-31). `/admin`, Forgejo, every extension route and the facilitator's own `/ide`/`/term` all share one origin. The `X-Requested-With` check stops forged requests from other sites but not a script running on this origin, so one XSS in Forgejo, a module UI or the CTF view (`'unsafe-inline'`, 1.5) can act as the facilitator: read every Forgejo password, take a Forgejo site-admin session through `/forgejo-login`, reset or release students, or open the facilitator's terminal. Today the only defence is each module's `textContent` rule. Fix: serve `/admin` and the facilitator's tools from a second origin (`admin.<host>` behind the home-lab Caddy; a second port locally), with a cookie that is never set on the student origin. Decision: the hostname scheme for `--env home`/`--env prod`, and whether local runs get it too |
-| 3.2 | **E8** Revocable, shorter facilitator session **[engine]** | S | [Brief](#e8-revocable-shorter-facilitator-session-32). The `dojo_login` cookie is stateless and valid for 12 h (`engine/allocator/accounts.py`), so `/logout` only clears the browser's copy. Add a server-side session epoch (bump it on logout, or with a "sign everyone out" button) and a shorter facilitator lifetime (4 h?) |
 | 3.3 | Per-pod netlab management network (2026-11-08 item 2) | M | S1's full fix: a pod with root and NET_ADMIN can still ARP-spoof on the flat `netlab_mgmt` network (host keys now stop the impersonation, not the reach) |
 | 3.4 | P15 `doctor --live`: pre-class readiness check | M | Design in [`docs/reviews/2026-10-18.md`](docs/reviews/2026-10-18.md) (P13/P15); not built |
 | 3.5 | P10 failure and recovery; P12 fresh-machine bootstrap | M each | Kill services mid-class and interrupt start/stop/restart: do students recover? `setup.sh`/`setup.ps1` on a clean machine. Briefs in the 2026-10-18 review |
@@ -123,11 +121,8 @@ No behaviour change. Every E item in phases 1-4 links to its [execution brief](#
 | # | Work | Effort | Description |
 |---|---|---|---|
 | 4.1 | **E10** Split `workspace-control.py` (1124 lines) **[engine]** | M | [Brief](#e10-split-workspace-controlpy-41). The one file worth splitting (also 2026-10-18 review §3.8). A package with `ports` (listeners, squat sweep), `namespaces` (holder, userns), `sessions` (tmux/zellij, watch), `accounts` (reset, hooks), `reaper` and `http` |
-| 4.2 | **E11** Route table in the allocator **[engine]** | S-M | [Brief](#e11-route-table-in-the-allocator-42). Replace the `do_GET` (154 lines) and `do_POST` if-chains in `engine/allocator/handler.py` with a table of `(method, path) → handler, flags`. Facilitator-only and `X-Requested-With` become per-route flags; the same 403 block appears three times in `do_POST` today |
-| 4.3 | Caddyfile snippets **[engine]** | S | `@ide` and `@term` are about 30 identical lines each: one snippet with the tool as its argument. The four access-code matchers repeat the same two regexes |
 | 4.4 | Comments: invariants, not history **[engine]** | S | `docker-compose.yml` is 47% comments, the Caddyfile 36%, `entrypoint.sh` 33%, much of it history ("remediation T3.4", "used to be"). Some are already wrong: `workspace-control.py` says it is threaded "unlike the allocator" and puts tmux sockets in `/tmp/tmux-<uid>`, and `handler.py` says "keepalive 2s". Keep the rules ("Caddy's idle limit must stay under the allocator's") and leave the history to git and RELEASES |
 | 4.5 | **E12** Move the git-fundamentals bot steps out of the engine **[engine]** | S-M | [Brief](#e12-move-the-git-fundamentals-bot-steps-out-of-the-engine-45). `engine/web-terminal/bot-runner.sh` (769 lines) carries git-fundamentals' `step_lab1`-`step_lab5` as its default. Packs can already supply their own steps, so move them to `workshops/git-fundamentals/` and keep only the framework (`run_cmd`, `think`, state, portal login) in the engine |
-| 4.6 | CI: Python lint, types and a Caddy invariant test | S | [Brief](#46-ci-additions-supports-e1). Add ruff and a type check to `.github/workflows/ci.yml`, plus a test that reads the Caddyfile and the allocator's timeout and fails if they break 1.1's rule |
 | 4.7 | Declarative pack settings | L | `workshop.env`/`module.env` are run with `sh` (`engine/dojo/envfiles.py:92`). TOML, like `dojo.toml`, would make validation and `--dry-run` simpler (2026-10-18 review §3.4). Long term |
 | 4.8 | Docs (2026-11-08 item 8, plus trimming) | S-M | The README's gateway/network matrix and CTF rows for the new packs; local CLAUDE.md pack list. Trim the overlap between `engine/README.md` (1142 lines) and `docs/architecture.md`/`docs/security.md`; shorten RELEASES (912 lines) by moving old detail to `docs/archive/` |
 
@@ -161,16 +156,6 @@ need **[engine]** approval first. Shared rules: work on a feature branch; run bo
   - `--env home` with the real hostnames **[you]**.
 - **Done when:** the P8 pass works on the admin origin and the cross-origin checks fail as they should; `docs/security.md` is updated.
 
-#### E8: revocable, shorter facilitator session (3.2)
-
-- **Where:** `engine/allocator/accounts.py` (`SESSION_SECONDS` at line 24, `_SESSION_KEY` at line 25, `make_session`, `read_session`); `handler.py` `/logout`; the `allocator_state` volume (holds the epoch).
-- **Change:**
-  1. Add an epoch, a number kept in the allocator's state file and mixed into the signature (`body = name.exp.epoch`). `read_session` refuses any other epoch.
-  2. A facilitator `/logout` bumps the epoch for the facilitator account only (keep one epoch per account), so all facilitator cookies stop working; the class account isn't affected.
-  3. Make the lifetime per account: facilitator `FACILITATOR_SESSION_HOURS` (default 4), class still 12 h. Map the setting in `config.py`.
-- **Test:** unit tests: an old-epoch cookie is refused; logging out one facilitator browser signs out another; the class cookie survives a facilitator logout; the lifetime is honoured. Live: sign in as the facilitator in two browsers, log out in one, and the other gets the `/login` redirect on its next request.
-- **Done when:** the tests pass and the two-browser check passes.
-
 #### E9: save before stop through a module hook (3.6)
 
 - **Where:** `engine/allocator/render_extensions.py` (a new kind in `KINDS`: `"exports": {"required": ("id", "label", "upstream", "path"), "optional": ("timeout",)}`, validated like `resets`, with its own derived token `EXPORT_TOKEN_<SERVICE>`); `engine/dojo/archive.py` and `results.py` (call each export instead of `achievements` by name); `modules/achievements/extensions.json` and its service (serve the export); `workshops/README.md` (the contract); `engine/dojo/stop.py` (calls the archive already).
@@ -196,13 +181,6 @@ need **[engine]** approval first. Shared rules: work on a feature branch; run bo
 - **Test:** the existing tests (`engine/web-terminal/tests/`) import from the new modules; add an import smoke test. Live: `git-fundamentals --test 3 --fast` and the zellij flavor (`--terminal zellij --test 2 --fast`): bots done, watch tile and reset work, no zombies (`ps -eo stat | rg Z` in the terminal).
 - **Done when:** both stacks pass and no new module is over about 300 lines.
 
-#### E11: route table in the allocator (4.2)
-
-- **Where:** `engine/allocator/handler.py` (`do_GET`, `do_POST`); `engine/allocator/tests/test_handlers.py`.
-- **Change:** `ROUTES = {("GET", "/session-check"): Route(handler, admin=False, xrw=False), ...}` plus a short list of prefix routes (`/login/assets/`, `/admin/api/forgejo-password/`, `/admin/release/`, `/admin/reset/`). `do_GET`/`do_POST` keep only the gateway-token check, `refuse_non_facilitator` and a lookup, then 404. The `X-Requested-With` check runs once, from the `xrw` flag. Keep exact-path matching: it's what makes `/x/../admin` harmless.
-- **Test:** before the refactor, add a test that walks every `(method, path)` the current code serves and records its status for an anonymous request, a student and the facilitator; the refactor must give the same table. Existing handler tests pass.
-- **Done when:** the table test is unchanged and `do_GET` is under 30 lines.
-
 #### E12: move the git-fundamentals bot steps out of the engine (4.5)
 
 - **Where:** `engine/web-terminal/bot-runner.sh` (`step_lab1_*` to `step_lab5_*`, about lines 410-612, and the default `STEPS` arrays by `PERSONA` at about 640-675); `workshops/git-fundamentals/content/bots/steps.sh` (already extends them: it renames `step_lab4_history` at line 124).
@@ -213,16 +191,6 @@ need **[engine]** approval first. Shared rules: work on a feature branch; run bo
   - Also check `rg -n step_lab workshops modules` for any other caller.
 - **Test:** `bash -n` on both files, shellcheck (CI). Live: `git-fundamentals --test 3 --fast` (all three personas finish round 1 with the same steps as before; compare the bot logs' step names) and one other pack that uses `step_ensure_clone` (`dns-as-code --test 2 --fast`).
 - **Done when:** both stacks pass and `bot-runner.sh` is under about 500 lines.
-
-#### 4.6: CI additions (supports E1)
-
-- **Where:** `.github/workflows/ci.yml`, `.github/scripts/lint-repo.sh`, `.github/scripts/caddy-lint.py`, a new `ruff.toml` (or a `[tool.ruff]` in a root `pyproject.toml`).
-- **Change:**
-  1. Ruff on `engine/` and `modules/` with a small rule set (`E9,F` first: syntax errors, undefined names, unused imports); widen later.
-  2. A type check (mypy or pyright) on `engine/dojo/` only, since it already has type hints, with `--ignore-missing-imports`.
-  3. The E1 rule in `caddy-lint.py`.
-  4. Pin the tool versions in CI like the other checks (`check-dep-pins.sh`).
-- **Done when:** CI is green on `main` with the new jobs, and a deliberate keepalive of 60 s makes `caddy-lint.py` fail.
 
 ## Phase 5: live checks and browser passes
 

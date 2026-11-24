@@ -15,6 +15,7 @@ student_count = 1                # studentNN Linux + Forgejo accounts
 student_prefix = "student"
 class_username = "student"        # the shared sign-in on the slide (its password is in .env)
 facilitator_username = "facilitator"   # signs in to /admin, has sudo in the terminal
+facilitator_session_hours = "4"     # how long a facilitator sign-in lasts; signing out ends all of them (class: 12 h)
 forgejo_admin_user = "workshop-admin"  # machine account; avoid the reserved name "admin"
 forgejo_admin_email = "admin@example.com"
 achievements = true               # toasts, leaderboard, support desk (workshops with a catalog)
