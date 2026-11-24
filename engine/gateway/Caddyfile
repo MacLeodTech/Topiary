@@ -239,6 +239,8 @@
 	}
 	@gateassets path /_gate/gate.js /_gate/gate.css
 	handle @gateassets {
+		# Secret-free and tiny; ten minutes spares a refetch per page without outliving a redeploy for long.
+		header Cache-Control "public, max-age=600"
 		root * /srv/static
 		file_server
 	}

@@ -720,7 +720,7 @@ the peak; nothing below lowers it. Three knobs bound it:
   `--optimize-for-size` and `MALLOC_ARENA_MAX=2` to keep each student small. `scripts/capacity-calc.sh`'s live-calibration mode measures
   actual private memory (`RssAnon`) rather than assuming a per-process cap.
 - `CODE_SERVER_RECONNECTION_GRACE_SECONDS` (default 300) and
-  `CODE_SERVER_IDLE_TIMEOUT_SECONDS` (default 900) release memory from
+  `CODE_SERVER_IDLE_TIMEOUT_SECONDS` (default 600) release memory from
   students who have *left*. Without them, a closed tab's extension host and
   language servers stay resident for VS Code's default 3 hours. After the
   grace time they're killed (~330MB back per student); after the idle

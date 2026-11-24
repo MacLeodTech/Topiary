@@ -227,7 +227,7 @@ services:
       # workspace-control.py. Frees memory from students who have left
       # (break, end of class) without touching anyone still connected.
       - CODE_SERVER_RECONNECTION_GRACE_SECONDS=${CODE_SERVER_RECONNECTION_GRACE_SECONDS:-300}
-      - CODE_SERVER_IDLE_TIMEOUT_SECONDS=${CODE_SERVER_IDLE_TIMEOUT_SECONDS:-900}
+      - CODE_SERVER_IDLE_TIMEOUT_SECONDS=${CODE_SERVER_IDLE_TIMEOUT_SECONDS:-600}
       # bot-runner.sh's portal_login(): the gateway's site is keyed to
       # PUBLIC_BASE_URL's host, so a bot's first login attempt (plain
       # "http://gateway:8080/login") never reaches the allocator -- it needs

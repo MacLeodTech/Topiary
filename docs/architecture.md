@@ -237,7 +237,7 @@ Rules that keep it safe and fast:
 - **Hooks**: `/etc/dojo/start.d/NN-name.sh` at container start (modules `50-`, workshops `90-`), plus
   `account.d/` and `reset.d/` per-account hooks. A failing start hook stops the container.
 - **Lazy processes**: code-server and ttyd start on first request. After a tab closes, code-server frees its
-  extension host after `reconnection_grace_seconds` (300) and exits after `idle_timeout_seconds` (900); tmux
+  extension host after `reconnection_grace_seconds` (300) and exits after `idle_timeout_seconds` (600); tmux
   terminals survive.
 - **Health**: `web-terminal-healthcheck` sends the control token; do not replace it with a bare `wget`.
 
