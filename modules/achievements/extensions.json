@@ -59,6 +59,29 @@
       "optional": true
     }
   ],
+  "exports": [
+    {
+      "id": "achievements-state",
+      "label": "Achievements: scores and unlocks",
+      "upstream": "achievements:8080",
+      "path": "/achievements-admin/api/state",
+      "file": "achievements.json"
+    },
+    {
+      "id": "achievements-csv",
+      "label": "Achievements: scores and unlocks (CSV)",
+      "upstream": "achievements:8080",
+      "path": "/achievements-admin/api/export?format=csv",
+      "file": "achievements.csv"
+    },
+    {
+      "id": "achievements-soc",
+      "label": "Achievements: SOC feed (CTF packs)",
+      "upstream": "achievements:8080",
+      "path": "/achievements-admin/api/soc",
+      "file": "achievements-soc.json"
+    }
+  ],
   "status_checks": [
     {
       "label": "Achievements",

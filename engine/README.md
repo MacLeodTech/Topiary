@@ -246,23 +246,15 @@ login form needs no CSRF token to POST (verified against the running
 instance), which is what makes this possible without `allocator` holding a
 live Forgejo session of its own.
 
-**Student credentials** (remediation T2.1, FIND-03). Each student's Forgejo
-password is derived, not stored: `base32(HMAC-SHA256(STUDENT_PASSWORD_SEED,
-"forgejo:" + user))[:16]`, computed the same way by `bootstrap.sh` (creates
-the account, `git-server/dojo-secret.sh`), the allocator (SSO) and the
-terminal (`dojo_secret.py`; `allocator/tests/test_dojo_secret.py` keeps the
-three in step). Knowing one student's password tells you nothing about
-another's. Students never type it: at start the terminal mints each student a
-Forgejo token (`dojo-git`: `write:repository`, `write:issue`, `read:user`)
-with it and writes `~/.git-credentials` (git's `store` helper) and `~/.netrc`
-(the labs' `curl --netrc`), both `0600` (`web-terminal/forgejo-token.py`,
-idempotent: a working token is kept). Student Linux passwords are locked
-(only root's `su -` gets in, so no student can `su` to another) and homes
-are `0700`. The per-account steps live in `web-terminal/provision-account.sh`,
-which a student reset reruns. The Roster's **Password** button shows one
-student's Forgejo password for the desk (logged as
-`forgejo-password-shown`). Without a seed (an old `.env`), every
-student's password is `STUDENT_PASSWORD` and `dojo` warns.
+**Student credentials.** Each student's Forgejo password is derived, not stored (the formula and what it protects
+are in [`docs/security.md`](../docs/security.md#4-student-credentials)). `bootstrap.sh` (via
+`git-server/dojo-secret.sh`), the allocator (SSO) and the terminal (`dojo_secret.py`) compute it the same way;
+`allocator/tests/test_dojo_secret.py` keeps the three in step. At start the terminal mints each student a Forgejo
+token (`dojo-git`: `write:repository`, `write:issue`, `read:user`) and writes `~/.git-credentials` and `~/.netrc`, both
+`0600` (`web-terminal/forgejo-token.py`, idempotent: a working token is kept). Student Linux passwords are locked
+(only root's `su -` gets in) and homes are `0700`. The per-account steps live in `web-terminal/provision-account.sh`,
+which a student reset reruns. Without a seed (an old `.env`) every student's password is `STUDENT_PASSWORD` and `dojo`
+warns.
 
 Git operations (`clone`/`push`) never go through the gateway or this SSO
 route at all — students run them from inside the terminal, straight to

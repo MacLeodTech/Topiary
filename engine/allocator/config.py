@@ -116,7 +116,7 @@ EXTENSIONS_FILE = os.environ.get("EXTENSIONS_FILE", "/etc/dojo/extensions/extens
 
 def load_extensions(path=EXTENSIONS_FILE):
     empty = {"cards": [], "admin_tabs": [], "widgets": [], "scripts": [], "routes": [], "status_checks": [],
-             "resets": []}
+             "resets": [], "exports": []}
     try:
         with open(path, encoding="utf-8") as f:
             data = json.load(f)
