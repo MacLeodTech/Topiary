@@ -35,7 +35,7 @@ result is correct. See section 6 for the labs and section 7 for the bot.
 
 ```text
  web-terminal (Ansible control node; one shared container, per-student accounts)
-       |  netlab_mgmt (internal: true, fixed subnet): SSH :22 to every node
+       |  netlab_mgmt_NN (internal: true, one per pod): SSH :22 to the pod's nodes
        |
        +--- client-07 ==cm==> fw-m-07 ==mw==> web-m-07     branch M: configured by hand
        |         \
@@ -43,7 +43,7 @@ result is correct. See section 6 for the labs and section 7 for the bot.
        (cm, mw, ca, aw: one internal /29 network each; one pod per student NN; pod 00 for the facilitator)
 ```
 
-- `netlab_mgmt` is declared in `modules/netlab/compose.yml` with `internal: true`. The terminal and every node join it.
+- One management network per pod, `netlab_mgmt_NN` (`10.80.(N+1).0/24`), is written by `generate.py` with `internal: true`. The pod's nodes join it, and the terminal, checker and view join every one (names come from generated `extra_hosts`).
   It carries Ansible's SSH only. No internet, no LAN, no published port.
 - Each pod has four data networks, `netlab_NN_cm`, `_mw`, `_ca`, `_aw`: `internal: true`, a **/29** each (Docker keeps `.1`
   as the gateway, so a /30 cannot hold two nodes), two members each. The terminal is not on them. `client` has two data
@@ -59,19 +59,19 @@ result is correct. See section 6 for the labs and section 7 for the bot.
 
 ### Keeping students out of each other's pods
 
-All pods share `netlab_mgmt` and all students share one terminal container, so network separation alone is not enough.
+All students share one terminal container, which sits on every pod's management network, so network separation alone is not enough.
 
 1. **Per-pod credentials**: each pod's `root` password is `HMAC(STUDENT_PASSWORD_SEED, "netlab:<NN>")`, written only to that
    student's `~/.config/dojo/netlab-password` (`0600`), the same pattern as `modules/dns-gate/terminal/start.d/50-dns-key.sh`.
 2. **Per-uid firewall in the terminal** (built, same shape as `modules/ctf-range/terminal/start.d/50-ctf-range.sh`): every node
-   has a fixed management address (pod N: `10.80.1.(8N)`..`(8N+7)`; `netlab_mgmt` is `10.80.0.0/22`, services take
-   dynamic addresses from `10.80.0.0/24`), and `terminal/start.d/50-netlab.sh` runs `netlab_fw.py` to load a
+   has a fixed management address (pod N: `10.80.(N+1).(10..17)` on its own `/24`; services take
+   dynamic addresses from that network's `.128/25`), and `terminal/start.d/50-netlab.sh` runs `netlab_fw.py` to load a
    `NETLAB_ISOLATION` chain on `OUTPUT`: root returns, studentN's uid (and demo bot K's, pod STUDENT_COUNT+K) returns for
-   pod N's block only, everything else to `netlab_mgmt` is dropped (`REJECT` never reaches the local socket from `OUTPUT` here). It fails closed: if the rules cannot be
+   pod N's `/24` only, everything else in `10.80.0.0/16` is dropped (`REJECT` never reaches the local socket from `OUTPUT` here). It fails closed: if the rules cannot be
    loaded and read back the hook exits 1 and the engine stops the container, because starting with every pod open would
    only be noticed after someone read another pod's nodes. `NET_ADMIN` is already on `web-terminal` (engine, for
-   `DOJO_ISOLATION`). **Residual:** root on one's own node shares the `netlab_mgmt` segment, so another pod's SSH is
-   reachable from there (password only); closing it needs a management network per pod.
+   `DOJO_ISOLATION`). **Residual (closed by roadmap 3.3):** root on one's own node used to share one flat
+   management segment with every pod; now each pod has its own network, so root on a node reaches only its own pod.
 
 ## 4. Engine change: a per-module generator
 
@@ -136,7 +136,7 @@ each `web` serves nginx's default page. Every lab has the same four parts:
 
 Core path for a half day: **0, 1, 2, 3, 4, 6, 8**. Labs 5 and 7 are stretch and are marked in each README.
 
-Management traffic (the terminal's SSH to every node on `netlab_mgmt`) is allowed by an early baseline rule on the
+Management traffic (the terminal's SSH to every node on its `netlab_mgmt_NN`) is allowed by an early baseline rule on the
 management interface, so a lab cannot lock the student out of Ansible. Student rules live in the `LAB` chain and are
 scoped to the data-plane interface. The "lock it out" twists in labs 4 and 6 therefore break the *data plane*, which
 `reset_fw.yml` repairs.

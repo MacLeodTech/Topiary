@@ -7,6 +7,13 @@ and verified, it moves here in a line or two. Detail behind older entries (desig
 Entries are grouped by what reached `main`. Dates are commit or merge dates; "locally" means tested on the
 WSL2 desktop stack at `http://localhost:8080`.
 
+## Per-pod netlab management networks, item 3.3 (2026-11-24)
+
+- Each pod now has its own internal management network `netlab_mgmt_NN` (`10.80.(N+1).0/24`, written by `modules/netlab/generate.py`), so root on a node can no longer ARP-spoof or reach another pod. The terminal, checker and view join every pod network and get node names from generated `extra_hosts` (a container on this many networks has more DNS servers than libc reads).
+- `netlab_fw.py` firewalls by pod `/24` and drops new inbound connections on every pod interface; node addresses, the two `hostkeys.py` copies and the view follow the new scheme.
+- Tests: new `PerPodManagement` and `InputRulesForManyPods` cases; an older "own networks only" test had been matching nothing and now asserts. All unit suites pass.
+- Live (`netlab-ansible --test 2 --fast`, 76 s to healthy): a pod 01 node reaches its own pod and the shared services, not pod 02; the terminal and checker resolve node names; one inbound rule per pod; ansible runs across the new networks; bot 2 finished all labs.
+
 ## E8 revocable, shorter facilitator session (2026-11-24)
 
 - Cookies carry a per-account epoch; a facilitator `/logout` bumps it (kept in `session-epochs.json` in the allocator volume, survives restarts), so every facilitator cookie dies; class and bot cookies are untouched. Facilitator lifetime is 4 h (`general.facilitator_session_hours`), class stays 12 h. Unit tests added (199 allocator, 170 dojo OK). Live on git-fundamentals: two facilitator cookies both worked, logout on one made both 401, class cookie unaffected, a new sign-in worked, epoch persisted across an allocator restart.

@@ -4,7 +4,7 @@
 Trust: the key is HMAC-SHA256(STUDENT_PASSWORD_SEED, "netlab-check:<user>") in the same encoding as the pod
 password, written to ~/.config/dojo/netlab-check-key by the terminal. A caller can only name itself. Nothing the
 caller sends reaches a shell: the pod number comes from the validated user name, the lab from a fixed table.
-Nodes are reached with `sshpass -e ssh root@<role>-<branch>-<NN>` on netlab_mgmt; the password goes in SSHPASS.
+Nodes are reached with `sshpass -e ssh root@<role>-<branch>-<NN>` on the pod's management network (netlab_mgmt_NN); the password goes in SSHPASS.
 """
 import base64
 import concurrent.futures

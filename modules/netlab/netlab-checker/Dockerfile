@@ -1,4 +1,4 @@
-# netlab-checker (see checker.py). Built with modules/netlab/ as the context (compose.yml) so it can copy hostkeys.py. Stdlib Python; reaches the pod nodes with sshpass + ssh over netlab_mgmt.
+# netlab-checker (see checker.py). Built with modules/netlab/ as the context (compose.yml) so it can copy hostkeys.py. Stdlib Python; reaches the pod nodes with sshpass + ssh over the pods' management networks (netlab_mgmt_NN).
 FROM docker.io/library/python:3.14-alpine@sha256:f6a589d43c42b9e7f7dc67a12d37132491f362859a5d750607710cc56da3bc72
 RUN apk add --no-cache openssh-client sshpass
 WORKDIR /app

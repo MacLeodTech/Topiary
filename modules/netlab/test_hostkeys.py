@@ -42,9 +42,9 @@ class KnownHosts(unittest.TestCase):
     def test_every_node_name_and_address_once(self):
         lines = hostkeys.known_hosts("s", 3).splitlines()
         self.assertEqual(len(lines), 3 * 8)
-        self.assertIn(("pc-m-00,10.80.1.0 " + hostkeys.public_line(hostkeys.host_seed("s", "pc-m-00"))), lines)
-        self.assertTrue(any(l.startswith("web-a-02,10.80.1.23 ") for l in lines))
-        self.assertTrue(all(re.match(r"^[a-z]+-[ma]-\d\d,10\.80\.1\.\d+ ssh-ed25519 \S+$", l) for l in lines))
+        self.assertIn(("pc-m-00,10.80.1.10 " + hostkeys.public_line(hostkeys.host_seed("s", "pc-m-00"))), lines)
+        self.assertTrue(any(l.startswith("web-a-02,10.80.3.17 ") for l in lines))
+        self.assertTrue(all(re.match(r"^[a-z]+-[ma]-\d\d,10\.80\.\d+\.\d+ ssh-ed25519 \S+$", l) for l in lines))
 
     def test_addresses_match_the_generator(self):
         for pod in (0, 1, 7):
