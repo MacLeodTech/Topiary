@@ -4,7 +4,7 @@ The single list of open work, **in the order to do it**. Finished work moves to 
 per-feature plans (design, decisions, task logs) are frozen in [`docs/archive/`](docs/archive/); read them for the
 why, but don't update them. When you finish an item: delete it here and add a line to RELEASES.md.
 
-Last updated: 2026-11-23. The file is now one prioritized flow (phases 0-6), and the 2026-11-23 engine review's
+Last updated: 2026-11-24 (3.3 done). The file is now one prioritized flow (phases 0-6), and the 2026-11-23 engine review's
 findings (**E1-E12**) are folded in. Earlier versions are in git history (before this change: `d2a37fb`). ·
 Cut a feature branch for each new batch of work.
 
@@ -25,7 +25,7 @@ CLI and the base compose file. None of them has been reproduced on a stack yet.
 2. **2.6 [stack, ask first]:** the class-sized run (about 20 bots, 2.1's script) that closes Phase 2. It also settles two open measurements: E6's 502-after-death trade-off (kill a code-server and time the recovery; the first try with `pkill` showed no 502, so check the kill landed) and a real page's assets for the `/ide` call count.
 3. **3.1 (E7) [you: decision]:** pick the admin hostnames for `--env home`/`--env prod` and whether local runs get a second port; then build it.
 4. **2.4/2.5:** netlab start and stop time (need a big netlab stack; slow on 13 GB).
-5. Then 3.3-3.6, Phase 4 refactors, and Phase 5/6 as time allows.
+5. Then 3.4-3.6, Phase 4 refactors, and Phase 5/6 as time allows.
 
 ## The flow at a glance
 
@@ -109,7 +109,6 @@ Finish before the next `--env prod` class. Settle 3.1's decision first: it decid
 | # | Work | Effort | Description |
 |---|---|---|---|
 | 3.1 | **E7** Facilitator tools on their own origin **[engine] [you: decision]** | M | [Brief](#e7-facilitator-on-its-own-origin-31). `/admin`, Forgejo, every extension route and the facilitator's own `/ide`/`/term` all share one origin. The `X-Requested-With` check stops forged requests from other sites but not a script running on this origin, so one XSS in Forgejo, a module UI or the CTF view (`'unsafe-inline'`, 1.5) can act as the facilitator: read every Forgejo password, take a Forgejo site-admin session through `/forgejo-login`, reset or release students, or open the facilitator's terminal. Today the only defence is each module's `textContent` rule. Fix: serve `/admin` and the facilitator's tools from a second origin (`admin.<host>` behind the home-lab Caddy; a second port locally), with a cookie that is never set on the student origin. Decision: the hostname scheme for `--env home`/`--env prod`, and whether local runs get it too |
-| 3.3 | Per-pod netlab management network (2026-11-08 item 2) | M | S1's full fix: a pod with root and NET_ADMIN can still ARP-spoof on the flat `netlab_mgmt` network (host keys now stop the impersonation, not the reach) |
 | 3.4 | P15 `doctor --live`: pre-class readiness check | M | Design in [`docs/reviews/2026-10-18.md`](docs/reviews/2026-10-18.md) (P13/P15); not built |
 | 3.5 | P12 fresh-machine bootstrap | M | `setup.sh`/`setup.ps1` on a clean machine or WSL distro. Needs a machine you create; the P10 half is done (RELEASES, 2026-11-24). Brief in the 2026-10-18 review |
 | 3.6 | **E9** Save before stop, through a module hook (2026-11-08 item 7) **[engine]** | S-M | [Brief](#e9-save-before-stop-through-a-module-hook-36). `./dojo stop` already saves feedback, scores and the roster to `results/` (`engine/dojo/stop.py`); student repos are not saved yet. Do it generically: an `exports` kind in `extensions.json` (like `resets`) through which any module adds files to `results/`. Then the engine no longer calls achievements by name (`engine/dojo/archive.py`, `results.py`). The auto-add of `achievements` in `engine/dojo/envfiles.py:185` could become a pack setting too |

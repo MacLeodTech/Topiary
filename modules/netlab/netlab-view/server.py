@@ -34,7 +34,7 @@ FILES = {
     "/static/favicon.svg": ("favicon.svg", "image/svg+xml"),
 }
 MARK = "@@@@"
-MGMT_NET = ipaddress.ip_network("10.80.0.0/22")   # generate.py MGMT_CIDR
+MGMT_NET = ipaddress.ip_network("10.80.0.0/16")   # generate.py MGMT_CIDR
 RULE_LIMIT = 40
 ROLES = ("pc", "sw", "fw", "web")
 IP = checker.PC_TO_WEB
