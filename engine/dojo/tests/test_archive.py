@@ -1,5 +1,7 @@
 """`dojo stop` saves the roster and every module export to results/ first (engine/dojo/archive.py)."""
+import io
 import json
+import tarfile
 import tempfile
 import unittest
 from pathlib import Path
@@ -25,7 +27,7 @@ ANSWERS = {("feedback", "/feedback-admin/api/export?format=json"): (200, FEEDBAC
            ("scorer", "/api/scores"): (200, {"students": [{"user": "student01", "score": 40}]})}
 
 
-class ArchiveTest(unittest.TestCase):
+class ArchiveBase(unittest.TestCase):
     def setUp(self):
         tmp = tempfile.TemporaryDirectory()
         self.addCleanup(tmp.cleanup)
@@ -55,6 +57,8 @@ class ArchiveTest(unittest.TestCase):
             p.start()
             self.addCleanup(p.stop)
 
+
+class ArchiveTest(ArchiveBase):
     def test_saves_a_folder_named_for_the_workshop_with_a_manifest(self):
         self.patch_data()
         d = archive.save(mock.Mock(), now=1_000_000.0 + 3600)
@@ -105,6 +109,97 @@ class ArchiveTest(unittest.TestCase):
         a = archive.save(mock.Mock(), now=1_000_000.0)
         b = archive.save(mock.Mock(), now=1_000_000.0)
         self.assertNotEqual(a, b)
+
+
+def tar_stream(members):
+    """A tar of {path: bytes} (a path ending in / is a directory), as the git server's `tar -cf -` would send."""
+    buf = io.BytesIO()
+    with tarfile.open(fileobj=buf, mode="w") as t:
+        for name, data in members.items():
+            info = tarfile.TarInfo(name)
+            if name.endswith("/"):
+                info.type = tarfile.DIRTYPE
+                info.mode = 0o755
+                t.addfile(info)
+            else:
+                info.size = len(data)
+                t.addfile(info, io.BytesIO(data))
+    return io.BytesIO(buf.getvalue())
+
+
+class FakeTar:
+    def __init__(self, stream, code=0, err=b""):
+        self.stdout, self.stderr, self.code = stream, io.BytesIO(err), code
+
+    def wait(self):
+        return self.code
+
+    def kill(self):
+        pass
+
+
+GOOD = {"alice/": b"", "alice/work.git/": b"", "alice/work.git/HEAD": b"ref: refs/heads/main\n",
+        "org/": b"", "org/sample.git/": b"", "org/sample.git/HEAD": b"ref: refs/heads/main\n"}
+
+
+class RepoSaveTest(ArchiveBase):
+    def popen(self, stream, **kw):
+        return mock.patch.object(archive.subprocess, "Popen", return_value=FakeTar(stream, **kw))
+
+    def forge(self):
+        p = mock.patch("dojo.stackapi.find_container", return_value=SimpleNamespace(name="workshop_forge"))
+        p.start()
+        self.addCleanup(p.stop)
+
+    def test_every_repo_lands_under_owner_and_name(self):
+        self.forge()
+        dest = self.dir / "repos"
+        with self.popen(tar_stream(GOOD)):
+            n = archive.save_repos(mock.Mock(cli="podman"), dest)
+        self.assertEqual(n, 2)
+        self.assertEqual((dest / "alice" / "work.git" / "HEAD").read_text(), "ref: refs/heads/main\n")
+
+    def test_the_tar_is_read_from_the_git_servers_own_container(self):
+        self.forge()
+        with self.popen(tar_stream(GOOD)) as popen:
+            archive.save_repos(mock.Mock(cli="podman"), self.dir / "repos")
+        self.assertEqual(popen.call_args[0][0],
+                         ["podman", "exec", "workshop_forge", "tar", "-C", "/data/git/repositories", "-cf", "-", "."])
+
+    def test_a_member_that_escapes_the_folder_is_not_written(self):
+        self.forge()
+        evil = tar_stream({"../../escaped.txt": b"x", **GOOD})
+        with self.popen(evil):
+            try:
+                archive.save_repos(mock.Mock(cli="podman"), self.dir / "repos")
+            except StackError:
+                pass
+        self.assertFalse((self.dir / "escaped.txt").exists())
+        self.assertFalse((self.dir.parent / "escaped.txt").exists())
+
+    def test_tar_failing_is_a_stack_error_with_its_message(self):
+        self.forge()
+        with self.popen(tar_stream(GOOD), code=1, err=b"tar: /data/git/repositories: No such file"):
+            with self.assertRaisesRegex(StackError, "No such file"):
+                archive.save_repos(mock.Mock(cli="podman"), self.dir / "repos")
+
+    def test_save_adds_repos_only_when_asked_and_records_the_count(self):
+        self.forge()
+        self.patch_data()
+        plain = archive.save(mock.Mock(cli="podman"), now=1_000_000.0)
+        self.assertFalse((plain / "repos").exists())
+        self.assertNotIn("repos", json.loads((plain / "manifest.json").read_text()))
+        with self.popen(tar_stream(GOOD)):
+            d = archive.save(mock.Mock(cli="podman"), now=1_000_100.0, with_repos=True)
+        self.assertEqual(json.loads((d / "manifest.json").read_text())["repos"], 2)
+
+    def test_a_failed_copy_is_noted_and_the_rest_is_kept(self):
+        self.patch_data()
+        with mock.patch("dojo.stackapi.find_container", side_effect=StackError("No 'git-server' container is running")):
+            d = archive.save(mock.Mock(cli="podman"), with_repos=True)
+        m = json.loads((d / "manifest.json").read_text())
+        self.assertIn("git-server", m["skipped"]["repos"])
+        self.assertIn("roster.csv", m["saved"])
 
 
 if __name__ == "__main__":
