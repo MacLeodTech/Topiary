@@ -7,6 +7,12 @@ and verified, it moves here in a line or two. Detail behind older entries (desig
 Entries are grouped by what reached `main`. Dates are commit or merge dates; "locally" means tested on the
 WSL2 desktop stack at `http://localhost:8080`.
 
+## Bot lab steps out of the engine, item 4.5 (2026-11-24)
+
+- `step_lab1_*` to `step_lab5_*` and the persona `STEPS` lists moved from `engine/web-terminal/bot-runner.sh` (769 to 528 lines) into `workshops/git-fundamentals/content/bots/steps.sh`. The engine keeps the framework (`run_cmd`, `think`, `narrate`, state, portal login) and the steps several packs share (`step_ensure_clone`, `step_sync_main`, `step_wrap_round`, `cleanup_merged_pr`). The pack's `eval`/rename of `step_lab4_history` is gone: the sample-repo walk is `gf_sample_repo_lab4_history`, the fallback when `lab-history` is missing.
+- **Behaviour change for ctf-defend:** it ships no `steps.sh` and used to fall back to the git-fundamentals steps. Nothing documents that as intended (its bots are the attacker swarm), so the new engine default applies: no steps, the bot says so, writes `~/.dojo-bot-done` and idles. Give it a `steps.sh` if git noise on its sample repos is wanted.
+- Tested: `bash -n`, dojo suite, `./dojo validate`. Live: `git-fundamentals --test 3 --fast` (all three personas done, expert through Lab 5, intermediate through Lab 4, novice through Lab 2), `dns-as-code --test 2 --fast` (done, no skipped steps), and the no-steps path run directly.
+
 ## E8 revocable, shorter facilitator session (2026-11-24)
 
 - Cookies carry a per-account epoch; a facilitator `/logout` bumps it (kept in `session-epochs.json` in the allocator volume, survives restarts), so every facilitator cookie dies; class and bot cookies are untouched. Facilitator lifetime is 4 h (`general.facilitator_session_hours`), class stays 12 h. Unit tests added (199 allocator, 170 dojo OK). Live on git-fundamentals: two facilitator cookies both worked, logout on one made both 401, class cookie unaffected, a new sign-in worked, epoch persisted across an allocator restart.
