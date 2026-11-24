@@ -3,6 +3,7 @@
 import base64
 import hashlib
 import hmac
+import json
 import os
 import re
 import threading
@@ -22,9 +23,57 @@ from config import (
 # everyone out. Stateless: nothing to store, survives allocator restarts.
 SESSION_COOKIE = "dojo_login"
 SESSION_SECONDS = 12 * 3600
+# The facilitator's cookie opens /admin, every Forgejo password and their own
+# terminal, so it lives shorter than the class's (FACILITATOR_SESSION_HOURS).
+FACILITATOR_SESSION_SECONDS = int(float(os.environ.get("FACILITATOR_SESSION_HOURS", "4")) * 3600)
 _SESSION_KEY = hmac.new(GATEWAY_TOKEN.encode(),
                         f"dojo-login|{TTYD_PASSWORD}|{FACILITATOR_PASSWORD}".encode(),
                         hashlib.sha256).digest()
+
+# Revocation: every cookie carries its account's epoch; a logout of the
+# facilitator bumps theirs, so every facilitator cookie issued before it stops
+# working (the class account and bots keep theirs). Kept in a small file beside
+# the slot table (a named volume) so a restart doesn't revive old cookies;
+# empty path = in memory only (unit tests).
+_EPOCH_FILE = os.path.join(os.path.dirname(os.environ["ALLOCATOR_STATE_FILE"]), "session-epochs.json") \
+    if os.environ.get("ALLOCATOR_STATE_FILE") else ""
+_epoch_lock = threading.Lock()
+
+
+def _load_epochs():
+    try:
+        with open(_EPOCH_FILE) as f:
+            data = json.load(f)
+        return {str(k): int(v) for k, v in data.items()}
+    except (OSError, ValueError, AttributeError):
+        return {}
+
+
+_epochs = _load_epochs() if _EPOCH_FILE else {}
+
+
+def session_epoch(account):
+    with _epoch_lock:
+        return _epochs.get(account, 0)
+
+
+def revoke_sessions(account):
+    """Sign out every browser holding a cookie for this account."""
+    with _epoch_lock:
+        _epochs[account] = _epochs.get(account, 0) + 1
+        if _EPOCH_FILE:
+            tmp = _EPOCH_FILE + ".tmp"
+            try:
+                fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+                with os.fdopen(fd, "w") as f:
+                    json.dump(_epochs, f)
+                os.replace(tmp, _EPOCH_FILE)
+            except OSError:
+                pass  # still revoked in memory until the next restart
+
+
+def session_seconds(account):
+    return FACILITATOR_SESSION_SECONDS if account == FACILITATOR_USERNAME else SESSION_SECONDS
 
 
 def _session_sig(body):
@@ -32,21 +81,24 @@ def _session_sig(body):
 
 
 def make_session(account, now=None):
-    exp = int((time.time() if now is None else now) + SESSION_SECONDS)
-    body = base64.urlsafe_b64encode(account.encode()).decode().rstrip("=") + "." + str(exp)
+    exp = int((time.time() if now is None else now) + session_seconds(account))
+    body = (base64.urlsafe_b64encode(account.encode()).decode().rstrip("=")
+            + f".{exp}.{session_epoch(account)}")
     return body + "." + _session_sig(body)
 
 
 def read_session(token, now=None):
     """The account a session cookie was issued to, or None."""
     try:
-        name, exp, sig = token.split(".")
-        body = f"{name}.{exp}"
+        name, exp, epoch, sig = token.split(".")
+        body = f"{name}.{exp}.{epoch}"
         if not hmac.compare_digest(sig, _session_sig(body)):
             return None
         if int(exp) < (time.time() if now is None else now):
             return None
         account = base64.urlsafe_b64decode(name + "=" * (-len(name) % 4)).decode()
+        if int(epoch) != session_epoch(account):
+            return None
     except (ValueError, UnicodeDecodeError):
         return None
     return account if account in (TTYD_USERNAME, FACILITATOR_USERNAME) or is_bot_id(account) else None

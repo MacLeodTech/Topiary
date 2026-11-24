@@ -38,14 +38,55 @@ class SessionTest(unittest.TestCase):
         self.assertEqual(accounts.read_session(token, now=1000 + 5), "student")
 
     def test_tampering(self):
-        name, exp, sig = accounts.make_session("student").split(".")
+        name, exp, epoch, sig = accounts.make_session("student").split(".")
         other = base64.urlsafe_b64encode(b"root").decode().rstrip("=")
-        for bad in (f"{other}.{exp}.{sig}", f"{name}.{int(exp) + 999}.{sig}", f"{name}.{exp}.{'0' * 64}",
-                    "", "a.b", "a.b.c.d", "!!!.1.2"):
+        for bad in (f"{other}.{exp}.{epoch}.{sig}", f"{name}.{int(exp) + 999}.{epoch}.{sig}",
+                    f"{name}.{exp}.{epoch}.{'0' * 64}", f"{name}.{exp}.{int(epoch) + 1}.{sig}",
+                    "", "a.b", "a.b.c", "!!!.1.2.3", f"{name}.{exp}.{sig}"):
             self.assertIsNone(accounts.read_session(bad), bad)
 
     def test_unknown_account_refused(self):
         self.assertIsNone(accounts.read_session(accounts.make_session("mallory")))
+
+
+class RevocationTest(unittest.TestCase):
+    def setUp(self):
+        self._saved = dict(accounts._epochs)
+        self.addCleanup(lambda: (accounts._epochs.clear(), accounts._epochs.update(self._saved)))
+
+    def test_revoking_the_facilitator_ends_every_facilitator_cookie(self):
+        fac = accounts.FACILITATOR_USERNAME
+        first, second = accounts.make_session(fac), accounts.make_session(fac)
+        accounts.revoke_sessions(fac)
+        self.assertIsNone(accounts.read_session(first))
+        self.assertIsNone(accounts.read_session(second))
+        self.assertEqual(accounts.read_session(accounts.make_session(fac)), fac)
+
+    def test_class_cookie_survives_a_facilitator_logout(self):
+        token = accounts.make_session(accounts.TTYD_USERNAME)
+        accounts.revoke_sessions(accounts.FACILITATOR_USERNAME)
+        self.assertEqual(accounts.read_session(token), accounts.TTYD_USERNAME)
+
+    def test_lifetimes(self):
+        fac, cls = accounts.FACILITATOR_USERNAME, accounts.TTYD_USERNAME
+        t_fac, t_cls = accounts.make_session(fac, now=1000), accounts.make_session(cls, now=1000)
+        after = 1000 + accounts.FACILITATOR_SESSION_SECONDS + 1
+        self.assertIsNone(accounts.read_session(t_fac, now=after))
+        if accounts.FACILITATOR_SESSION_SECONDS < accounts.SESSION_SECONDS:
+            self.assertEqual(accounts.read_session(t_cls, now=after), cls)
+
+    def test_epoch_survives_a_restart(self):
+        import json, tempfile
+        fac = accounts.FACILITATOR_USERNAME
+        with tempfile.TemporaryDirectory() as d:
+            path = os.path.join(d, "session-epochs.json")
+            old = accounts._EPOCH_FILE
+            accounts._EPOCH_FILE = path
+            self.addCleanup(setattr, accounts, "_EPOCH_FILE", old)
+            accounts.revoke_sessions(fac)
+            with open(path) as f:
+                self.assertEqual(json.load(f)[fac], accounts.session_epoch(fac))
+            self.assertEqual(accounts._load_epochs()[fac], accounts.session_epoch(fac))
 
 
 class CheckLoginTest(unittest.TestCase):

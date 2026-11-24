@@ -8,7 +8,7 @@ import threading
 import time
 import urllib.parse
 
-from accounts import LOGIN_ASSETS, read_session, SESSION_COOKIE
+from accounts import LOGIN_ASSETS, read_session, revoke_sessions, SESSION_COOKIE
 from allocation import forgejo_login_request, local_path, slots, _state_lock, token_index
 import allocation
 from api import ApiMixin
@@ -300,6 +300,10 @@ class Handler(ViewsMixin, ApiMixin, http.server.BaseHTTPRequestHandler):
             return
 
         if path == "/logout":
+            # A facilitator's sign-out ends their session everywhere, not just
+            # in this browser (the cookie is stateless; see accounts.py).
+            if self.session_account() == FACILITATOR_USERNAME:
+                revoke_sessions(FACILITATOR_USERNAME)
             self.redirect("/login", cookies=[self.session_cookie("", 0)])
             return
 

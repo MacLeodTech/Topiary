@@ -376,6 +376,7 @@ services:
       # X-Gateway-Token on every block that proxies to allocator:8080).
       - GATEWAY_TOKEN=${GATEWAY_TOKEN:?Set GATEWAY_TOKEN in .env or dojo.toml}
       - ALLOCATOR_STATE_FILE=/var/lib/dojo-allocator/slots.json
+      - FACILITATOR_SESSION_HOURS=${FACILITATOR_SESSION_HOURS:-4}
     volumes:
       # The workshop's checked extensions (cards, /admin tabs, route gates,
       # status checks), written by dojo before every start.
