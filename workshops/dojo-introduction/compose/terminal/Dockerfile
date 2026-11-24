@@ -33,11 +33,11 @@ RUN set -eux; \
 
 # OpenTofu (`terraform` runs it) and the offline provider mirror Dojo Cloud's
 # azurerm needs. The mirror files are copies of tofu-basics' (same pins).
-ARG TOFU_VERSION=1.12.8
+ARG TOFU_VERSION=1.13.10
 RUN set -eux; \
     case "${TARGETARCH}" in \
-    amd64) tofu_arch="amd64"; tofu_sha256="de50b220b2f243685f05f8acec0b39440bbdeaa4a5a85b02024d293a1299a625" ;; \
-    arm64) tofu_arch="arm64"; tofu_sha256="6f3e607a85bc21514449d8c0b98f6a666da4d977207523da9776563f8d7bdccd" ;; \
+    amd64) tofu_arch="amd64"; tofu_sha256="f606b6117ee03177374806d56d580bde7b512aff69f86d2b9f3148dced4ca375" ;; \
+    arm64) tofu_arch="arm64"; tofu_sha256="9dcdabf93c5209feaa35a7bb6d41f4d71b0880c4c4dfaf275d612f5b6facc28a" ;; \
     *) echo "Unsupported architecture for OpenTofu: ${TARGETARCH}" >&2; exit 1 ;; \
     esac; \
     wget -O /tmp/tofu.tar.gz \

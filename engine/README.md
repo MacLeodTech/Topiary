@@ -246,23 +246,15 @@ login form needs no CSRF token to POST (verified against the running
 instance), which is what makes this possible without `allocator` holding a
 live Forgejo session of its own.
 
-**Student credentials** (remediation T2.1, FIND-03). Each student's Forgejo
-password is derived, not stored: `base32(HMAC-SHA256(STUDENT_PASSWORD_SEED,
-"forgejo:" + user))[:16]`, computed the same way by `bootstrap.sh` (creates
-the account, `git-server/dojo-secret.sh`), the allocator (SSO) and the
-terminal (`dojo_secret.py`; `allocator/tests/test_dojo_secret.py` keeps the
-three in step). Knowing one student's password tells you nothing about
-another's. Students never type it: at start the terminal mints each student a
-Forgejo token (`dojo-git`: `write:repository`, `write:issue`, `read:user`)
-with it and writes `~/.git-credentials` (git's `store` helper) and `~/.netrc`
-(the labs' `curl --netrc`), both `0600` (`web-terminal/forgejo-token.py`,
-idempotent: a working token is kept). Student Linux passwords are locked
-(only root's `su -` gets in, so no student can `su` to another) and homes
-are `0700`. The per-account steps live in `web-terminal/provision-account.sh`,
-which a student reset reruns. The Roster's **Password** button shows one
-student's Forgejo password for the desk (logged as
-`forgejo-password-shown`). Without a seed (an old `.env`), every
-student's password is `STUDENT_PASSWORD` and `dojo` warns.
+**Student credentials.** Each student's Forgejo password is derived, not stored (the formula and what it protects
+are in [`docs/security.md`](../docs/security.md#4-student-credentials)). `bootstrap.sh` (via
+`git-server/dojo-secret.sh`), the allocator (SSO) and the terminal (`dojo_secret.py`) compute it the same way;
+`allocator/tests/test_dojo_secret.py` keeps the three in step. At start the terminal mints each student a Forgejo
+token (`dojo-git`: `write:repository`, `write:issue`, `read:user`) and writes `~/.git-credentials` and `~/.netrc`, both
+`0600` (`web-terminal/forgejo-token.py`, idempotent: a working token is kept). Student Linux passwords are locked
+(only root's `su -` gets in) and homes are `0700`. The per-account steps live in `web-terminal/provision-account.sh`,
+which a student reset reruns. Without a seed (an old `.env`) every student's password is `STUDENT_PASSWORD` and `dojo`
+warns.
 
 Git operations (`clone`/`push`) never go through the gateway or this SSO
 route at all — students run them from inside the terminal, straight to
@@ -728,7 +720,7 @@ the peak; nothing below lowers it. Three knobs bound it:
   `--optimize-for-size` and `MALLOC_ARENA_MAX=2` to keep each student small. `scripts/capacity-calc.sh`'s live-calibration mode measures
   actual private memory (`RssAnon`) rather than assuming a per-process cap.
 - `CODE_SERVER_RECONNECTION_GRACE_SECONDS` (default 300) and
-  `CODE_SERVER_IDLE_TIMEOUT_SECONDS` (default 900) release memory from
+  `CODE_SERVER_IDLE_TIMEOUT_SECONDS` (default 600) release memory from
   students who have *left*. Without them, a closed tab's extension host and
   language servers stay resident for VS Code's default 3 hours. After the
   grace time they're killed (~330MB back per student); after the idle
@@ -926,23 +918,24 @@ Spins up simulated "students" alongside the real stack — no extra
 Compose service, just extra accounts (`testuser1`..`testuser3` by
 default, `testuser1`..`testuserN` with `--test N`, max 35) provisioned the same way `student01`..`studentNN` are, plus a
 script (`web-terminal/bot-runner.sh`) that drives each one through the
-git-fundamentals lab on its own: clone, branch, edit, commit, push, open a
-pull request, then the Lab 2-5 review/stash/history/conflict/undo
-exercises — all for real, against the actual Forgejo instance, on branches
+workshop's labs on its own (the labs come from the pack's `content/bots/steps.sh`; for
+git-fundamentals: clone, branch, edit, commit, push, open a pull request, then the Lab 2-5
+review/stash/history/conflict/undo exercises) — all for real, against the actual Forgejo instance, on branches
 named `testuserN/round<N>-...` so anything they push is unambiguously
 traceable back to a bot, never confusable with real student work. Useful
 for demoing the whole workshop solo, or for exercising the facilitator
 dashboard (`/admin`) — watch tiles, Release, the live roster — without
 needing real students connected.
 
-**Per-workshop bot steps.** The steps above are the default. A workshop
-pack can give its bots its own labs by shipping
+**Per-workshop bot steps.** The runner is a framework; the labs belong to the pack. A workshop
+pack gives its bots their labs by shipping
 `content/bots/steps.sh`: `bot-runner.sh` sources it (the content dir is
 mounted read-only at `/opt/workshop-content`) after defining its helpers
 (`run_cmd`, `narrate`, `think`, `orient`, `branch_name`, `api_curl`) and the
-generic steps (`step_ensure_clone`, `step_sync_main`, `step_lab1_push_and_pr`,
-`step_wrap_round`). The file defines its own step functions, may redefine any
-of the engine's, and sets `STEPS` for each `$PERSONA`. Steps must be safe to
+generic steps (`step_ensure_clone`, `step_sync_main`, `step_wrap_round`). The file
+defines its own step functions, may redefine any of the engine's, and sets `STEPS` for
+each `$PERSONA`. A pack with no `steps.sh` (or one that sets no `STEPS`) gets no lab steps: the
+bot says so, writes `~/.dojo-bot-done` and idles, so `./dojo test` still completes. Steps must be safe to
 re-run from the top and return non-zero on failure (the runner retries that
 step with backoff).
 
@@ -993,11 +986,9 @@ same `FORGEJO_ORG`/`FORGEJO_REPO` as everything else, and is added to the
 `students` team by `bootstrap.sh` exactly like a real student account, so
 it can push and open pull requests.
 
-**Only meaningful for the git-fundamentals content** — `bot-runner.sh` is
-written against that workshop's `roster/team.yaml` file specifically (it
-falls back to editing a generic `NOTES-<bot>.md` if that file doesn't
-exist, so it won't crash against a different workshop's content, but it
-won't do anything workshop-specific for one either).
+**The git-fundamentals steps** (`step_lab1_*` to `step_lab5_*` and the persona `STEPS` lists) live in
+`workshops/git-fundamentals/content/bots/steps.sh`, written against that workshop's `roster/team.yaml`; the
+engine keeps none of them.
 
 **Stop the bots** without tearing down the rest of the stack: set
 `BOT_COUNT=0` in `.env` and re-run `./dojo <workshop-name>` (without

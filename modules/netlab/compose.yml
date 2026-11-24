@@ -4,7 +4,7 @@
 # The pods themselves (a pc, switch, firewall and web node per branch, per student) are written by
 # generate.py into .generated/modules/netlab.yml, which ./dojo lists after this file.
 #
-#   web-terminal --netlab_mgmt (internal)--> SSH :22 on every node
+#   web-terminal --netlab_mgmt_NN (internal, one per pod; generate.py)--> SSH :22 on that pod's nodes
 #   pc -- sw -- web, sw -- fw     one internal /29 per link, per branch, per student (generate.py)
 
 services:
@@ -27,10 +27,9 @@ services:
     network_mode: none
     mem_limit: 16m
 
+  # web-terminal, netlab-checker and netlab-view also join every pod's management network (netlab_mgmt_NN) and get
+  # every node's name through extra_hosts: both are written by generate.py into the generated file.
   web-terminal:
-    # Map form: the engine's web-terminal declares its networks as a map, and podman-compose cannot merge a list into it.
-    networks:
-      netlab_mgmt: {}
     volumes:
       # The reference solutions, for the demo bots (--test) only: /opt/netlab-private is root-only (terminal/Dockerfile),
       # so no student can read them; account.d/57-netlab.sh copies them into each bot's own home.
@@ -62,8 +61,7 @@ services:
       # in module.env, never given to a terminal. `:-` like the rest: ./dojo stop reads this file with the operator files only.
       - NETLAB_PROOF_TOKEN=${NETLAB_PROOF_TOKEN:-}
     networks:
-      - workshop_lab
-      - netlab_mgmt
+      workshop_lab: {}
     cap_drop:
       - ALL
     security_opt:
@@ -101,8 +99,7 @@ services:
     depends_on:
       - netlab-checker
     networks:
-      - workshop_lab
-      - netlab_mgmt
+      workshop_lab: {}
     cap_drop:
       - ALL
     security_opt:
@@ -113,16 +110,3 @@ services:
     pids_limit: 128
     mem_limit: 96m
     restart: unless-stopped
-
-networks:
-  # Internal: no route out, no published port. Carries Ansible's SSH from the terminal to the nodes and nothing else.
-  netlab_mgmt:
-    internal: true
-    ipam:
-      config:
-        # The nodes have fixed addresses in 10.80.1.0/24 (generate.py mgmt_ip); the services here take Docker's pick of
-        # ip_range, so nothing dynamic can land on a pod's block. terminal/start.d/50-netlab.sh firewalls by pod.
-        - subnet: 10.80.0.0/22
-          ip_range: 10.80.0.0/24
-    labels:
-      topiary.module: netlab

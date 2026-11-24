@@ -50,7 +50,7 @@ dojo.toml  <  dojo.local.toml  <  .env  <  profile (--env NAME)  <  workshop.env
 | `terminal.nproc_limit` | `TERMINAL_NPROC_LIMIT` | Per-student `RLIMIT_NPROC`, a fork-bomb tripwire (1024; 0 off) |
 | `terminal.code_server_max_heap_mb` | `CODE_SERVER_MAX_HEAP_MB` | V8 heap cap per code-server node process (384) |
 | `terminal.reconnection_grace_seconds` | `CODE_SERVER_RECONNECTION_GRACE_SECONDS` | Free the extension host this long after a tab closes (300) |
-| `terminal.idle_timeout_seconds` | `CODE_SERVER_IDLE_TIMEOUT_SECONDS` | Exit the whole code-server after this idle time (900; if non-zero must exceed 60; keep grace below it) |
+| `terminal.idle_timeout_seconds` | `CODE_SERVER_IDLE_TIMEOUT_SECONDS` | Exit the whole code-server after this idle time (600; if non-zero must exceed 60; keep grace below it) |
 | `bots.count` / `prefix` | `BOT_COUNT` / `BOT_PREFIX` | Demo bots (0; `testuser`) |
 | `build.corp_ca_bundle` | `CORP_CA_BUNDLE` | CA bundle for TLS-inspecting networks, passed as a BuildKit secret, never baked into an image |
 | `engine.workshop_content_dir`, `workshop_name`, `forgejo_org`, `forgejo_repo` | `WORKSHOP_*`, `FORGEJO_*` | Fallbacks so `stop` can read the compose file; a workshop sets the real values |

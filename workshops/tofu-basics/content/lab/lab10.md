@@ -101,7 +101,7 @@ In the terminal, `terraform state list` prints nothing. Then:
 ```text
 {
   "version": 4,
-  "terraform_version": "1.12.8",
+  "terraform_version": "1.13.10",
   "serial": 13,
   "lineage": "0538175a-f7d2-fa2b-bd32-2b7bda431105",
   "outputs": {},

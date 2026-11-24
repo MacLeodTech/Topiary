@@ -60,9 +60,9 @@ the tool worth noticing.
 
 ## Why this is worth automating at all
 
-The manual version of what sqlmap does is exactly the `' OR '1'='1` style
-probing the Linux/SQL fundamentals cover elsewhere in this course — sqlmap
-just runs many variations, faster and more systematically than typing them
-by hand, and recognizes the subtler "blind" cases (where the page looks
+The manual version of what sqlmap does is typing variations of quotes and
+true/false conditions into an input by hand and watching how the page
+reacts — sqlmap just runs many variations, faster and more systematically
+than typing them by hand, and recognizes the subtler "blind" cases (where the page looks
 identical either way and only *timing* or a true/false difference gives
 it away) that are easy to miss manually.

@@ -70,7 +70,7 @@ code_server_max_heap_mb = 384
 # per student); the idle timeout then exits the whole code-server (tmux terminals survive).
 # Keep grace below the idle timeout; 0 disables a timer; a non-zero idle timeout must exceed 60.
 reconnection_grace_seconds = 300
-idle_timeout_seconds = 900
+idle_timeout_seconds = 600
 
 [bots]
 # `./dojo <workshop> --test [N]` starts demo "students" (testuser1-3 are expert/intermediate/
