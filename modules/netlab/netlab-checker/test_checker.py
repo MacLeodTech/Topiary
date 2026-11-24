@@ -236,7 +236,7 @@ class Labs(unittest.TestCase):
         kh = [a for a in seen["argv"] if a.startswith("UserKnownHostsFile=")][0].split("=", 1)[1]
         self.assertNotEqual(kh, "/dev/null")
         with open(kh) as f:
-            self.assertIn("pc-a-03,10.80.1.28 ssh-ed25519 ", f.read())
+            self.assertIn("pc-a-03,10.80.4.14 ssh-ed25519 ", f.read())
 
     def test_remember_keeps_latest_verdict_per_pod_and_lab(self):
         store = {}
