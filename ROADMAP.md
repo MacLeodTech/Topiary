@@ -123,7 +123,6 @@ No behaviour change. Every E item in phases 1-4 links to its [execution brief](#
 | # | Work | Effort | Description |
 |---|---|---|---|
 | 4.1 | **E10** Split `workspace-control.py` (1124 lines) **[engine]** | M | [Brief](#e10-split-workspace-controlpy-41). The one file worth splitting (also 2026-10-18 review §3.8). A package with `ports` (listeners, squat sweep), `namespaces` (holder, userns), `sessions` (tmux/zellij, watch), `accounts` (reset, hooks), `reaper` and `http` |
-| 4.2 | **E11** Route table in the allocator **[engine]** | S-M | [Brief](#e11-route-table-in-the-allocator-42). Replace the `do_GET` (154 lines) and `do_POST` if-chains in `engine/allocator/handler.py` with a table of `(method, path) → handler, flags`. Facilitator-only and `X-Requested-With` become per-route flags; the same 403 block appears three times in `do_POST` today |
 | 4.4 | Comments: invariants, not history **[engine]** | S | `docker-compose.yml` is 47% comments, the Caddyfile 36%, `entrypoint.sh` 33%, much of it history ("remediation T3.4", "used to be"). Some are already wrong: `workspace-control.py` says it is threaded "unlike the allocator" and puts tmux sockets in `/tmp/tmux-<uid>`, and `handler.py` says "keepalive 2s". Keep the rules ("Caddy's idle limit must stay under the allocator's") and leave the history to git and RELEASES |
 | 4.5 | **E12** Move the git-fundamentals bot steps out of the engine **[engine]** | S-M | [Brief](#e12-move-the-git-fundamentals-bot-steps-out-of-the-engine-45). `engine/web-terminal/bot-runner.sh` (769 lines) carries git-fundamentals' `step_lab1`-`step_lab5` as its default. Packs can already supply their own steps, so move them to `workshops/git-fundamentals/` and keep only the framework (`run_cmd`, `think`, state, portal login) in the engine |
 | 4.6 | CI: Python lint, types and a Caddy invariant test | S | [Brief](#46-ci-additions-supports-e1). Add ruff and a type check to `.github/workflows/ci.yml`, plus a test that reads the Caddyfile and the allocator's timeout and fails if they break 1.1's rule |
@@ -194,13 +193,6 @@ need **[engine]** approval first. Shared rules: work on a feature branch; run bo
 - Keep `workspace-control.py` as a 10-line entry point, so the image's command and healthcheck don't change. Move code only, no edits: do the comment cleanup (4.4) in a separate commit.
 - **Test:** the existing tests (`engine/web-terminal/tests/`) import from the new modules; add an import smoke test. Live: `git-fundamentals --test 3 --fast` and the zellij flavor (`--terminal zellij --test 2 --fast`): bots done, watch tile and reset work, no zombies (`ps -eo stat | rg Z` in the terminal).
 - **Done when:** both stacks pass and no new module is over about 300 lines.
-
-#### E11: route table in the allocator (4.2)
-
-- **Where:** `engine/allocator/handler.py` (`do_GET`, `do_POST`); `engine/allocator/tests/test_handlers.py`.
-- **Change:** `ROUTES = {("GET", "/session-check"): Route(handler, admin=False, xrw=False), ...}` plus a short list of prefix routes (`/login/assets/`, `/admin/api/forgejo-password/`, `/admin/release/`, `/admin/reset/`). `do_GET`/`do_POST` keep only the gateway-token check, `refuse_non_facilitator` and a lookup, then 404. The `X-Requested-With` check runs once, from the `xrw` flag. Keep exact-path matching: it's what makes `/x/../admin` harmless.
-- **Test:** before the refactor, add a test that walks every `(method, path)` the current code serves and records its status for an anonymous request, a student and the facilitator; the refactor must give the same table. Existing handler tests pass.
-- **Done when:** the table test is unchanged and `do_GET` is under 30 lines.
 
 #### E12: move the git-fundamentals bot steps out of the engine (4.5)
 

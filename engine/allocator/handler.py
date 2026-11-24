@@ -7,6 +7,7 @@ import socket
 import threading
 import time
 import urllib.parse
+from typing import Callable, NamedTuple
 
 from accounts import LOGIN_ASSETS, read_session, SESSION_COOKIE
 from allocation import forgejo_login_request, local_path, slots, _state_lock, token_index
@@ -251,224 +252,153 @@ class Handler(ViewsMixin, ApiMixin, http.server.BaseHTTPRequestHandler):
         return {k: v[0] for k, v in parsed.items()}
 
     # -- GET routes ----------------------------------------------------
-    def do_GET(self):
-        self.body_unread(0)  # a GET with a body (none is ever sent) closes the connection
+    # -- routing -----------------------------------------------------------
+    def serve(self, method, routes, prefixes):
+        """The one dispatcher behind do_GET and do_POST: the gateway-token check, the /admin facilitator gate, the
+        forgery-guard header where a route asks for it, then the route. Exact paths only (so /x/../admin is just
+        a 404), plus the few prefix routes whose tail is an id or a file name."""
         if not self.gateway_authorized():
             self.send_response(403)
             self.end_headers()
             return
         parsed = urllib.parse.urlsplit(self.path)
         path = parsed.path
-        count_request("GET", path)
+        count_request(method, path)
         if self.refuse_non_facilitator(path):
             return
-
-        if path == "/admin/api/stats":
-            self.send_json(request_counts(), headers=NO_STORE_HEADERS)
-            return
-
-        if path == "/session-check":
-            self.handle_session_check(parsed)
-            return
-
-        if path == "/gate-fail":
-            self.handle_gate_fail()
-            return
-
-        if path == "/login":
-            nxt = self.login_next(urllib.parse.parse_qs(parsed.query).get("next", [""])[0])
-            if self.session_account():
-                self.redirect(nxt)
-            else:
-                self.send_html(self.render_login(nxt=nxt), headers=NO_STORE_HEADERS)
-            return
-
-        if path.startswith("/login/assets/"):
-            asset = LOGIN_ASSETS.get(path[len("/login/assets/"):])
-            if asset is None:
-                self.send_response(404)
-                self.send_header("Content-Length", "0")
-                self.end_headers()
-                return
-            self.send_response(200)
-            self.send_header("Content-Type", asset[0])
-            self.send_header("Content-Length", str(len(asset[1])))
-            self.send_header("Cache-Control", "no-cache")
-            self.send_header("X-Content-Type-Options", "nosniff")
+        route, rest = routes.get(path), ""
+        if route is None:
+            for prefix, candidate in prefixes:
+                if path.startswith(prefix):
+                    route, rest = candidate, path[len(prefix):]
+                    break
+        if route is None:
+            self.send_response(404)
             self.end_headers()
-            self.wfile.write(asset[1])
             return
-
-        if path == "/logout":
-            self.redirect("/login", cookies=[self.session_cookie("", 0)])
+        if route.xrw and self.headers.get("X-Requested-With") != "dojo-admin":
+            # The facilitator's dojo_login cookie rides along on any same-site request (SameSite=Lax), including
+            # one a page in another tab triggers. A cross-site form cannot set this header, and a cross-site
+            # fetch() that tries to would need a CORS preflight this server never answers.
+            self.send_response(403)
+            self.end_headers()
             return
+        route.fn(self, parsed, rest)
 
-        if path == "/":
-            username, sid = self.resolve_identity()
-            if username == FACILITATOR_USERNAME:
-                # /admin is the facilitator's one canonical page (own tool
-                # links + roster) -- send them there instead of rendering
-                # student-shaped content at "/".
-                self.send_response(303)
-                self.send_header("Location", "/admin")
-                self.send_header("Content-Length", "0")
-                self.end_headers()
-            elif sid is not None:
-                self.send_html(self.render_confirmation(sid), headers=NO_STORE_HEADERS)
-            else:
-                self.send_html(self.render_name_form())
-            return
+    def do_GET(self):
+        self.body_unread(0)  # a GET with a body (none is ever sent) closes the connection
+        self.serve("GET", GET_ROUTES, GET_PREFIXES)
 
-        if path in WORKSPACE_ASSETS:
-            self.send_asset(*WORKSPACE_ASSETS[path])
-            return
+    def do_POST(self):
+        self.body = self.read_body()  # before any reply, even a rejection: see read_body
+        self.serve("POST", POST_ROUTES, POST_PREFIXES)
 
-        if path in ("/workspace", "/workspace/"):
-            username, sid = self.resolve_identity()
-            if username == FACILITATOR_USERNAME:
-                # The facilitator's workspace is /admin.
-                self.redirect("/admin")
-            elif sid is None:
-                self.redirect("/")
-            else:
-                self.send_html(self.render_workspace(sid), headers=NO_STORE_HEADERS)
-            return
+    # -- GET routes ----------------------------------------------------------
+    def get_login(self, parsed, rest):
+        nxt = self.login_next(urllib.parse.parse_qs(parsed.query).get("next", [""])[0])
+        if self.session_account():
+            self.redirect(nxt)
+        else:
+            self.send_html(self.render_login(nxt=nxt), headers=NO_STORE_HEADERS)
 
-        if path == "/forgejo-login":
-            # Deliberately NOT under /git/* -- Caddy's @git matcher is a
-            # raw prefix match ("/git*"), so a path starting with "/git"
-            # here would be routed straight to Forgejo instead of us.
-            username, sid = self.resolve_identity()
-            if username is None:
-                self.send_response(303)
-                self.send_header("Location", "/")
-                self.send_header("Content-Length", "0")
-                self.end_headers()
-                return
-            if allocation.RESETS.fenced(username):
-                self.send_html(page("Resetting", "<main><h1>Your environment is being reset</h1>"
-                                    "<p>Reload this page in a few seconds.</p></main>"),
-                               status=503, headers=NO_STORE_HEADERS)
-                return
-            if username == FACILITATOR_USERNAME:
-                forgejo_user, password = FORGEJO_ADMIN_USER, FORGEJO_ADMIN_PASSWORD
-            else:
-                forgejo_user, password = sid, forgejo_password(sid)
-            cookies = forgejo_login_request(forgejo_user, password)
-            config.audit("forgejo-login", account=username, target=forgejo_user,
-                  result="ok" if cookies else "failed")
-            # ?next=<path>: signed in to Forgejo, go on to another page on
-            # this site (a module's OIDC sign-in, say). Anything else: the repo.
-            nxt = urllib.parse.parse_qs(parsed.query).get("next", [""])[0]
-            self.send_response(303)
-            self.send_header("Location", local_path(nxt) or f"/git/{FORGEJO_ORG}/{FORGEJO_REPO}")
-            for cookie in cookies:
-                self.send_header("Set-Cookie", cookie)
+    def get_login_asset(self, parsed, rest):
+        asset = LOGIN_ASSETS.get(rest)
+        if asset is None:
+            self.send_response(404)
             self.send_header("Content-Length", "0")
             self.end_headers()
             return
-
-        if path == "/whoami":
-            # The browser's own student ID, for pages that personalise
-            # themselves (the lab reader swaps it in for "studentXX").
-            # null for the facilitator and for a browser holding no slot.
-            _, sid = self.resolve_identity()
-            self.send_json({"user": sid}, headers=NO_STORE_HEADERS)
-            return
-
-        if path == "/auth-check":
-            self.handle_auth_check(parsed)
-            return
-
-        if path == "/auth-check-watch":
-            self.handle_auth_check_watch(parsed)
-            return
-
-        if path in ("/admin", "/admin/"):
-            # Facilitator only: Caddy's @admin session gate, then
-            # refuse_non_facilitator() above.
-            self.send_html(self.render_facilitator_workspace())
-            return
-
-        if path in ADMIN_ASSETS:
-            # The /admin page's own script and stylesheet (see ADMIN_JS):
-            # same facilitator gate as /admin itself.
-            self.send_asset(*ADMIN_ASSETS[path])
-            return
-
-        if path == "/admin/api/sessions":
-            self.handle_sessions_api()
-            return
-
-        if path == "/admin/api/status":
-            self.handle_status_api()
-            return
-
-        self.send_response(404)
+        self.send_response(200)
+        self.send_header("Content-Type", asset[0])
+        self.send_header("Content-Length", str(len(asset[1])))
+        self.send_header("Cache-Control", "no-cache")
+        self.send_header("X-Content-Type-Options", "nosniff")
         self.end_headers()
+        self.wfile.write(asset[1])
 
-    # -- POST routes -----------------------------------------------------
-    def do_POST(self):
-        self.body = self.read_body()  # before any reply, even a rejection: see read_body
-        if not self.gateway_authorized():
-            self.send_response(403)
+    def get_logout(self, parsed, rest):
+        self.redirect("/login", cookies=[self.session_cookie("", 0)])
+
+    def get_front_page(self, parsed, rest):
+        username, sid = self.resolve_identity()
+        if username == FACILITATOR_USERNAME:
+            # /admin is the facilitator's one canonical page (own tool
+            # links + roster) -- send them there instead of rendering
+            # student-shaped content at "/".
+            self.send_response(303)
+            self.send_header("Location", "/admin")
+            self.send_header("Content-Length", "0")
+            self.end_headers()
+        elif sid is not None:
+            self.send_html(self.render_confirmation(sid), headers=NO_STORE_HEADERS)
+        else:
+            self.send_html(self.render_name_form())
+
+    def get_workspace(self, parsed, rest):
+        username, sid = self.resolve_identity()
+        if username == FACILITATOR_USERNAME:
+            # The facilitator's workspace is /admin.
+            self.redirect("/admin")
+        elif sid is None:
+            self.redirect("/")
+        else:
+            self.send_html(self.render_workspace(sid), headers=NO_STORE_HEADERS)
+
+    def get_forgejo_login(self, parsed, rest):
+        # Deliberately NOT under /git/* -- Caddy's @git matcher is a
+        # raw prefix match ("/git*"), so a path starting with "/git"
+        # here would be routed straight to Forgejo instead of us.
+        username, sid = self.resolve_identity()
+        if username is None:
+            self.send_response(303)
+            self.send_header("Location", "/")
+            self.send_header("Content-Length", "0")
             self.end_headers()
             return
-        parsed = urllib.parse.urlsplit(self.path)
-        path = parsed.path
-        count_request("POST", path)
-        if self.refuse_non_facilitator(path):
+        if allocation.RESETS.fenced(username):
+            self.send_html(page("Resetting", "<main><h1>Your environment is being reset</h1>"
+                                "<p>Reload this page in a few seconds.</p></main>"),
+                           status=503, headers=NO_STORE_HEADERS)
             return
-
-        if path == "/login":
-            self.handle_login()
-            return
-
-        if path == "/assign":
-            self.handle_assign()
-            return
-
-        if path.startswith("/admin/release/"):
-            # The facilitator's dojo_login cookie rides along on any
-            # same-site request (SameSite=Lax), including one a page in
-            # another tab triggers. A plain cross-site <form method=post>
-            # can't set a custom
-            # header, and a cross-site fetch() that tries to would first
-            # need this server to answer its CORS preflight (it doesn't) --
-            # so requiring this header on the actual roster JS's own fetch
-            # call (see render_facilitator_workspace's releaseTile) blocks
-            # both of those forgery paths while costing the real UI nothing.
-            if self.headers.get("X-Requested-With") != "dojo-admin":
-                self.send_response(403)
-                self.end_headers()
-                return
-            sid = path[len("/admin/release/"):]
-            self.handle_release(sid)
-            return
-
-        if path.startswith("/admin/reset/"):
-            # Same forgery guard as Release, plus the typed id in the body.
-            if self.headers.get("X-Requested-With") != "dojo-admin":
-                self.send_response(403)
-                self.end_headers()
-                return
-            self.handle_reset(path[len("/admin/reset/"):])
-            return
-
-        if path.startswith("/admin/api/forgejo-password/"):
-            self.handle_forgejo_password(path[len("/admin/api/forgejo-password/"):])
-            return
-
-        if path == "/admin/release-unused":
-            if self.headers.get("X-Requested-With") != "dojo-admin":
-                self.send_response(403)
-                self.end_headers()
-                return
-            self.handle_release_unused()
-            return
-
-        self.send_response(404)
+        if username == FACILITATOR_USERNAME:
+            forgejo_user, password = FORGEJO_ADMIN_USER, FORGEJO_ADMIN_PASSWORD
+        else:
+            forgejo_user, password = sid, forgejo_password(sid)
+        cookies = forgejo_login_request(forgejo_user, password)
+        config.audit("forgejo-login", account=username, target=forgejo_user,
+              result="ok" if cookies else "failed")
+        # ?next=<path>: signed in to Forgejo, go on to another page on
+        # this site (a module's OIDC sign-in, say). Anything else: the repo.
+        nxt = urllib.parse.parse_qs(parsed.query).get("next", [""])[0]
+        self.send_response(303)
+        self.send_header("Location", local_path(nxt) or f"/git/{FORGEJO_ORG}/{FORGEJO_REPO}")
+        for cookie in cookies:
+            self.send_header("Set-Cookie", cookie)
+        self.send_header("Content-Length", "0")
         self.end_headers()
+
+    def get_whoami(self, parsed, rest):
+        # The browser's own student ID, for pages that personalise themselves (the lab reader swaps it in for
+        # "studentXX"). null for the facilitator and for a browser holding no slot.
+        _, sid = self.resolve_identity()
+        self.send_json({"user": sid}, headers=NO_STORE_HEADERS)
+
+    def get_admin_page(self, parsed, rest):
+        # Facilitator only: Caddy's @admin session gate, then refuse_non_facilitator().
+        self.send_html(self.render_facilitator_workspace())
+
+    def get_asset(self, parsed, rest):
+        self.send_asset(*(WORKSPACE_ASSETS.get(parsed.path) or ADMIN_ASSETS[parsed.path]))
+
+    # -- POST routes ---------------------------------------------------------
+    def post_release(self, parsed, rest):
+        self.handle_release(rest)
+
+    def post_reset(self, parsed, rest):
+        self.handle_reset(rest)  # the typed id rides in the body
+
+    def post_forgejo_password(self, parsed, rest):
+        self.handle_forgejo_password(rest)
 
     # -- front door (/login) ---------------------------------------------
     def session_cookie(self, value, max_age):
@@ -499,3 +429,41 @@ class Handler(ViewsMixin, ApiMixin, http.server.BaseHTTPRequestHandler):
             self.send_header(k, v)
         self.send_header("Content-Length", "0")
         self.end_headers()
+
+
+class Route(NamedTuple):
+    fn: Callable
+    xrw: bool = False   # needs the X-Requested-With: dojo-admin forgery guard
+
+
+_H = Handler
+GET_ROUTES = {
+    "/admin/api/stats": Route(lambda h, p, r: h.send_json(request_counts(), headers=NO_STORE_HEADERS)),
+    "/session-check": Route(lambda h, p, r: h.handle_session_check(p)),
+    "/gate-fail": Route(lambda h, p, r: h.handle_gate_fail()),
+    "/login": Route(_H.get_login),
+    "/logout": Route(_H.get_logout),
+    "/": Route(_H.get_front_page),
+    "/workspace": Route(_H.get_workspace),
+    "/workspace/": Route(_H.get_workspace),
+    "/forgejo-login": Route(_H.get_forgejo_login),
+    "/whoami": Route(_H.get_whoami),
+    "/auth-check": Route(lambda h, p, r: h.handle_auth_check(p)),
+    "/auth-check-watch": Route(lambda h, p, r: h.handle_auth_check_watch(p)),
+    "/admin": Route(_H.get_admin_page),
+    "/admin/": Route(_H.get_admin_page),
+    "/admin/api/sessions": Route(lambda h, p, r: h.handle_sessions_api()),
+    "/admin/api/status": Route(lambda h, p, r: h.handle_status_api()),
+    **{path: Route(_H.get_asset) for path in (*WORKSPACE_ASSETS, *ADMIN_ASSETS)},
+}
+GET_PREFIXES = [("/login/assets/", Route(_H.get_login_asset))]
+POST_ROUTES = {
+    "/login": Route(lambda h, p, r: h.handle_login()),
+    "/assign": Route(lambda h, p, r: h.handle_assign()),
+    "/admin/release-unused": Route(lambda h, p, r: h.handle_release_unused(), xrw=True),
+}
+POST_PREFIXES = [
+    ("/admin/release/", Route(_H.post_release, xrw=True)),
+    ("/admin/reset/", Route(_H.post_reset, xrw=True)),
+    ("/admin/api/forgejo-password/", Route(_H.post_forgejo_password, xrw=True)),
+]

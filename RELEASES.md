@@ -7,6 +7,11 @@ and verified, it moves here in a line or two. Detail behind older entries (desig
 Entries are grouped by what reached `main`. Dates are commit or merge dates; "locally" means tested on the
 WSL2 desktop stack at `http://localhost:8080`.
 
+## E11 route table in the allocator, item 4.2 (2026-11-24, branch `refactor/caddy-snippets`)
+
+- `do_GET` and `do_POST` in `engine/allocator/handler.py` are now one dispatcher (`serve`) over `GET_ROUTES`/`POST_ROUTES` (exact paths) and a short prefix list. The gateway-token check, the `/admin` facilitator gate and the `X-Requested-With` check each run once (a route's `xrw` flag); the forgejo-password route's own copy of that check is gone. Exact-path matching is kept, so `/x/../admin` is a 404.
+- **Test first:** `tests/test_routes.py` records the status of 176 (method, path, role) combinations (anonymous, class, facilitator, facilitator with the header) from the old code; it passes unchanged on the new. Allocator suite 197 OK. Not run on a live stack: the test drives the real HTTP server.
+
 ## Caddyfile snippets, item 4.3 (2026-11-24, branch `refactor/caddy-snippets`)
 
 - The access-code matchers (`@needgate`, `@gateprobe_bad`, `@gateprobe_no`, `@gatebad`) import two snippets, `gate_needs_code` and `gate_wrong_code`, instead of repeating the same two cookie rules. `@ide`/`@term` already shared the `tool_route` snippet.
