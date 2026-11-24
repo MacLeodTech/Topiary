@@ -264,6 +264,7 @@ Caddy config or HTML. `cert-autorenewal/extensions.json`:
 | `routes`        | `id`, `path` (`/name`, serves `/name` and `/name/*`), `upstream` (`service:port`, must be a service in this run), `gate`, `strip_prefix` (default `false`), `host` (upstream `Host`; `{user}` stands for the caller's account)                                                                                            |
 | `status_checks` | `label`, `url` (`http(s)://service[:port]/path`); green in the `/admin` status strip when it answers 200                                                                                                                                                                                                                  |
 | `resets`        | `id`, `label` (≤40, listed in the Roster's Reset dialog), `upstream` (`service:port` in this run), `path` (contains `{user}` once), `timeout` (1-120 s, default 30), `optional` (default false: true shows it as a checkbox in the dialog, off by default, and runs it only when ticked); a student reset hook, see below |
+| `exports`       | `id`, `label`, `upstream` (`service:port` in this run), `path` (a plain GET path, `?a=b` allowed), `file` (the name it is saved as: lowercase, one of `.json` `.csv` `.txt`), `timeout` (1-120 s, default 30), `count` (a top-level key of a `.json` answer whose size says someone used it); `./dojo stop` saves the answer, see below |
 
 **Student reset hooks.** When the facilitator resets one student from the Roster, the allocator calls each `resets`
 entry twice, in manifest order: `POST <upstream><path>?phase=teardown` before the student's Forgejo account is deleted,
@@ -274,6 +275,15 @@ in constant time, with `RESET_TOKEN`, which your compose fragment passes in as `
 (service name upper-cased, `-` and `.` as `_`). The token is your service's own, so it can't reset anything elsewhere,
 and since students can reach your service on `workshop_lab`, an endpoint that skips the check lets any student wipe
 any other. Per-student state inside the terminal uses `/etc/dojo/account.d` and `reset.d` hooks instead.
+
+**Result exports.** `./dojo stop` deletes every volume, so before that it asks each `exports` entry for its file and
+writes it to `results/<run>/<file>`, next to `roster.csv` and `manifest.json`. The engine does it from inside your
+service's own container as the facilitator (the same call `export-results` uses), so your endpoint can sit behind the
+`facilitator` gate with no extra token: it answers `GET <path>` with the file's text (JSON is saved indented). A failure
+(service down, any status but 200) is written to `manifest.json` under `skipped` and never blocks the stop. `count`
+feeds `manifest.json`'s `counts` and the "nothing to save" rule: a stack with no sign-ins and every counted export at 0
+saves no folder, so give a module's main JSON export a `count` if an empty one should not make a folder. The engine
+names no module, so a new module that wants its results kept only has to declare them here.
 
 **Student workspace.** Every student can open `/workspace`, the tabbed version of the landing page: Labs, VS Code,
 Terminal, Forgejo and Slides, then one tab per `cards` entry (framing that card's `href`). A card therefore needs no

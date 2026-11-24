@@ -14,7 +14,7 @@ that forwards to `./dojo`. Run from the repo root or from `engine/` (same result
 |---|---|
 | `./dojo <workshop> [flags]` | Build and start a workshop (same as `start`) |
 | `./dojo start <workshop>` | Explicit form of the above |
-| `./dojo stop [--dry-run] [--no-archive]` | First save feedback, scores and the roster to `results/<date>_<time>_<workshop>/` (skipped when nobody used the stack), then tear down the stack and **delete every volume** |
+| `./dojo stop [--dry-run] [--no-archive] [--with-repos]` | First save the roster and each module's declared exports (feedback, scores, ...) to `results/<date>_<time>_<workshop>/` (skipped when nobody used the stack; `--with-repos` also copies every Forgejo repository, with history, into `repos/`), then tear down the stack and **delete every volume** |
 | `./dojo export-feedback [--format csv\|json] [--out FILE]` | The feedback module's answers (no usernames); fails if it isn't running |
 | `./dojo restart [SERVICE...] [--clean]` | Recreate the last start's containers, same flags |
 | `./dojo status [--json]` / `ps` | What is running, health, students signed in |
@@ -34,6 +34,7 @@ that forwards to `./dojo`. Run from the repo root or from `engine/` (same result
 | `./dojo backup [PATH]` / `restore PATH [-y]` | Tar of every volume via `podman volume export/import`; restore only into a stopped stack of the same workshop |
 | `./dojo prune [--dry-run]` | Remove dangling `topiary/` images; never volumes or containers |
 | `./dojo validate [<workshop>...]` | Static checks of every pack (workshop.env, MODULES, extensions.json, catalog); exit 1 on failure |
+| `./dojo doctor <workshop> --live [--students N] [--pass CODE]` | Readiness for a class others join: empty or short passwords, seed, CTF tokens, pids and memory for N students, a workshop file lowering your sizing, built images; no-limit cgroups and plain HTTP become failures. Changes nothing |
 | `./dojo doctor --fix` | Safe fixes first: stale run lock, missing `.env` (`setup --default`), `.env` mode 600 |
 | `./dojo version` | Git revision, engine versions, pinned wheels |
 | `--json` | Also on `list`, `modules` and `doctor` |

@@ -1,7 +1,7 @@
 """Deterministic SSH host keys for the netlab nodes, and the known_hosts file that pins them.
 
-Every pod's nodes share one flat netlab_mgmt network and students are root (with NET_ADMIN) on their own nodes, so a
-student could take over a classmate's node address and answer the checker's or the facilitator's SSH. Clients used
+Students are root (with NET_ADMIN) on their own nodes, which share a management network with their pod (and with the
+checker and the terminal), so a student could take over a node address in that pod and answer the checker's or the facilitator's SSH. Clients used
 to ignore host keys. Now each node's ed25519 host key is derived from the class seed and the node's name:
 
     private seed = HMAC-SHA256(STUDENT_PASSWORD_SEED, "netlab-hostkey:<node name>")      (the 32-byte ed25519 seed)
@@ -18,7 +18,8 @@ import hashlib
 import hmac
 import struct
 
-MGMT_POD_BASE = "10.80.1."          # generate.py MGMT_POD_BASE
+MGMT_NET_BASE = "10.80."            # generate.py MGMT_NET_BASE
+NODE_HOST_BASE = 10                 # generate.py NODE_HOST_BASE
 ROLE_SLOT = {"pc": 0, "sw": 1, "fw": 2, "web": 3}
 BRANCH_SLOT = {"m": 0, "a": 4}
 
@@ -77,7 +78,7 @@ def node_name(role, branch, pod):
 
 
 def mgmt_ip(pod, branch, role):
-    return f"{MGMT_POD_BASE}{8 * pod + BRANCH_SLOT[branch] + ROLE_SLOT[role]}"
+    return f"{MGMT_NET_BASE}{pod + 1}.{NODE_HOST_BASE + BRANCH_SLOT[branch] + ROLE_SLOT[role]}"
 
 
 def host_seed(class_seed, name):

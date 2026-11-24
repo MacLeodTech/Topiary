@@ -4,8 +4,8 @@ Uses the same -f files the last start used (state.Current), so module and
 overlay services and volumes go too; `down --remove-orphans` catches anything
 older. Only the operator files (dojo.toml, dojo.local.toml, .env and the recorded profile) are loaded, never a
 workshop.env, so a compose fragment must not require (${VAR:?}) a variable
-only workshop.env or module.env sets. Nothing here can be undone, so before the volumes go it saves the class's feedback, scores and roster
-to results/ (archive.py; `--no-archive` skips it).
+only workshop.env or module.env sets. Nothing here can be undone, so before the volumes go it saves the roster and every module's declared `exports`
+(feedback, scores, ...) to results/ (archive.py; `--no-archive` skips it, `--with-repos` adds every Forgejo repository).
 """
 from __future__ import annotations
 
@@ -43,7 +43,7 @@ def _volumes_in_config(text: str) -> List[str]:
     return out
 
 
-def run_stop(dry_run: bool, archive: bool = True) -> int:
+def run_stop(dry_run: bool, archive: bool = True, with_repos: bool = False) -> int:
     t0 = time.time()
     rt = Runtime()
     cur = state.read_current()
@@ -85,7 +85,7 @@ def run_stop(dry_run: bool, archive: bool = True) -> int:
         return 0
 
     if archive and any(c.state in READY for c in containers):
-        _archive(rt)
+        _archive(rt, with_repos)
 
     console.print("Tearing down the workshop stack and all volumes (student homes, Forgejo data)...")
     t_down = time.time()
@@ -120,16 +120,16 @@ def run_stop(dry_run: bool, archive: bool = True) -> int:
     return 0
 
 
-def _archive(rt: Runtime) -> None:
-    """Save feedback, scores and the roster to results/ before the volumes go. Never blocks the teardown."""
+def _archive(rt: Runtime, with_repos: bool = False) -> None:
+    """Save the roster and every module export to results/ before the volumes go. Never blocks the teardown."""
     from . import archive
     try:
-        folder = archive.save(rt)
+        folder = archive.save(rt, with_repos=with_repos)
     except Exception as exc:  # best effort: a broken export must not keep the stack up
         console.print(f"[yellow]Could not save results ({exc}); continuing with the teardown.[/]")
         return
     if folder:
-        console.print(f"Saved this class's results to [cyan]{folder.relative_to(paths.REPO)}[/] (feedback, scores, roster).")
+        console.print(f"Saved this class's results to [cyan]{folder.relative_to(paths.REPO)}[/] ({', '.join(sorted(p.name for p in folder.iterdir() if p.name != 'manifest.json'))}).")
     else:
         console.print("[dim]No student activity to save.[/]")
 
