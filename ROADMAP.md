@@ -303,7 +303,6 @@ Plan and spike results: [`docs/plans/SRX-MIST-PLAN.md`](docs/plans/SRX-MIST-PLAN
 
 | # | Work | Effort | Description |
 |---|---|---|---|
-| 6.3.1 | OpenTofu 1.13 | M | 1.12.8 is in (PR #59); move to 1.13.x once the labs and the OPA pairing are tested |
 | 6.3.2 | Achievements Phase 6: certificate **[you: decision]** | S | Certificate, badge PNG and name dialog are done; one decision is left |
 | 6.3.3 | D2 Retire the shims | S | Once a live class has used `dojo ...`: drop `dojo-check`/`dojo-challenge`/`lab-prep`/`sensei` as student-facing names (the prompt hook still calls `dojo-check --shell`/`--echo`, which stay) and the old-marker strip in `lab-reader.js` |
 | 6.3.4 | D3 `dojo help` per workshop | S | Optional workshop footer (e.g. "start with `dojo prep N` if you join late") from a `dojo-help` text file in `cmd.d`'s sibling; today every workshop shows the same generic footer |

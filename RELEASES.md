@@ -7,6 +7,12 @@ and verified, it moves here in a line or two. Detail behind older entries (desig
 Entries are grouped by what reached `main`. Dates are commit or merge dates; "locally" means tested on the
 WSL2 desktop stack at `http://localhost:8080`.
 
+## OpenTofu 1.13, item 6.3.1 (2026-11-24)
+
+- `tofu-basics`, `cloud-policy-as-code` and `dojo-introduction` pin OpenTofu 1.13.10 (was 1.12.8), with the new SHA256s for amd64 and arm64 in the Dockerfiles; the version text in the tofu-basics lab, slides and mock changed to match.
+- Tested without a stack: the 1.13.10 binary planned the cloud-policy-as-code sample repo with the lab 3, 4, 5 and 7 solutions and both achievement seeds. `tofu show -json` came out identical to 1.12.8's apart from `terraform_version` and `timestamp`, and `conftest` (0.71.0) gave the same results on both; `opa test` (1.21.1) passes 8/8. The sample repo's policy failures are the lab's own starting state.
+- Not run: the labs inside a built terminal image (no image build), and `tofu-basics` and `srx-terraform` labs on 1.13.
+
 ## E8 revocable, shorter facilitator session (2026-11-24)
 
 - Cookies carry a per-account epoch; a facilitator `/logout` bumps it (kept in `session-epochs.json` in the allocator volume, survives restarts), so every facilitator cookie dies; class and bot cookies are untouched. Facilitator lifetime is 4 h (`general.facilitator_session_hours`), class stays 12 h. Unit tests added (199 allocator, 170 dojo OK). Live on git-fundamentals: two facilitator cookies both worked, logout on one made both 401, class cookie unaffected, a new sign-in worked, epoch persisted across an allocator restart.
