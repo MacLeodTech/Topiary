@@ -112,7 +112,7 @@ Finish before the next `--env prod` class. Settle 3.1's decision first: it decid
 | 3.3 | Per-pod netlab management network (2026-11-08 item 2) | M | S1's full fix: a pod with root and NET_ADMIN can still ARP-spoof on the flat `netlab_mgmt` network (host keys now stop the impersonation, not the reach) |
 | 3.4 | P15 `doctor --live`: pre-class readiness check | M | Design in [`docs/reviews/2026-10-18.md`](docs/reviews/2026-10-18.md) (P13/P15); not built |
 | 3.5 | P10 failure and recovery; P12 fresh-machine bootstrap | M each | Kill services mid-class and interrupt start/stop/restart: do students recover? `setup.sh`/`setup.ps1` on a clean machine. Briefs in the 2026-10-18 review |
-| 3.6 | **E9** Save before stop, through a module hook (2026-11-08 item 7) **[engine]** | S-M | [Brief](#e9-save-before-stop-through-a-module-hook-36). `./dojo stop` already saves feedback, scores and the roster to `results/` (`engine/dojo/stop.py`); student repos are not saved yet. Do it generically: an `exports` kind in `extensions.json` (like `resets`) through which any module adds files to `results/`. Then the engine no longer calls achievements by name (`engine/dojo/archive.py`, `results.py`). The auto-add of `achievements` in `engine/dojo/envfiles.py:185` could become a pack setting too |
+| 3.6 | **E9** Student repos in the stop archive (`--with-repos`) **[engine]** | S | The exports hook is built (RELEASES). Left: save the Forgejo org and the students' repos into `results/<run>/repos/` (`git clone --mirror` through the bootstrap network, or Forgejo's archive API), behind a `--with-repos` flag since it can be large; and the achievements auto-add in `engine/dojo/envfiles.py:185` could become a pack setting |
 
 ## Phase 4: engine structure and hygiene
 
@@ -156,14 +156,12 @@ need **[engine]** approval first. Shared rules: work on a feature branch; run bo
   - `--env home` with the real hostnames **[you]**.
 - **Done when:** the P8 pass works on the admin origin and the cross-origin checks fail as they should; `docs/security.md` is updated.
 
-#### E9: save before stop through a module hook (3.6)
+#### E9: student repos in the stop archive (3.6, what is left)
 
-- **Where:** `engine/allocator/render_extensions.py` (a new kind in `KINDS`: `"exports": {"required": ("id", "label", "upstream", "path"), "optional": ("timeout",)}`, validated like `resets`, with its own derived token `EXPORT_TOKEN_<SERVICE>`); `engine/dojo/archive.py` and `results.py` (call each export instead of `achievements` by name); `modules/achievements/extensions.json` and its service (serve the export); `workshops/README.md` (the contract); `engine/dojo/stop.py` (calls the archive already).
-- **Contract:** `GET <path>` with `X-Dojo-Export-Token`; it answers JSON or CSV, which is saved as `results/<run>/<id>.<ext>`. A failure is noted in the archive and never blocks the stop (as today).
-- **Repos:** add an engine export of the Forgejo org and the students' repos (`git clone --mirror` through the bootstrap network, or Forgejo's archive API) into `results/<run>/repos/`, behind a `--with-repos` flag since it can be large.
-- **Then:** the achievements auto-add in `envfiles.py:185` can stay (it's a toggle), but archive and results must not name the module.
-- **Test:** unit tests for the new manifest kind (bad path, unknown upstream, duplicate id); `test_archive`-style tests with a fake export. Live: `ACHIEVEMENTS_ENABLED=1 ./dojo git-fundamentals --test 2 --fast`, then `./dojo stop`: `results/` holds the same files as before plus `repos/` with `--with-repos`.
-- **Done when:** `rg -n achievements engine/dojo/archive.py engine/dojo/results.py` finds nothing and the stop run saves the same results.
+- **Where:** `engine/dojo/archive.py` (a repos step in `save()`), `engine/dojo/stop.py` and `cli.py` (a `--with-repos` flag on `stop`).
+- **Change:** list the org's repos (Forgejo API through the git-server's internal address) and mirror or archive each into `results/<run>/repos/<user>/`; a failure is noted under `skipped` and never blocks the stop.
+- **Test:** unit tests with a fake listing; live `git-fundamentals --test 2 --fast`, then `./dojo stop --with-repos`: `repos/` holds each bot's work.
+- **Done when:** `repos/` appears only with the flag and the stop still saves everything else.
 
 #### E10: split `workspace-control.py` (4.1)
 

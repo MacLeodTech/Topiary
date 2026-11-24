@@ -4,8 +4,8 @@ Uses the same -f files the last start used (state.Current), so module and
 overlay services and volumes go too; `down --remove-orphans` catches anything
 older. Only the operator files (dojo.toml, dojo.local.toml, .env and the recorded profile) are loaded, never a
 workshop.env, so a compose fragment must not require (${VAR:?}) a variable
-only workshop.env or module.env sets. Nothing here can be undone, so before the volumes go it saves the class's feedback, scores and roster
-to results/ (archive.py; `--no-archive` skips it).
+only workshop.env or module.env sets. Nothing here can be undone, so before the volumes go it saves the roster and every module's declared `exports`
+(feedback, scores, ...) to results/ (archive.py; `--no-archive` skips it).
 """
 from __future__ import annotations
 
@@ -121,7 +121,7 @@ def run_stop(dry_run: bool, archive: bool = True) -> int:
 
 
 def _archive(rt: Runtime) -> None:
-    """Save feedback, scores and the roster to results/ before the volumes go. Never blocks the teardown."""
+    """Save the roster and every module export to results/ before the volumes go. Never blocks the teardown."""
     from . import archive
     try:
         folder = archive.save(rt)
@@ -129,7 +129,7 @@ def _archive(rt: Runtime) -> None:
         console.print(f"[yellow]Could not save results ({exc}); continuing with the teardown.[/]")
         return
     if folder:
-        console.print(f"Saved this class's results to [cyan]{folder.relative_to(paths.REPO)}[/] (feedback, scores, roster).")
+        console.print(f"Saved this class's results to [cyan]{folder.relative_to(paths.REPO)}[/] ({', '.join(sorted(p.name for p in folder.iterdir() if p.name != 'manifest.json'))}).")
     else:
         console.print("[dim]No student activity to save.[/]")
 

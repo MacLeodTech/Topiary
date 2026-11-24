@@ -7,6 +7,13 @@ and verified, it moves here in a line or two. Detail behind older entries (desig
 Entries are grouped by what reached `main`. Dates are commit or merge dates; "locally" means tested on the
 WSL2 desktop stack at `http://localhost:8080`.
 
+## Result exports through a module hook, item 3.6 (2026-11-24)
+
+- A new `exports` kind in `extensions.json` (`id`, `label`, `upstream`, `path`, `file`, optional `timeout` and `count`), validated by `render_extensions.py` like `resets`. `./dojo stop` fetches each one as the facilitator from inside the service's own container and saves it as `results/<run>/<file>`; a failure goes under `skipped` in `manifest.json` and never blocks the stop. The engine names no module any more (`archive.py` no longer mentions feedback or achievements; `export-feedback` and `export-results` stay as module-named commands in `results.py`).
+- Differs from the brief: no separate `EXPORT_TOKEN_<SERVICE>`. The facilitator-gated endpoints the modules already have are reached with the same container-side call as `export-results`, so a new token would only be a second copy of the same trust.
+- feedback declares its two exports and achievements three (state, its own CSV, the SOC feed). `achievements.json` is now the service's full state and `achievements.csv` the module's own columns (adds `done`/`total`). `manifest.json` has `counts` (per export that declares `count`) instead of `feedback_answers` and `students_with_progress`.
+- Tested: 8 new renderer tests, `test_archive` rewritten around fake exports (7), all suites, ruff, mypy. Live: `ACHIEVEMENTS_ENABLED=1 git-fundamentals --test 2 --fast`, then `./dojo stop` saved `achievements.json`, `achievements.csv`, `achievements-soc.json`, `feedback.json`, `feedback.csv` and `roster.csv`.
+
 ## E8 revocable, shorter facilitator session (2026-11-24)
 
 - Cookies carry a per-account epoch; a facilitator `/logout` bumps it (kept in `session-epochs.json` in the allocator volume, survives restarts), so every facilitator cookie dies; class and bot cookies are untouched. Facilitator lifetime is 4 h (`general.facilitator_session_hours`), class stays 12 h. Unit tests added (199 allocator, 170 dojo OK). Live on git-fundamentals: two facilitator cookies both worked, logout on one made both 401, class cookie unaffected, a new sign-in worked, epoch persisted across an allocator restart.

@@ -4,12 +4,13 @@ Writes results/<date>_<time>_<workshop>/ (git-ignored; it holds student comments
 
   manifest.json    which workshop, the command that started it, when it started and stopped, how long, who
                    was in it, which services ran, and what was saved or skipped and why
-  feedback.csv/.json   the feedback module's answers (no usernames, as in the /admin export)
-  achievements.csv/.json   scores and unlocks per student (json adds CTF/SOC data)
   roster.csv       who signed in and whether they were a demo bot
+  <file>           one per `exports` entry that a running module declares in its extensions.json (a module's
+                   answers, scores, ...): the engine fetches each as the facilitator and never
+                   names a module (workshops/README.md, "Result exports")
 
 Best effort: every part is tried on its own, a failure is recorded in the manifest and never stops the
-teardown. A stack nobody used (no sign-ins, no feedback, no scores) saves nothing."""
+teardown. A stack nobody used (no sign-ins and nothing an export counts) saves nothing."""
 from __future__ import annotations
 
 import csv
@@ -17,7 +18,7 @@ import io
 import json
 import time
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 from . import paths, results, state
 from .runtime import Runtime
@@ -26,19 +27,33 @@ from .stackapi import StackError, call, running
 RESULTS_DIR = paths.REPO / "results"
 
 
-def fetch_feedback(rt: Runtime) -> Dict[str, Any]:
-    """The feedback module's export as {"questions": ..., "answers": [...]} (raises StackError if it isn't running)."""
-    status, doc = call(rt, "feedback", "GET", "/feedback-admin/api/export?format=json")
-    if status != 200 or not isinstance(doc, dict):
-        raise StackError(f"The feedback service refused the export (HTTP {status}).")
-    return doc
+EXTENSIONS_FILE = paths.ENGINE / ".generated" / "allocator" / "extensions.json"
 
 
-def fetch_feedback_csv(rt: Runtime) -> str:
-    status, text = call(rt, "feedback", "GET", "/feedback-admin/api/export?format=csv")
-    if status != 200 or not isinstance(text, str):
-        raise StackError(f"The feedback service refused the export (HTTP {status}).")
-    return text
+def declared_exports() -> List[Dict[str, Any]]:
+    """The merged `exports` entries of this run's manifests (render_extensions.py wrote them at start)."""
+    try:
+        data = json.loads(EXTENSIONS_FILE.read_text())
+    except (OSError, ValueError):
+        return []
+    items = data.get("exports") if isinstance(data, dict) else None
+    return [e for e in items or [] if isinstance(e, dict) and e.get("file") and e.get("upstream") and e.get("path")]
+
+
+def fetch_export(rt: Runtime, export: Dict[str, Any]) -> Tuple[str, int]:
+    """(file text, count) of one declared export; count is the size of its `count` key (0 when it has none).
+    Raises StackError when the service isn't running or refuses."""
+    service, _, port = str(export["upstream"]).partition(":")
+    status, body = call(rt, service, "GET", export["path"], port=int(port or 8080), timeout=int(export.get("timeout", 30)))
+    if status != 200:
+        raise StackError(f"{export.get('label') or export.get('id')}: {service} refused the export (HTTP {status}).")
+    count = 0
+    key = export.get("count")
+    if key and isinstance(body, dict):
+        value = body.get(key)
+        count = len(value) if isinstance(value, (list, dict)) else int(bool(value))
+    text = body if isinstance(body, str) else json.dumps(body, indent=2) + "\n"
+    return (text if text.endswith("\n") else text + "\n"), count
 
 
 def _roster_csv(rows: List[Dict[str, Any]]) -> str:
@@ -74,26 +89,19 @@ def save(rt: Runtime, now: Optional[float] = None) -> Optional[Path]:
     except StackError as exc:
         notes["roster"] = str(exc)
 
-    answers = 0
-    try:
-        fb = fetch_feedback(rt)
-        answers = len(fb.get("answers") or [])
-        got["feedback.json"] = json.dumps(fb, indent=2) + "\n"
-        got["feedback.csv"] = fetch_feedback_csv(rt)
-    except StackError as exc:
-        notes["feedback"] = str(exc)
-
-    scored = 0
-    try:
-        res = results.fetch_results(rt)
-        scored = sum(1 for s in res.get("students", []) if s.get("score") or s.get("unlocks"))
-        got["achievements.json"] = results.render(res, "json")
-        got["achievements.csv"] = results.render(res, "csv")
-    except StackError as exc:
-        notes["achievements"] = str(exc)
+    counts: Dict[str, int] = {}    # export id -> its size, for the ones that declare a `count`
+    for export in declared_exports():
+        try:
+            text, n = fetch_export(rt, export)
+        except StackError as exc:
+            notes[str(export.get("id") or export["file"])] = str(exc)
+            continue
+        got[export["file"]] = text
+        if export.get("count"):
+            counts[str(export["id"])] = n
 
     humans = [r for r in roster if r.get("ip") != "bot"]
-    if not roster and not answers and not scored:
+    if not roster and not any(counts.values()):
         return None
     started = cur.started_at if cur and cur.started_at else None
     manifest = {
@@ -104,7 +112,7 @@ def save(rt: Runtime, now: Optional[float] = None) -> Optional[Path]:
         "stopped_at": time.strftime("%Y-%m-%dT%H:%M:%S%z", time.localtime(now)),
         "duration_minutes": round((now - started) / 60, 1) if started else None,
         "students": len(humans), "demo_bots": len(roster) - len(humans),
-        "feedback_answers": answers, "students_with_progress": scored,
+        "counts": counts,
         "services": services, "saved": sorted(got), "skipped": notes,
     }
     d = _folder(str(manifest["workshop"]), now)
