@@ -174,7 +174,7 @@ services:
     # dojo builds :base from ./web-terminal, then any module and workshop
     # terminal/ Dockerfiles as a chain on top of it (each `FROM ${BASE}`,
     # see docs/archive/MODULES-PLAN.md §4.2), and sets WEB_TERMINAL_IMAGE to the
-    # last link. Overlays no longer set image: here themselves.
+    # last link. Overlays must not set image: here.
     image: ${WEB_TERMINAL_IMAGE:-topiary/web-terminal:base}
     container_name: workshop_terminal
     logging: *logging
@@ -481,7 +481,7 @@ networks:
   web_lab:
     internal: true
   # The gateway's only path to the students' IDE and terminal ports
-  # (9000-9899) (remediation T2.2a, FIND-04): web-terminal drops them on
+  # (9000-9899): web-terminal drops them on
   # every other interface, so a CI job, runner or module service on
   # workshop_lab can't reach a workspace that skips Caddy's auth-check.
   # Only gateway and web-terminal join it; dojo refuses a module or

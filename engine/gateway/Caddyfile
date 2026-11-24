@@ -13,8 +13,8 @@
 # a forward_auth call to the allocator's /session-check (snippet
 # session_gate below). No cookie: a page load is redirected to /login, a poll
 # or API call gets 401. The account in the cookie is copied to the request as
-# X-Session-User and sent upstream as X-Auth-User, which is what basic_auth's
-# user id used to be.
+# X-Session-User and sent upstream as X-Auth-User, the account every other
+# service reads.
 #
 # /admin/* -> session_gate with role=facilitator: only the facilitator's own
 #   login gets in; the class login is refused with a 403.
@@ -25,8 +25,7 @@
 #   - / is the allocator's name-entry + tool-picker flow (see engine/allocator/)
 #   - /ide/*, /term/* and /admin/watch/* reach web-terminal as
 #     web-terminal-ingress: its alias on the terminal_ingress network,
-#     the only network its IDE/terminal ports accept (remediation T2.2a;
-#     see docker-compose.yml and web-terminal/entrypoint.sh).
+#     the only network its IDE/terminal ports accept (see docker-compose.yml and web-terminal/entrypoint.sh).
 #   - /ide/* and /term/* are checked by an auth-check call (forward_auth's
 #     own pattern, written out longhand so a still-starting workspace can
 #     get its own response -- see snippet tool_route), which calls the
@@ -56,7 +55,7 @@
 	}
 }
 
-# Every call to the allocator (remediation T3.4, FIND-07). A stuck call must
+# Every call to the allocator. A stuck call must
 # fail fast instead of queueing the class behind it: a dial that takes over
 # 3 s or a reply that hasn't started within 10 s is a 502. The allocator keeps
 # connections alive (HTTP/1.1) and closes an idle one after 65 s
@@ -165,7 +164,7 @@
 }
 
 {$GATEWAY_LISTEN} {
-	# Access log on stdout, JSON (remediation T1.4, FIND-13). user_id is the
+	# Access log on stdout, JSON. user_id is the
 	# account that signed in. Caddy redacts the Authorization and
 	# Cookie headers by default; never set log_credentials here.
 	log {
@@ -173,7 +172,7 @@
 		format json
 	}
 
-	# HSTS whenever browsers use https (remediation T1.3, FIND-08), including
+	# HSTS whenever browsers use https, including
 	# behind a TLS proxy (GATEWAY_LISTEN plain HTTP): the proxy passes the
 	# header on. One day covers a workshop without pinning a reused host to
 	# https for months. {$PUBLIC_BASE_URL} is substituted when the config loads.
@@ -313,7 +312,7 @@
 		import session_gate any
 
 		# Marp decks, cheat sheets and the lab reader's copies of the labs.
-		# Behind the class login (remediation T1.2, FIND-02): lab text can
+		# Behind the class login: lab text can
 		# hold workshop details. The /admin Slides tab passes too, since the
 		# facilitator credential is accepted here.
 		@slides path /slides*

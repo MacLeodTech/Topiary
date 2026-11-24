@@ -7,6 +7,11 @@ and verified, it moves here in a line or two. Detail behind older entries (desig
 Entries are grouped by what reached `main`. Dates are commit or merge dates; "locally" means tested on the
 WSL2 desktop stack at `http://localhost:8080`.
 
+## Comments: invariants, not history, item 4.4 (2026-11-24)
+
+- Fixed the comments that were wrong: `workspace-control.py` says it threads "as the allocator does" (the allocator is a `ThreadingHTTPServer` too) and names tmux sockets under `<runtime dir>/tmux-<uid>/`, not `/tmp`. The `handler.py` keepalive comment was checked and is correct (Caddy's 60 s is under its 65 s).
+- Removed the "remediation T..., FIND-.." tags and the "used to be" / "no longer" phrasing from the comments in `docker-compose.yml`, the Caddyfile and the terminal `entrypoint.sh`; each comment keeps its rule. A grep found about ten such phrases, far fewer than the roadmap's "much of it", so no wider rewrite was done.
+
 ## E8 revocable, shorter facilitator session (2026-11-24)
 
 - Cookies carry a per-account epoch; a facilitator `/logout` bumps it (kept in `session-epochs.json` in the allocator volume, survives restarts), so every facilitator cookie dies; class and bot cookies are untouched. Facilitator lifetime is 4 h (`general.facilitator_session_hours`), class stays 12 h. Unit tests added (199 allocator, 170 dojo OK). Live on git-fundamentals: two facilitator cookies both worked, logout on one made both 401, class cookie unaffected, a new sign-in worked, epoch persisted across an allocator restart.
