@@ -16,6 +16,8 @@ from __future__ import annotations
 import csv
 import io
 import json
+import subprocess
+import tarfile
 import time
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
@@ -25,6 +27,35 @@ from .runtime import Runtime
 from .stackapi import StackError, call, running
 
 RESULTS_DIR = paths.REPO / "results"
+
+
+FORGE_SERVICE = "git-server"
+FORGE_REPOS = "/data/git/repositories"   # where Forgejo keeps every bare repo, the org's and each student's
+
+
+def save_repos(rt: Runtime, dest: Path) -> int:
+    """Copy every bare repository out of Forgejo into DEST/<owner>/<name>.git (clone-able, history and all) and
+    return how many. Streams one tar from the git server's own container, so no Forgejo credentials are involved.
+    Raises StackError when the git server isn't running or the copy fails."""
+    from .stackapi import find_container
+    c = find_container(rt, FORGE_SERVICE)
+    dest.mkdir(parents=True, exist_ok=True)
+    try:
+        proc = subprocess.Popen([rt.cli, "exec", c.name, "tar", "-C", FORGE_REPOS, "-cf", "-", "."],
+                                stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    except OSError as exc:
+        raise StackError(f"Could not read the repositories: {exc}")
+    assert proc.stdout is not None and proc.stderr is not None
+    try:
+        with tarfile.open(fileobj=proc.stdout, mode="r|") as tar:
+            tar.extractall(dest, filter="data")   # refuses absolute paths, links out of DEST and device nodes
+    except (tarfile.TarError, OSError) as exc:
+        proc.kill()
+        raise StackError(f"Could not copy the repositories: {exc}")
+    err = proc.stderr.read().decode(errors="replace").strip()
+    if proc.wait() != 0:
+        raise StackError(f"Could not read the repositories ({err[-200:] or 'tar failed'}).")
+    return sum(1 for p in dest.glob("*/*.git") if p.is_dir())
 
 
 EXTENSIONS_FILE = paths.ENGINE / ".generated" / "allocator" / "extensions.json"
@@ -74,7 +105,7 @@ def _folder(workshop: str, now: float) -> Path:
     return d
 
 
-def save(rt: Runtime, now: Optional[float] = None) -> Optional[Path]:
+def save(rt: Runtime, now: Optional[float] = None, with_repos: bool = False) -> Optional[Path]:
     """Write the session folder for the stack that is up now; None when there is nothing worth keeping."""
     now = now or time.time()
     cur = state.read_current()
@@ -119,5 +150,10 @@ def save(rt: Runtime, now: Optional[float] = None) -> Optional[Path]:
     d.mkdir(parents=True)
     for name, text in got.items():
         (d / name).write_text(text)
+    if with_repos:   # last, and after the folder exists: the repos can be large and must never cost the rest
+        try:
+            manifest["repos"] = save_repos(rt, d / "repos")
+        except StackError as exc:
+            notes["repos"] = str(exc)
     (d / "manifest.json").write_text(json.dumps(manifest, indent=2) + "\n")
     return d

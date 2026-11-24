@@ -169,21 +169,23 @@ def restart(services: Tuple[str, ...], clean: bool) -> None:
 @cli.command(context_settings=SETTINGS)
 @click.option("--dry-run", is_flag=True, help="List what would be removed; remove nothing.")
 @click.option("--no-archive", is_flag=True, help="Skip saving feedback, scores and the roster to results/ first.")
-def stop(dry_run: bool, no_archive: bool) -> None:
+@click.option("--with-repos", is_flag=True, help="Also copy every Forgejo repository (the org's and each student's, with history) into results/<run>/repos/. Can be large.")
+def stop(dry_run: bool, no_archive: bool, with_repos: bool) -> None:
     """Stop the stack and delete ALL its volumes (student homes, Forgejo data). No undo.
 
     First saves the class's feedback, scores and roster to results/<date>_<time>_<workshop>/."""
     from .stop import run_stop
-    sys.exit(run_stop(dry_run, archive=not no_archive))
+    sys.exit(run_stop(dry_run, archive=not no_archive, with_repos=with_repos))
 
 
 @cli.command("down", context_settings=SETTINGS)
 @click.option("--dry-run", is_flag=True, help="List what would be removed; remove nothing.")
 @click.option("--no-archive", is_flag=True, help="Skip saving feedback, scores and the roster to results/ first.")
-def down(dry_run: bool, no_archive: bool) -> None:
+@click.option("--with-repos", is_flag=True, help="Also copy every Forgejo repository (the org's and each student's, with history) into results/<run>/repos/. Can be large.")
+def down(dry_run: bool, no_archive: bool, with_repos: bool) -> None:
     """Same as stop: save results/, then stop the stack and delete ALL its volumes. No undo."""
     from .stop import run_stop
-    sys.exit(run_stop(dry_run, archive=not no_archive))
+    sys.exit(run_stop(dry_run, archive=not no_archive, with_repos=with_repos))
 
 
 @cli.command("teardown", context_settings=SETTINGS, hidden=True)

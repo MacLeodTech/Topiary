@@ -7,6 +7,11 @@ and verified, it moves here in a line or two. Detail behind older entries (desig
 Entries are grouped by what reached `main`. Dates are commit or merge dates; "locally" means tested on the
 WSL2 desktop stack at `http://localhost:8080`.
 
+## `./dojo stop --with-repos`, rest of item 3.6 (2026-11-24)
+
+- `./dojo stop --with-repos` (and `down`) also copies every Forgejo repository, the org's and each student's, with full history, into `results/<run>/repos/<owner>/<name>.git`, and records the count in `manifest.json`. It streams one `tar` out of the git server's own container (no Forgejo credentials) and extracts it with Python's `data` filter, so a hostile member cannot write outside the folder. It runs last; a failure is noted under `skipped` and never costs the rest or blocks the stop. Off by default because it can be large.
+- Tested: 6 new unit tests (layout, the exact `exec` command, an escaping member, a tar failure, flag off and on, failure noted). Live: `git-fundamentals --test 2 --fast`, `stop --with-repos` saved 3 repos; a saved bot repo cloned and showed the bot's merged "Release both features" PR.
+
 ## Result exports through a module hook, item 3.6 (2026-11-24)
 
 - A new `exports` kind in `extensions.json` (`id`, `label`, `upstream`, `path`, `file`, optional `timeout` and `count`), validated by `render_extensions.py` like `resets`. `./dojo stop` fetches each one as the facilitator from inside the service's own container and saves it as `results/<run>/<file>`; a failure goes under `skipped` in `manifest.json` and never blocks the stop. The engine names no module any more (`archive.py` no longer mentions feedback or achievements; `export-feedback` and `export-results` stay as module-named commands in `results.py`).

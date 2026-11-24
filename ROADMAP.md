@@ -112,7 +112,6 @@ Finish before the next `--env prod` class. Settle 3.1's decision first: it decid
 | 3.3 | Per-pod netlab management network (2026-11-08 item 2) | M | S1's full fix: a pod with root and NET_ADMIN can still ARP-spoof on the flat `netlab_mgmt` network (host keys now stop the impersonation, not the reach) |
 | 3.4 | P15 `doctor --live`: pre-class readiness check | M | Design in [`docs/reviews/2026-10-18.md`](docs/reviews/2026-10-18.md) (P13/P15); not built |
 | 3.5 | P10 failure and recovery; P12 fresh-machine bootstrap | M each | Kill services mid-class and interrupt start/stop/restart: do students recover? `setup.sh`/`setup.ps1` on a clean machine. Briefs in the 2026-10-18 review |
-| 3.6 | **E9** Student repos in the stop archive (`--with-repos`) **[engine]** | S | The exports hook is built (RELEASES). Left: save the Forgejo org and the students' repos into `results/<run>/repos/` (`git clone --mirror` through the bootstrap network, or Forgejo's archive API), behind a `--with-repos` flag since it can be large; and the achievements auto-add in `engine/dojo/envfiles.py:185` could become a pack setting |
 
 ## Phase 4: engine structure and hygiene
 
@@ -155,40 +154,6 @@ need **[engine]** approval first. Shared rules: work on a feature branch; run bo
   - The facilitator's terminal opens only from the admin origin.
   - `--env home` with the real hostnames **[you]**.
 - **Done when:** the P8 pass works on the admin origin and the cross-origin checks fail as they should; `docs/security.md` is updated.
-
-#### E9: student repos in the stop archive (3.6, what is left)
-
-- **Where:** `engine/dojo/archive.py` (a repos step in `save()`), `engine/dojo/stop.py` and `cli.py` (a `--with-repos` flag on `stop`).
-- **Change:** list the org's repos (Forgejo API through the git-server's internal address) and mirror or archive each into `results/<run>/repos/<user>/`; a failure is noted under `skipped` and never blocks the stop.
-- **Test:** unit tests with a fake listing; live `git-fundamentals --test 2 --fast`, then `./dojo stop --with-repos`: `repos/` holds each bot's work.
-- **Done when:** `repos/` appears only with the flag and the stop still saves everything else.
-
-#### E10: split `workspace-control.py` (4.1)
-
-- **Where:** `engine/web-terminal/workspace-control.py` (1124 lines); its Dockerfile `COPY`; `engine/web-terminal/tests/`.
-- **Change:** a package `engine/web-terminal/workspace_control/` with:
-  - `config.py`: env, ports, names;
-  - `ports.py`: `_listeners`, `port_open`, the squat sweep;
-  - `namespaces.py`: holder, `ns_prefix`, userns;
-  - `sessions.py`: tmux/zellij, `start_watch`, `list_sessions`;
-  - `workspaces.py`: `start_workspace`, `stop_user`, the locks;
-  - `accounts.py`: reset, hooks, `remove_account_files`;
-  - `reaper.py`: `_TrackedPopen`, `reap_children`;
-  - `http.py`: the Handler.
-- Keep `workspace-control.py` as a 10-line entry point, so the image's command and healthcheck don't change. Move code only, no edits: do the comment cleanup (4.4) in a separate commit.
-- **Test:** the existing tests (`engine/web-terminal/tests/`) import from the new modules; add an import smoke test. Live: `git-fundamentals --test 3 --fast` and the zellij flavor (`--terminal zellij --test 2 --fast`): bots done, watch tile and reset work, no zombies (`ps -eo stat | rg Z` in the terminal).
-- **Done when:** both stacks pass and no new module is over about 300 lines.
-
-#### E12: move the git-fundamentals bot steps out of the engine (4.5)
-
-- **Where:** `engine/web-terminal/bot-runner.sh` (`step_lab1_*` to `step_lab5_*`, about lines 410-612, and the default `STEPS` arrays by `PERSONA` at about 640-675); `workshops/git-fundamentals/content/bots/steps.sh` (already extends them: it renames `step_lab4_history` at line 124).
-- **Keep in the engine** (other packs call them): `step_ensure_clone` (dns-as-code, tofu-basics, vault-fundamentals, srx-terraform), `step_sync_main`, `step_wrap_round` (most packs), `cleanup_merged_pr`, `branch_name`, `run_cmd`, `think`, `narrate`, state and the portal login.
-- **Move:** the five `step_labN_*` functions and the persona `STEPS` arrays into the git-fundamentals `steps.sh`. Then drop the `eval "$(declare -f ...)"` rename there; the pack defines its own `step_lab4_history` directly.
-- **New engine default:** with no `BOT_STEPS_FILE`, run no lab steps: say "no bot steps for this workshop" and write `~/.dojo-bot-done`.
-  - **ctf-defend has no `steps.sh`** and today falls back to the git-fundamentals steps. Check whether that's intended. If so, give it its own `steps.sh` that sources git-fundamentals'; if not, the new default fixes it.
-  - Also check `rg -n step_lab workshops modules` for any other caller.
-- **Test:** `bash -n` on both files, shellcheck (CI). Live: `git-fundamentals --test 3 --fast` (all three personas finish round 1 with the same steps as before; compare the bot logs' step names) and one other pack that uses `step_ensure_clone` (`dns-as-code --test 2 --fast`).
-- **Done when:** both stacks pass and `bot-runner.sh` is under about 500 lines.
 
 ## Phase 5: live checks and browser passes
 
