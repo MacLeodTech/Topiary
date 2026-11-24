@@ -311,6 +311,63 @@ def hook(**over):
     return h
 
 
+def export(**over):
+    e = {"id": "fb", "label": "Feedback answers", "upstream": "cloud-api:8080",
+         "path": "/feedback-admin/api/export?format=json", "file": "feedback.json"}
+    e.update(over)
+    return e
+
+
+class ExportTests(unittest.TestCase):
+    def test_good_export_defaults_timeout(self):
+        out, _ = run_merge(manifest(exports=[export()]))
+        self.assertEqual(out["exports"], [{"source": "00-test.json", "id": "fb", "label": "Feedback answers",
+                                           "upstream": "cloud-api:8080", "path": "/feedback-admin/api/export?format=json",
+                                           "file": "feedback.json", "timeout": 30}])
+
+    def test_count_names_a_top_level_key_of_a_json_export(self):
+        out, _ = run_merge(manifest(exports=[export(count="answers")]))
+        self.assertEqual(out["exports"][0]["count"], "answers")
+        for bad in ("a.b", "", 3, "x y"):
+            with self.assertRaises(rx.ManifestError, msg=repr(bad)):
+                run_merge(manifest(exports=[export(count=bad)]))
+        with self.assertRaises(rx.ManifestError):   # a CSV has no keys to count
+            run_merge(manifest(exports=[export(file="feedback.csv", count="answers")]))
+
+    def test_file_must_be_one_flat_name_with_a_known_extension(self):
+        for bad in ("../x.json", "a/b.json", "x.exe", "X.json", ".json", "x", "x.json ", 5, "a" * 70 + ".json"):
+            with self.assertRaises(rx.ManifestError, msg=repr(bad)):
+                run_merge(manifest(exports=[export(file=bad)]))
+        for good in ("a.csv", "scores-2.json", "notes.txt"):
+            run_merge(manifest(exports=[export(file=good)]))
+
+    def test_two_exports_cannot_save_to_the_same_file(self):
+        with self.assertRaisesRegex(rx.ManifestError, "already saved"):
+            run_merge(manifest(exports=[export(id="a"), export(id="b")]))
+
+    def test_path_is_a_plain_get_path(self):
+        for bad in ("api/x", "//host/x", "/a/../b", "/x y", "/x?a=b c", "/x#f", "http://x/y", 7, "/"):
+            with self.assertRaises(rx.ManifestError, msg=repr(bad)):
+                run_merge(manifest(exports=[export(path=bad)]))
+        run_merge(manifest(exports=[export(path="/api/state")]))
+
+    def test_upstream_must_be_in_this_run_and_ids_are_unique(self):
+        for bad in ("nope:8080", "cloud-api", "http://cloud-api:8080"):
+            with self.assertRaises(rx.ManifestError, msg=bad):
+                run_merge(manifest(exports=[export(upstream=bad)]))
+        with self.assertRaisesRegex(rx.ManifestError, "already used"):
+            run_merge(manifest(exports=[export()]), manifest(exports=[export(file="other.json")]))
+
+    def test_timeout_range(self):
+        for bad in (0, 121, 2.5, "30", True):
+            with self.assertRaises(rx.ManifestError, msg=repr(bad)):
+                run_merge(manifest(exports=[export(timeout=bad)]))
+
+    def test_an_export_adds_no_token_and_no_route(self):
+        out, _ = run_merge(manifest(exports=[export()]))
+        self.assertEqual((out["routes"], rx.upstream_tokens(out["routes"], "m")), ([], {}))
+
+
 class ResetHookTests(unittest.TestCase):
     def test_good_hook_defaults_timeout(self):
         out, _ = run_merge(manifest(resets=[hook()]))

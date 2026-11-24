@@ -27,11 +27,20 @@ class Roster(unittest.TestCase):
 
 class InputRules(unittest.TestCase):
     def test_accept_replies_then_drop_new_inbound_on_the_mgmt_interface_only(self):
-        lines = fw.build_input_rules("eth1").splitlines()
+        lines = fw.build_input_rules(["eth1"]).splitlines()
         self.assertEqual(lines[0:2], ["*filter", ":NETLAB_INPUT - [0:0]"])
         self.assertEqual(lines[2], "-A NETLAB_INPUT -i eth1 -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT")
         self.assertEqual(lines[3], "-A NETLAB_INPUT -i eth1 -j DROP")
         self.assertEqual(lines[-1], "COMMIT")
+
+
+class InputRulesForManyPods(unittest.TestCase):
+    def test_every_pod_interface_gets_its_own_accept_and_drop(self):
+        lines = fw.build_input_rules(["eth1", "eth2", "eth3"]).splitlines()
+        self.assertEqual(sum("-j ACCEPT" in l for l in lines), 3)
+        self.assertEqual(sum("-j DROP" in l for l in lines), 3)
+        for i in ("eth1", "eth2", "eth3"):
+            self.assertIn(f"-A NETLAB_INPUT -i {i} -j DROP", lines)
 
 
 class Rules(unittest.TestCase):
@@ -40,8 +49,8 @@ class Rules(unittest.TestCase):
 
     def test_one_return_per_account_for_its_own_block_only(self):
         lines = self.rules({1001: 1, 1002: 2})
-        self.assertIn("-A NETLAB_ISOLATION -d 10.80.1.8/29 -m owner --uid-owner 1001 -j RETURN", lines)
-        self.assertIn("-A NETLAB_ISOLATION -d 10.80.1.16/29 -m owner --uid-owner 1002 -j RETURN", lines)
+        self.assertIn("-A NETLAB_ISOLATION -d 10.80.2.0/24 -m owner --uid-owner 1001 -j RETURN", lines)
+        self.assertIn("-A NETLAB_ISOLATION -d 10.80.3.0/24 -m owner --uid-owner 1002 -j RETURN", lines)
         self.assertEqual(sum("--uid-owner 1001" in l for l in lines), 1)
         self.assertEqual(sum("--uid-owner 1002" in l for l in lines), 1)
 
@@ -53,13 +62,13 @@ class Rules(unittest.TestCase):
         returns = [i for i, l in enumerate(lines) if "-j RETURN" in l]
         self.assertEqual(len(rejects), 1)
         self.assertGreater(min(rejects), max(returns))
-        self.assertEqual(lines[rejects[0]], "-A NETLAB_ISOLATION -d 10.80.0.0/22 -j DROP")
+        self.assertEqual(lines[rejects[0]], "-A NETLAB_ISOLATION -d 10.80.0.0/16 -j DROP")
         self.assertIn("COMMIT", lines)
 
     def test_drop_covers_the_whole_management_network_only(self):
         for l in self.rules({1001: 1}):
             if "DROP" in l:
-                self.assertIn("-d 10.80.0.0/22", l)
+                self.assertIn("-d 10.80.0.0/16", l)
         # nothing allows or rejects other destinations
         self.assertFalse([l for l in self.rules({1001: 1}) if l.startswith("-A") and "-d" not in l and "uid-owner 0" not in l])
 
@@ -83,8 +92,9 @@ class Rules(unittest.TestCase):
 class AgreesWithGenerate(unittest.TestCase):
     def test_constants_match(self):
         self.assertEqual(fw.MGMT_CIDR, generate.MGMT_CIDR)
-        self.assertEqual(".".join(map(str, fw.POD_BASE[:3])) + ".", generate.MGMT_POD_BASE)
-        self.assertEqual(fw.POD_SIZE, 8)
+        self.assertEqual(".".join(map(str, fw.MGMT_NET_BASE)) + ".", generate.MGMT_NET_BASE)
+        for pod in range(32):
+            self.assertEqual(fw.pod_block(pod), generate.mgmt_cidr(pod))
 
     def test_every_node_sits_in_its_own_pods_block_and_addresses_are_unique(self):
         env = {"STUDENT_COUNT": "29", "BOT_COUNT": "2", "NETLAB_MAX_STUDENTS": "40", "STUDENT_PASSWORD_SEED": "s"}

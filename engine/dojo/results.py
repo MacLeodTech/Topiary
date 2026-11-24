@@ -57,6 +57,21 @@ def reset_student(rt: Runtime, user: str, optional: str = "") -> str:
     raise StackError(f"The allocator refused the reset (HTTP {status}{': ' + msg if msg else ''}).")
 
 
+def fetch_feedback(rt: Runtime) -> Dict[str, Any]:
+    """The feedback module's export as {"questions": ..., "answers": [...]} (for `export-feedback`)."""
+    status, doc = call(rt, "feedback", "GET", "/feedback-admin/api/export?format=json")
+    if status != 200 or not isinstance(doc, dict):
+        raise StackError(f"The feedback service refused the export (HTTP {status}).")
+    return doc
+
+
+def fetch_feedback_csv(rt: Runtime) -> str:
+    status, text = call(rt, "feedback", "GET", "/feedback-admin/api/export?format=csv")
+    if status != 200 or not isinstance(text, str):
+        raise StackError(f"The feedback service refused the export (HTTP {status}).")
+    return text
+
+
 def fetch_results(rt: Runtime) -> Dict[str, Any]:
     try:
         find_container(rt, "achievements")
